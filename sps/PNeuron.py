@@ -21,16 +21,12 @@ class PNeuron:
     def __init__(self, targets, transf_rules, output=False):
         self.nid = PNeuron.get_nid()
         PNeuron.increment_nid()
-        
         self.targets = targets
 
         self.charge = 0
-        self.refractory = 0 # can not fire or receive outside spikes between firing at t0 and spiking at to+delay
-
+        self.refractory = 0 # can not fire or receive outside spikes between firing at t0 and spiking at t0+delay
         self.transf_rules = transf_rules
-
-        # whether or not this neuron is an output one
-        self.output = output
+        self.output = output #this neuron is an output one or no
 
     def receive(self, charge):
         # only receive input if outside the refractory period
@@ -38,26 +34,28 @@ class PNeuron:
             self.charge += charge
 
     def tick(self):
-        """tick and use all available rules: fire|forget"""
+        """Tick and apply one transformation rule (either fire or consume), if possible."""
 
-        # recover from refractory period after a spike
-        if (self.refractory > 0):
+        # If the neuron is still in its refractory period, decrease the counter and skip this tick
+        if self.refractory > 0:
             self.refractory = self.refractory -1
             return None
 
-        # randomly apply either a firing or reducing rule meeting the current charge criteria
+        # In this code there is no priority - randomly shuffle the indices of the available transformation rules
+        # This introduces nondeterminism in which rule is selected if multiple match
         idxs = list(range(len(self.transf_rules)))
         random.shuffle(idxs)
+
+        # Iterate through the shuffled rules and apply the first one that is valid for the current charge
         for idx in idxs:
             rule = self.transf_rules[idx]
-            #print("checking rule ", idx)
             if rule.check(self.charge):
+                # rule.target > 0 indicates this is a firing rule (spike sent to targets)
+                # rule.target <= 0 probably means it's a forgetting or charge-reducing rule
                 if rule.target > 0:
                     return self.fire(rule)
                 else:
                     return self.consume(rule)
-
-        return None
 
     def fire(self, rule):
         self.charge = self.charge - rule.source

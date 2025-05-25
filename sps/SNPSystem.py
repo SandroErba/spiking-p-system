@@ -26,10 +26,8 @@ class SNPSystem:
 
     def start(self):
         """start sending and receiving spikes"""
-
         # init history
         self.init_history()
-
         # keep on ticking until output condition is met or max number of ticks is exceeded
         while True:
             if not self.tick():
@@ -37,6 +35,7 @@ class SNPSystem:
 
     def result(self):
         """system output as number of total ticks between 1st and 2nd spike of the output neuron"""
+        # TODO We need to modify this, we don't want a number as output
         return self.output[1] - self.output[0]
 
     def tick(self):
@@ -46,10 +45,10 @@ class SNPSystem:
         # evolve each neuron
         for neuron in self.neurons:
             used_rule = neuron.tick()
-
             # fire event
             if used_rule and used_rule.target > 0:
                 #print("--fire: ", neuron.nid)
+                # Generate a firing event that will be received in the future, if it has delay
                 self.spike_events[(self.t_step + used_rule.delay) % self.max_delay].append(SpikeEvent(neuron.nid, used_rule.target, neuron.targets))
                 # record output if neuron belongs to output
                 if neuron.output:
@@ -57,12 +56,11 @@ class SNPSystem:
 
             self.history.record_rule(neuron, used_rule)
 
-
         # consume current spiking events
         for spike_event in self.spike_events[self.t_step % self.max_delay]:
             for idx in spike_event.targets:
                 #print("--received: ", self.neurons[idx].nid, idx)
-                self.neurons[idx].receive(spike_event.charge)
+                self.neurons[idx].receive(spike_event.charge) # A neuron can receive more than 1 spike at time only from different input neurons
                 self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
 
         # clear current spiking events
@@ -74,6 +72,7 @@ class SNPSystem:
         # exit if closing condition is met, otherwise continue
         return False if (len(self.output) == 2 or self.t_step > self.max_steps) else True
 
+    # TODO Deletable examples, we need to create a interface to do this job
     def construct_scenario_fig2(self, k):
         rule0 = [TransformationRule(div=1, mod=0, source=1, target=1, delay=2)]
         pn0 = PNeuron(targets=[1], transf_rules=rule0)
@@ -89,6 +88,7 @@ class SNPSystem:
 
         self.neurons += [pn0, pn1, pn2]
 
+    # See above
     def construct_scenario_finite_set(self, k):
         rules = [TransformationRule(div=1, mod=0, source=1, target=1, delay=i) for i in range(1, k)]
         rules.append(TransformationRule(div=2, mod=0, source=1, target=1, delay=0))

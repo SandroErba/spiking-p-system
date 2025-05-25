@@ -19,5 +19,5 @@ def compute_finite_set(k):
     # output is value from the {1,2, ...k} set
     print("input: ", k, "result", snps.result())
 
-compute_fig2(k=2)
-#compute_finite_set(k = 10)
+#compute_fig2(k=2)
+compute_finite_set(k = 10)
