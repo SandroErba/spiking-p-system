@@ -18,15 +18,14 @@ class PNeuron:
     def increment_nid():
         PNeuron.nid += 1
 
-    def __init__(self, targets, transf_rules, output=False):
+    def __init__(self, charge, targets, transf_rules, neuron_type=1):
         self.nid = PNeuron.get_nid()
         PNeuron.increment_nid()
         self.targets = targets
-
-        self.charge = 0
+        self.charge = charge
         self.refractory = 0 # can not fire or receive outside spikes between firing at t0 and spiking at t0+delay
         self.transf_rules = transf_rules
-        self.output = output #this neuron is an output one or no
+        self.neuron_type = neuron_type #can be 0 (input) - 1 (intermediate) - 2 (output)
 
     def receive(self, charge):
         # only receive input if outside the refractory period
@@ -65,3 +64,19 @@ class PNeuron:
     def consume(self, rule):
         self.charge = self.charge - rule.source
         return rule
+
+    def __str__(self):
+        type_map = {0: "Input", 1: "Intermediate", 2: "Output"}
+        neuron_type = type_map.get(getattr(self, "neuron_type", 1), "Unknown")
+
+        info = f"Neuron ID: {getattr(self, 'nid', '?')}\n"
+        info += f"  Type: {neuron_type}\n"
+        info += f"  Initial Charge: {self.charge}\n"
+        info += f"  Output Targets: {self.targets}\n"
+        info += f"  Rules ({len(self.transf_rules)}):\n"
+
+        for i, rule in enumerate(self.transf_rules):
+            info += f"    Rule {i+1}: div={rule.div}, mod={rule.mod}, source={rule.source}, target={rule.target}, delay={rule.delay}\n"
+
+        return info
+

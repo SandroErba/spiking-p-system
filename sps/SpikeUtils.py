@@ -31,7 +31,7 @@ class TransformationRule:
 
     def check(self, charge):
         # with div and mod is possible to manage odd, even, and all value condition for "charge"
-        return charge > 0 and charge % self.div == self.mod
+        return charge >= self.source and charge % self.div == self.mod
 
     def exec(self, charge):
         return charge -self.source

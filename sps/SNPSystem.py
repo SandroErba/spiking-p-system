@@ -1,6 +1,7 @@
 """Spiking Neural P System"""
 from .PNeuron import PNeuron
 from .SpikeUtils import SpikeEvent, TransformationRule, History
+import csv
 
 class SNPSystem:
     """Spiking Neural P System"""
@@ -35,64 +36,96 @@ class SNPSystem:
 
     def result(self):
         """system output as number of total ticks between 1st and 2nd spike of the output neuron"""
-        # TODO We need to modify this, we don't want a number as output
         return self.output[1] - self.output[0]
 
     def tick(self):
         """at each time step, first evolve and then receive spikes, cant do both in the same step, refractory will prevent it"""
         self.history.add_new_tick()
 
+        any_rule_applied = False
         # evolve each neuron
         for neuron in self.neurons:
             used_rule = neuron.tick()
+            if used_rule:
+                any_rule_applied = True
+
             # fire event
             if used_rule and used_rule.target > 0:
-                #print("--fire: ", neuron.nid)
                 # Generate a firing event that will be received in the future, if it has delay
                 self.spike_events[(self.t_step + used_rule.delay) % self.max_delay].append(SpikeEvent(neuron.nid, used_rule.target, neuron.targets))
                 # record output if neuron belongs to output
-                if neuron.output:
+                if neuron.neuron_type == 2:
                     self.output.append(self.t_step)
-
             self.history.record_rule(neuron, used_rule)
+
+        # spike train for neuron 0
+        input_spike = False
+        if hasattr(self, "spike_train"):
+            if self.t_step < len(self.spike_train):
+                input_spike = True
+                if self.spike_train[self.t_step] == 1:
+                    for neuron in self.neurons:
+                        if neuron.neuron_type == 0:
+                            neuron.charge += 1
+                            self.history.record_incoming(neuron, 1, "input")
 
         # consume current spiking events
         for spike_event in self.spike_events[self.t_step % self.max_delay]:
             for idx in spike_event.targets:
-                #print("--received: ", self.neurons[idx].nid, idx)
                 self.neurons[idx].receive(spike_event.charge) # A neuron can receive more than 1 spike at time only from different input neurons
                 self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
 
+        if self.max_steps == self.t_step:
+            print("Time limit reached, the computation halts")
+
+        #check for halting computation
+        any_in_delay = any(n.refractory > 0 for n in self.neurons)
+        any_spike_in_transit = any(self.spike_events[i] for i in range(self.max_delay))
+
+        if not any_rule_applied and not any_in_delay and not any_spike_in_transit and not input_spike and self.t_step > 1:
+            print("System halts at tick", self.t_step)
+            return False
         # advance time
         self.t_step += 1
-
         # exit if closing condition is met, otherwise continue
         return False if (len(self.output) == 2 or self.t_step > self.max_steps) else True
 
-    # TODO Deletable examples, we need to create a interface to do this job
-    def construct_scenario_fig2(self, k):
-        rule0 = [TransformationRule(div=1, mod=0, source=1, target=1, delay=2)]
-        pn0 = PNeuron(targets=[1], transf_rules=rule0)
-        pn0.charge = 2 * k - 1
+    def load_neurons_from_csv(self, filename):
+        """Read a CSV file and create the corrisponding SNPS"""
+        neurons = []
+        with open(filename, newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            next(reader)
+            for row in reader:
+                if not any(row):
+                    break
 
-        rule1 = [TransformationRule(div=k, mod=0, source=k, target=1, delay=1)]
-        pn1 = PNeuron(targets=[2], transf_rules=rule1)
-        pn1.charge = 0
+                initial_charge = int(row[1])
+                targets = eval(row[2])  # example: "[1,3]" → [1,3]
+                neuron_type = int(row[3])
 
-        rule2 = [TransformationRule(div=1, mod=0, source=1, target=1, delay=0)]
-        pn2 = PNeuron(targets=[], transf_rules=rule2, output=True)
-        pn2.charge = 1
+                # Read rules
+                transf_rules = []
+                for cell in row[4:]:
+                    if not cell.strip():
+                        break
+                    try:
+                        values = eval(cell)
+                        if values[0] == 0:
+                            values[0] = 999
+                        if len(values) != 5:
+                            raise ValueError(f"Wrong rules: {cell}")
+                        rule = TransformationRule(values[0], values[1],values[2],values[3],values[4])
+                        transf_rules.append(rule)
+                    except Exception as e:
+                        print(f"Error during rule reading {cell}: {e}")
 
-        self.neurons += [pn0, pn1, pn2]
-
-    # See above
-    def construct_scenario_finite_set(self, k):
-        rules = [TransformationRule(div=1, mod=0, source=1, target=1, delay=i) for i in range(1, k)]
-        rules.append(TransformationRule(div=2, mod=0, source=1, target=1, delay=0))
-        pn0 = PNeuron(targets=[], transf_rules=rules, output=True)
-        pn0.charge = 2
-
-        self.neurons += [pn0]
+                # Create neuron
+                neuron = PNeuron(charge = initial_charge, targets=targets, transf_rules=transf_rules, neuron_type=neuron_type)
+                print(neuron)
+                neurons.append(neuron)
+        self.neurons = neurons
+        return neurons
