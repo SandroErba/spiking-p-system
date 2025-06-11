@@ -5,10 +5,11 @@ import csv
 
 class SNPSystem:
     """Spiking Neural P System"""
-    def __init__(self, max_delay, max_steps):
+    def __init__(self, max_delay, max_steps, input_type):
         # init time step, history
         self.t_step = 0
         self.max_steps = max_steps
+        self.input_type = input_type #generative, binary_spike_train, 8x8_spike_train
         self.history = None
 
         # init circular future spiking events based on max_delay
@@ -58,16 +59,23 @@ class SNPSystem:
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
-        # spike train for neuron 0
         input_spike = False
         if hasattr(self, "spike_train"):
             if self.t_step < len(self.spike_train):
                 input_spike = True
-                if self.spike_train[self.t_step] == 1:
+                if self.input_type == "8x8_spike_train": # You have some 8x8 images as input
+                    input_vector = self.spike_train[self.t_step] # input_vector should be a list with len = input neurons
+                    for i, neuron in enumerate(self.neurons):
+                        if neuron.neuron_type == 0:  # neurone input
+                            if input_vector[i] == 1:
+                                neuron.charge += 1
+                                self.history.record_incoming(neuron, 1, "input")
+                if (self.input_type == "binary_spike_train") and self.spike_train[self.t_step] == 1: # You have one spike train for all the input neurons
                     for neuron in self.neurons:
                         if neuron.neuron_type == 0:
                             neuron.charge += 1
                             self.history.record_incoming(neuron, 1, "input")
+
 
         # consume current spiking events
         for spike_event in self.spike_events[self.t_step % self.max_delay]:
@@ -125,7 +133,7 @@ class SNPSystem:
 
                 # Create neuron
                 neuron = PNeuron(charge = initial_charge, targets=targets, transf_rules=transf_rules, neuron_type=neuron_type)
-                print(neuron)
+                #print(neuron)
                 neurons.append(neuron)
         self.neurons = neurons
         return neurons
