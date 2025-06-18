@@ -62,7 +62,8 @@ class PNeuron:
         return rule
 
     def consume(self, rule):
-        self.charge = self.charge - rule.source
+        #self.charge = self.charge - rule.source
+        self.charge = 0
         return rule
 
     def __str__(self):

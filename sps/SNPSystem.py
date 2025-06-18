@@ -63,10 +63,10 @@ class SNPSystem:
         if hasattr(self, "spike_train"):
             if self.t_step < len(self.spike_train):
                 input_spike = True
-                if self.input_type == "8x8_spike_train": # You have some 8x8 images as input
-                    input_vector = self.spike_train[self.t_step] # input_vector should be a list with len = input neurons
+                if self.input_type == "image_spike_train": # If you have an array of spike trains (images) as input
+                    input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
                     for i, neuron in enumerate(self.neurons):
-                        if neuron.neuron_type == 0:  # neurone input
+                        if neuron.neuron_type == 0:
                             if input_vector[i] == 1:
                                 neuron.charge += 1
                                 self.history.record_incoming(neuron, 1, "input")
