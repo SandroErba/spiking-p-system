@@ -5,6 +5,7 @@ import csv
 
 class SNPSystem:
     """Spiking Neural P System"""
+
     def __init__(self, max_delay, max_steps, input_type):
         # init time step, history
         self.t_step = 0
@@ -18,6 +19,11 @@ class SNPSystem:
 
         # init neuron container
         self.neurons = []
+
+        # record energy used
+        self.firing_applied = 0
+        self.forgetting_applied = 0
+        self.spike_fired = 0
 
         # record output
         self.output = []
@@ -69,11 +75,13 @@ class SNPSystem:
                         if neuron.neuron_type == 0:
                             if input_vector[i] == 1:
                                 neuron.charge += 1
+                                self.spike_fired += 1
                                 self.history.record_incoming(neuron, 1, "input")
                 if (self.input_type == "binary_spike_train") and self.spike_train[self.t_step] == 1: # You have one spike train for all the input neurons
                     for neuron in self.neurons:
                         if neuron.neuron_type == 0:
                             neuron.charge += 1
+                            self.spike_fired += 1
                             self.history.record_incoming(neuron, 1, "input")
 
 
@@ -86,23 +94,23 @@ class SNPSystem:
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
 
-        if self.max_steps == self.t_step:
-            print("Time limit reached, the computation halts")
-
         #check for halting computation
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
         any_spike_in_transit = any(self.spike_events[i] for i in range(self.max_delay))
-
         if not any_rule_applied and not any_in_delay and not any_spike_in_transit and not input_spike and self.t_step > 1:
             print("System halts at tick", self.t_step)
-            return False
+            return self.end_computation()
+
         # advance time
         self.t_step += 1
         # exit if closing condition is met, otherwise continue
-        return False if (len(self.output) == 2 or self.t_step > self.max_steps) else True
+        if len(self.output) == 2 or self.t_step > self.max_steps:
+            return self.end_computation()
+        else:
+            return True
 
     def load_neurons_from_csv(self, filename):
-        """Read a CSV file and create the corrisponding SNPS"""
+        """Read a CSV file and create the corresponding SNPS"""
         neurons = []
         with open(filename, newline='') as csvfile:
             reader = csv.reader(csvfile)
@@ -132,8 +140,18 @@ class SNPSystem:
                         print(f"Error during rule reading {cell}: {e}")
 
                 # Create neuron
-                neuron = PNeuron(charge = initial_charge, targets=targets, transf_rules=transf_rules, neuron_type=neuron_type)
+                neuron = PNeuron(snp_system=self, charge = initial_charge, targets=targets, transf_rules=transf_rules, neuron_type=neuron_type)
                 #print(neuron)
                 neurons.append(neuron)
         self.neurons = neurons
         return neurons
+
+    def end_computation(self):
+        """For more info, see chapter 5.5 of 'Beyond classification: directly training spiking
+        neural networks for semantic segmentation'."""
+        #I have to calculate the joule costs with the operations made
+        print(self.firing_applied, " firing rules applied")
+        print(self.forgetting_applied, " forgetting rules applied")
+        print(self.spike_fired, " spike generated")
+        return False
+

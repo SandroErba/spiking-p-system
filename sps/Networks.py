@@ -1,3 +1,5 @@
+from fileinput import filename
+
 from sps.SNPSystem import SNPSystem
 import numpy as np
 from sklearn.datasets import fetch_openml
@@ -5,6 +7,7 @@ import matplotlib.pyplot as plt
 import medmnist
 from medmnist import INFO
 from skimage.measure import block_reduce
+import csv
 
 def compute_divisible_3():
     """SNPS that classify if a number is divisible by 3
@@ -14,6 +17,9 @@ def compute_divisible_3():
     snps.spike_train = [1, 0, 0, 0, 0, 0, 0, 1]  # example of an input spike train that create halting computation
     snps.start()
     print(snps.history)
+    with open("historyDiv3.txt", "w", encoding="utf-8") as f:
+        f.write(str(snps.history))
+
 
 
 def compute_gen_even():
@@ -60,7 +66,7 @@ def binarize_mnist_image(img_flat, target_size=(8, 8), threshold=128):
 
 def compute_blood_mnist():
     '''See BloodMNIST at https://medmnist.com/ '''
-    input_number = 1
+    input_number = 2
     info = INFO['bloodmnist']
     DataClass = getattr(medmnist, info['python_class'])
     dataset = DataClass(split='train', download=True)
@@ -69,16 +75,19 @@ def compute_blood_mnist():
     spike_train = []
     for img in imgs:
         ch_r, ch_g, ch_b = binarize_rgb_image(img)
-        spike_train.extend([ch_r, ch_g, ch_b])
+        spike_train.extend([ch_r, ch_g, ch_b]) #TODO pick only first channel for a good training
 
     spike_train = np.array(spike_train)  # shape (3 * input_number, 784)
     show_rgb_from_spike_train(spike_train, labels) # show the bynarized images
-    snps = SNPSystem(5, 3, 'image_spike_train') #TODO attenzione ai max step
+    snps = SNPSystem(5, 6, 'image_spike_train') #TODO attenzione ai max step
     snps.load_neurons_from_csv("neurons784image.csv")
     snps.spike_train = spike_train
 
-    snps.start() #TODO try the code
-    print(snps.history)
+    snps.start()
+    #print(snps.history)
+    with open("history784image.html", "w", encoding="utf-8") as f:
+        f.write(f"<pre>{str(snps.history)}</pre>")
+
 
     plt.figure(figsize=(input_number, 4))
     for i in range(input_number):
@@ -91,7 +100,7 @@ def compute_blood_mnist():
 
 def binarize_rgb_image(img_rgb, threshold=128):
     # From [0,255] to [0,1]
-    binary_channels = (img_rgb > threshold).astype(int)
+    binary_channels = 1 - (img_rgb > threshold).astype(int)
     downsampled = []
     for c in range(3):
         ch = binary_channels[:, :, c]
@@ -115,3 +124,50 @@ def show_rgb_from_spike_train(spike_train, labels):
         plt.title(f"Label: {labels[i]}")
     plt.tight_layout()
     plt.show()
+
+
+def create_blood_network_csv(filename="neurons784image.csv"):
+    with open(filename, mode='w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
+
+        # Layer 1: Input RGB (784 neurons) from 28x28 to 7x7 using 4x4 blocks
+        for neuron_id in range(784):
+            row = neuron_id // 28
+            col = neuron_id % 28
+            block_row = row // 4
+            block_col = col // 4
+            block_id = block_row * 7 + block_col
+            output_neuron = 784 + block_id
+
+            writer.writerow([
+                neuron_id,            # id
+                0,                    # initial_charge
+                f"[{output_neuron}]", # output_targets
+                0,                    # neuron_type
+                "[0,1,1,1,0]"         # firing rule
+            ])
+
+        # Layer 2: Pooling (49 neurons) - id 784–832
+        for neuron_id in range(784, 784 + 49):
+            writer.writerow([
+                neuron_id,            # id
+                0,                    # initial_charge
+                "[833, 834, 835, 836, 837, 838, 839, 840]", # output_targets
+                1,                    # neuron_type
+                "[-1,0,2,1,0]",       # firing rule if c >= 2 TODO così non le spara tutte e restano in memoria tra gli steps
+                "[-1,0,1,0,0]"        # forgetting rule if didn't fire
+            ])
+
+        # Layer 3: Output (8 neurons) - id 833–840
+        for neuron_id in range(833, 841):
+            label = neuron_id - 833
+            writer.writerow([
+                neuron_id,            # id
+                0,                    # initial_charge
+                "[]", # output_targets
+                2,                    # neuron_type
+                "[1,0,0,0,0]"         # forgetting rule
+            ])
+
+    print(f"Created {filename} with 841 neurons")

@@ -18,8 +18,9 @@ class PNeuron:
     def increment_nid():
         PNeuron.nid += 1
 
-    def __init__(self, charge, targets, transf_rules, neuron_type=1):
+    def __init__(self, snp_system, charge, targets, transf_rules, neuron_type=1):
         self.nid = PNeuron.get_nid()
+        self.snp_system = snp_system
         PNeuron.increment_nid()
         self.targets = targets
         self.charge = charge
@@ -31,6 +32,7 @@ class PNeuron:
         # only receive input if outside the refractory period
         if self.refractory == 0:
             self.charge += charge
+            self.snp_system.spike_fired += 1
 
     def tick(self):
         """Tick and apply one transformation rule (either fire or consume), if possible."""
@@ -57,13 +59,18 @@ class PNeuron:
                     return self.consume(rule)
 
     def fire(self, rule):
-        self.charge = self.charge - rule.source
+        if rule.div != -1:
+            self.charge = self.charge - rule.source
+        else:
+            self.charge = 0
         self.refractory = rule.delay
+        self.snp_system.firing_applied += 1
         return rule
 
     def consume(self, rule):
         #self.charge = self.charge - rule.source
         self.charge = 0
+        self.snp_system.forgetting_applied += 1
         return rule
 
     def __str__(self):

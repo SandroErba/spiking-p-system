@@ -21,6 +21,9 @@ class TransformationRule:
         - value = 0, forgetting rule
         - value = x, firing rule to x neurons
     # source is always substracted from current charge
+
+    # div = 0 become 999, means firing when charge == mod
+    # div = -1 fire always and consume all the charge, if charge >= source. mod is useless
     """
     def __init__(self, div, mod, source, target, delay):
         self.div = div
@@ -31,10 +34,13 @@ class TransformationRule:
 
     def check(self, charge):
         # with div and mod is possible to manage odd, even, and all value condition for "charge"
-        return charge >= self.source and charge % self.div == self.mod
+        if self.div != -1:
+            return charge >= self.source and charge % self.div == self.mod
+        else: #managing consuming rules for layer 2
+            return charge >= self.source
 
     def exec(self, charge):
-        return charge -self.source
+        return charge - self.source
 
     def __str__(self):
         # Build the condition part of the rule, e.g., "2a+1" if div=2 and mod=1
