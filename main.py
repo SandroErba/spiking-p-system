@@ -7,11 +7,16 @@ Remember: a neuron has rules of type E/r^x->a. E is a regular expression that sh
 the rule consumes x spikes, or all the spikes if x is no defined. We use div and mod to describe E, and source is x.
 For the rules that want exact numbers, not regulars expressions, we are using div = k as "large number"
 '''
-from sps import Networks
+from sps import MedMnist
 
-Networks.create_blood_network_csv() # create the SNPS with 841 neurons for medmnist classification
-Networks.compute_blood_mnist()
+#MedMnist.create_blood_network_csv() # create the SNPS with 841 neurons for medmnist classification
+MedMnist.rules_train_rgb_blood_mnist()
 #Networks.compute_divisible_3()
+
+# - step 0: 1° immagine spara, layer 1 riceve 1°
+# - step 1: layer 1 legge 2° immagine e spara la 1°, layer 2 riceve spike 1° immagine
+# - step 2: layer 1 legge 3° immagine e spara la 2°, layer 2 riceve la 2° e spara la 1°, layer 3 riceve la 1°
+# - step 3: layer 1 legge 4° immagine e spara la 3°, layer 2 riceve la 3° e spara la 2°, layer 3 riceve la 2° e spara output della 1°
 
 # TODO algoritmo doppio: si alzano/abbassano pesi di chi spara per ogni classificazione,
     # TODO e si alzano/abbassano rules per neuroni che sparano tanto/poco.

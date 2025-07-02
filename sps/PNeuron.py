@@ -45,7 +45,7 @@ class PNeuron:
         # In this code there is no priority - randomly shuffle the indices of the available transformation rules
         # This introduces nondeterminism in which rule is selected if multiple match
         idxs = list(range(len(self.transf_rules)))
-        random.shuffle(idxs)
+        #random.shuffle(idxs) #TODO deleted for prioritize firing rules
 
         # Iterate through the shuffled rules and apply the first one that is valid for the current charge
         for idx in idxs:
@@ -65,6 +65,9 @@ class PNeuron:
             self.charge = 0
         self.refractory = rule.delay
         self.snp_system.firing_applied += 1
+        if 783 < self.nid < 833:
+            self.snp_system.layer_2_firing_counts[self.nid - 784] += 1
+            print("added a fire in neuron ", self.nid)
         return rule
 
     def consume(self, rule):

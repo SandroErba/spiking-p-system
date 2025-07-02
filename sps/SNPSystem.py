@@ -25,6 +25,9 @@ class SNPSystem:
         self.forgetting_applied = 0
         self.spike_fired = 0
 
+        # record firing of layer 2 for the training phase
+        self.layer_2_firing_counts = 0
+
         # record output
         self.output = []
 
