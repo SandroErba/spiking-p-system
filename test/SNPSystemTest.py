@@ -63,7 +63,6 @@ class SNPSystemTest(unittest.TestCase):
         self.assertEqual(snps.tick(), False)
 
         self.assertEqual(len(snps.output), 2)
-        self.assertEqual(snps.result(), 6)
 
 if __name__ == '__main__':
     unittest.main()

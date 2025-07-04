@@ -9,9 +9,8 @@ For the rules that want exact numbers, not regulars expressions, we are using di
 '''
 from sps import MedMnist
 
-#MedMnist.create_blood_network_csv() # create the SNPS with 841 neurons for medmnist classification
-MedMnist.rules_train_rgb_blood_mnist()
-#Networks.compute_divisible_3()
+#MedMnist.blood_SNPsystem_csv() # create the SNPS with 841 neurons for medmnist classification
+MedMnist.compute_blood_mnist(100, "synapses train")
 
 # - step 0: 1° immagine spara, layer 1 riceve 1°
 # - step 1: layer 1 legge 2° immagine e spara la 1°, layer 2 riceve spike 1° immagine
@@ -20,9 +19,12 @@ MedMnist.rules_train_rgb_blood_mnist()
 
 # TODO algoritmo doppio: si alzano/abbassano pesi di chi spara per ogni classificazione,
     # TODO e si alzano/abbassano rules per neuroni che sparano tanto/poco.
-    # prima sistemo i valori di firing delle regole, così non faccio un training inutile sulle sinapsi
-
-# devo: -dividere i tre canali altrimenti mescolo i training -costruire la matrice dei pesi 0.5 e aggiornarla.
+# IDEE: -potrei fare un segnale che parte dal centro e si diffonde finchè trova pixel, per avere un idea della grandezza
+    # -oppure un metodo per capire il contorno dell'immagine, tipo segmentazione già fatta
+    # -devo calcolare che ho già il primo strato di input, posso usarlo a mio piacere facendogli sparare verso più neuroni
+    # -potrei anche collegare a un unico neurone addetto al conteggio dei pixel, che poi spara agli output
+    
+# devo: -costruire la matrice dei pesi 0.5 e aggiornarla.
 # potrei: nei bordi mettere un numero basso di spike richiesti, tipo 2 o 3, mentre al centro devono essere alti per sparare.
 # -> per ora facciamo che spari sempre se hai 5 o più. poi le metterò dipendenti dalla zona
 # sono fully connected, ma le classificazioni sbagliate distruggono le sinapsi, mentre quelle corette le "rinforzano"

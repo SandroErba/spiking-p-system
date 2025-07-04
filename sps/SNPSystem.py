@@ -1,4 +1,7 @@
 """Spiking Neural P System"""
+import numpy as np
+from fire.test_components import Empty
+
 from .PNeuron import PNeuron
 from .SpikeUtils import SpikeEvent, TransformationRule, History
 import csv
@@ -26,10 +29,14 @@ class SNPSystem:
         self.spike_fired = 0
 
         # record firing of layer 2 for the training phase
+        self.labels = []
+        self.old_layer_2_firing_counts = 0
         self.layer_2_firing_counts = 0
+        self.layer_2_synapses = []
 
         # record output
-        self.output = []
+        self.output = [] # time between two spikes in the output neuron
+        self.output_array = np.zeros((self.max_steps, 8), dtype=int)
 
     def init_history(self):
         """init tick history based on the system's neurons"""
@@ -44,9 +51,6 @@ class SNPSystem:
             if not self.tick():
                 break
 
-    def result(self):
-        """system output as number of total ticks between 1st and 2nd spike of the output neuron"""
-        return self.output[1] - self.output[0]
 
     def tick(self):
         """at each time step, first evolve and then receive spikes, cant do both in the same step, refractory will prevent it"""
@@ -97,6 +101,30 @@ class SNPSystem:
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
 
+#---------------------
+        #TODO sistemare stampe, tunare crescita e decrescita, distruggere sinapsi e testare
+        # TODO chiedere a chatty di sistemare codice, mettendo stringhe decenti e non ripetendolo
+
+        # enter only if layer_2_synapses is instantiated
+        if isinstance(self.layer_2_synapses, np.ndarray) and self.layer_2_synapses.size > 0:
+            print("1: ", self.layer_2_firing_counts)
+            print("2: ", self.old_layer_2_firing_counts)
+
+            fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
+            fired_indices = np.where(fired_diff > 0)[0]  # index of firing neurons
+            print("4.1: ", fired_indices)
+            if fired_indices.size > 0:
+                label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step of computation
+                for idx in fired_indices:
+                    self.layer_2_synapses[label][idx] += 10 # positive reinforce
+                    for wrong_label in range(8):
+                        if wrong_label != label:
+                            self.layer_2_synapses[wrong_label][idx] -= 1 # negative penalization
+                print("6", self.layer_2_synapses)
+
+                self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
+#-----------------------
+
         #check for halting computation
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
         any_spike_in_transit = any(self.spike_events[i] for i in range(self.max_delay))
@@ -107,7 +135,7 @@ class SNPSystem:
         # advance time
         self.t_step += 1
         # exit if closing condition is met, otherwise continue
-        if len(self.output) == 2 or self.t_step > self.max_steps:
+        if self.t_step > self.max_steps:
             return self.end_computation()
         else:
             return True
