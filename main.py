@@ -10,27 +10,24 @@ For the rules that want exact numbers, not regulars expressions, we are using di
 from sps import MedMnist
 
 #MedMnist.blood_SNPsystem_csv() # create the SNPS with 841 neurons for medmnist classification
-MedMnist.compute_blood_mnist(100, "synapses train")
+#MedMnist.compute_blood_mnist(100, "compute")
+MedMnist.launch_blood(1000, 0.5)
+
+#TODO salvare il modello dopo un pruning lungo, provare G e B e unire
+# CAMBIARE TRAIN E TEST SET
+
+#TODO sistemare stampe, tunare crescita e decrescita, distruggere sinapsi e testare
+# chiedere a chatty di sistemare codice, minimizzando l'uso delle stringhe, ma senza ripetere codice
+# rende le matrici e in generale l'algoritmo scalabile, non fisso a 49 neuroni e 8 classi
+# per ribilanciare potrei, per ogni classe, tenere solo il 50% dei pesi più alti indipendentemente dal loro valore,
+# per astrarre dal numero di istanze di quella classe
 
 # - step 0: 1° immagine spara, layer 1 riceve 1°
 # - step 1: layer 1 legge 2° immagine e spara la 1°, layer 2 riceve spike 1° immagine
 # - step 2: layer 1 legge 3° immagine e spara la 2°, layer 2 riceve la 2° e spara la 1°, layer 3 riceve la 1°
 # - step 3: layer 1 legge 4° immagine e spara la 3°, layer 2 riceve la 3° e spara la 2°, layer 3 riceve la 2° e spara output della 1°
 
-# TODO algoritmo doppio: si alzano/abbassano pesi di chi spara per ogni classificazione,
-    # TODO e si alzano/abbassano rules per neuroni che sparano tanto/poco.
 # IDEE: -potrei fare un segnale che parte dal centro e si diffonde finchè trova pixel, per avere un idea della grandezza
     # -oppure un metodo per capire il contorno dell'immagine, tipo segmentazione già fatta
     # -devo calcolare che ho già il primo strato di input, posso usarlo a mio piacere facendogli sparare verso più neuroni
     # -potrei anche collegare a un unico neurone addetto al conteggio dei pixel, che poi spara agli output
-    
-# devo: -costruire la matrice dei pesi 0.5 e aggiornarla.
-# potrei: nei bordi mettere un numero basso di spike richiesti, tipo 2 o 3, mentre al centro devono essere alti per sparare.
-# -> per ora facciamo che spari sempre se hai 5 o più. poi le metterò dipendenti dalla zona
-# sono fully connected, ma le classificazioni sbagliate distruggono le sinapsi, mentre quelle corette le "rinforzano"
-# potrei fare che ogni sinapse ha uno spessore, che ne descrive la forza. nella fase di train varia da 0 a 1, e alla fine
-# resta o viene distrutto se questo è < 0 > di 0.5 (dovrebbe essere plasticità on sinaptica)
-# è importante la posizionalità, non basta una fully connected, altrimenti conto solo il numero di pixel attivi senza forma
-# inizio con 784 → 49 → 8 dove è tutto FC; lancio un immagine e vedo cosa classifica, aggiorno pesi di conseguenza.
-# attenzione: capire BENE quali pesi aumentare e quali diminuire. ciclo sulle immagini, e alla fine eliminerò molte sinapsi
-# ora parto dal canale Red con già 8 output.

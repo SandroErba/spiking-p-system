@@ -18,6 +18,11 @@ class PNeuron:
     def increment_nid():
         PNeuron.nid += 1
 
+    @staticmethod
+    def reset_nid():
+        PNeuron.nid = 0
+
+
     def __init__(self, snp_system, charge, targets, transf_rules, neuron_type=1):
         self.nid = PNeuron.get_nid()
         self.snp_system = snp_system

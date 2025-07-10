@@ -11,6 +11,7 @@ class SNPSystem:
 
     def __init__(self, max_delay, max_steps, input_type):
         # init time step, history
+        PNeuron.reset_nid()
         self.t_step = 0
         self.max_steps = max_steps
         self.input_type = input_type #generative, binary_spike_train, 8x8_spike_train
@@ -100,30 +101,20 @@ class SNPSystem:
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
-
-#---------------------
-        #TODO sistemare stampe, tunare crescita e decrescita, distruggere sinapsi e testare
-        # TODO chiedere a chatty di sistemare codice, mettendo stringhe decenti e non ripetendolo
-
-        # enter only if layer_2_synapses is instantiated
+        #enter only if layer_2_synapses is instantiated
         if isinstance(self.layer_2_synapses, np.ndarray) and self.layer_2_synapses.size > 0:
-            print("1: ", self.layer_2_firing_counts)
-            print("2: ", self.old_layer_2_firing_counts)
 
             fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
             fired_indices = np.where(fired_diff > 0)[0]  # index of firing neurons
-            print("4.1: ", fired_indices)
             if fired_indices.size > 0:
                 label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step of computation
                 for idx in fired_indices:
-                    self.layer_2_synapses[label][idx] += 10 # positive reinforce
+                    self.layer_2_synapses[label][idx] += 7 # TODO tune positive reinforce
                     for wrong_label in range(8):
                         if wrong_label != label:
-                            self.layer_2_synapses[wrong_label][idx] -= 1 # negative penalization
-                print("6", self.layer_2_synapses)
+                            self.layer_2_synapses[wrong_label][idx] -= 1 # TODO tune negative penalization
 
                 self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
-#-----------------------
 
         #check for halting computation
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
