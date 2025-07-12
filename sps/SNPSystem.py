@@ -1,6 +1,6 @@
 """Spiking Neural P System"""
 import numpy as np
-from fire.test_components import Empty
+from sps import Config
 
 from .PNeuron import PNeuron
 from .SpikeUtils import SpikeEvent, TransformationRule, History
@@ -37,7 +37,7 @@ class SNPSystem:
 
         # record output
         self.output = [] # time between two spikes in the output neuron
-        self.output_array = np.zeros((self.max_steps, 8), dtype=int)
+        self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int)
 
     def init_history(self):
         """init tick history based on the system's neurons"""
@@ -51,7 +51,6 @@ class SNPSystem:
         while True:
             if not self.tick():
                 break
-
 
     def tick(self):
         """at each time step, first evolve and then receive spikes, cant do both in the same step, refractory will prevent it"""
@@ -109,10 +108,10 @@ class SNPSystem:
             if fired_indices.size > 0:
                 label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step of computation
                 for idx in fired_indices:
-                    self.layer_2_synapses[label][idx] += 7 # TODO tune positive reinforce
-                    for wrong_label in range(8):
+                    self.layer_2_synapses[label][idx] += Config.POSITIVE_REINFORCE
+                    for wrong_label in range(Config.CLASSES):
                         if wrong_label != label:
-                            self.layer_2_synapses[wrong_label][idx] -= 1 # TODO tune negative penalization
+                            self.layer_2_synapses[wrong_label][idx] -= Config.NEGATIVE_PENALIZATION
 
                 self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
 

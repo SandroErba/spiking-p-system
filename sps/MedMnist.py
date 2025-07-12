@@ -1,119 +1,114 @@
 import numpy as np
 import medmnist
-import matplotlib.pyplot as plt
 from medmnist import INFO
 import csv
-
-from sps import PNeuron
+from sps import Config
 from sps.SNPSystem import SNPSystem
 
 
-def get_spike_train_from_blood_mnist(input_number, skip_number):
+def get_blood_mnist_data():
     info = INFO['bloodmnist']
-    DataClass = getattr(medmnist, info['python_class'])
-
-    #TODO sistemare e testare questo codice, toglier skip number
-    def process_dataset(dataset, skip, count):
-        imgs = dataset.imgs[skip:skip+count]
-        labels = dataset.labels[skip:skip+count].flatten()
-        red_channel = []
-        green_channel = []
-        blue_channel = []
-
-        for img in imgs:
-            ch_r, ch_g, ch_b = binarize_rgb_image(img)
-            red_channel.append(ch_r)
-            green_channel.append(ch_g)
-            blue_channel.append(ch_b)
-
-        return (
-            np.array(red_channel),
-            np.array(green_channel),
-            np.array(blue_channel),
-            labels
-        )
-
-    train_dataset = DataClass(split='train', download=True) # Train
-    train_red, train_green, train_blue, train_labels = process_dataset(train_dataset, skip_number, input_number)
-
-    test_dataset = DataClass(split='test', download=True) # Test
-    test_red, test_green, test_blue, test_labels = process_dataset(test_dataset, 0, len(test_dataset))
-
+    data_class = getattr(medmnist, info['python_class'])
+    train_dataset = data_class(split='train', download=True)
+    test_dataset = data_class(split='test', download=True)
     return (
-        (train_red, train_green, train_blue, train_labels),
-        (test_red, test_green, test_blue, test_labels)
+        (process_dataset(train_dataset, Config.TRAIN_SIZE)),
+        (process_dataset(test_dataset, Config.TEST_SIZE))
     )
 
-def binarize_rgb_image(img_rgb, threshold=128):
-    # From [0,255] to [0,1]
-    binary_channels = 1 - (img_rgb > threshold).astype(int)
+def process_dataset(dataset, count):
+    imgs = dataset.imgs[:count]
+    labels = dataset.labels[:count].flatten()
+    red_channel = []
+    green_channel = []
+    blue_channel = []
+
+    for img in imgs:
+        ch_r, ch_g, ch_b = binarize_rgb_image(img)
+        red_channel.append(ch_r)
+        green_channel.append(ch_g)
+        blue_channel.append(ch_b)
+
+    return (
+        np.array(red_channel),
+        np.array(green_channel),
+        np.array(blue_channel),
+        labels
+    )
+
+def binarize_rgb_image(img_rgb):
+    binary_channels = 1 - (img_rgb > int(Config.THRESHOLD)).astype(int) # From [0,255] to [0,1]
     downsampled = []
     for c in range(3):
         ch = binary_channels[:, :, c]
-        #ch_flat = ch.flatten().astype(int)  # 784 boolean
         downsampled.append(ch) #or ch_flat
     return downsampled  # List of 3 arrays of 784 bit
 
-def launch_blood(imgs_number, pruning_perc):
-    spike_train_red, spike_train_rgb, labels = get_spike_train_from_blood_mnist(imgs_number, 0)
-    blood_SNPsystem_csv()
-    rules_train_blood_mnist(imgs_number, spike_train_red)
-    syn_train_blood_mnist(imgs_number, spike_train_red, labels, pruning_perc)
-    compute_blood_mnist(imgs_number, spike_train_red, labels)
+def launch_blood():
+    (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data() #change when changing database
+    #(train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_digits_data() # temporary example
 
-def rules_train_blood_mnist(imgs_number, spike_train):
-    snps = SNPSystem(5, imgs_number + 5, 'image_spike_train')
-    snps.load_neurons_from_csv("neurons784image.csv")
+    blood_SNPsystem_csv() # red phase
+    rules_train_blood_mnist(train_red)
+    syn_train_blood_mnist(train_red, train_labels)
+    red_pred = compute_blood_mnist(test_red)
+
+    blood_SNPsystem_csv() # green phase
+    rules_train_blood_mnist(train_green)
+    syn_train_blood_mnist(train_green, train_labels)
+    green_pred = compute_blood_mnist(test_green)
+
+    blood_SNPsystem_csv() # blue phase
+    rules_train_blood_mnist(train_blue)
+    syn_train_blood_mnist(train_blue, train_labels)
+    blue_pred = compute_blood_mnist(test_blue)
+
+    combined_ranking_score(red_pred, green_pred, blue_pred, test_labels)
+
+def rules_train_blood_mnist(spike_train):
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, Config.INPUT_TYPE)
+    snps.load_neurons_from_csv(Config.CSV_NAME)
     snps.spike_train = spike_train
-    snps.layer_2_firing_counts = np.zeros(49, dtype=int)
+    snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
     snps.start()
 
-    normalize_rules(snps.layer_2_firing_counts.reshape((7, 7)), imgs_number)
+    normalize_rules(snps.layer_2_firing_counts.reshape((int(Config.IMG_SHAPE/Config.BLOCK_SHAPE), int(Config.IMG_SHAPE/Config.BLOCK_SHAPE))), Config.TRAIN_SIZE)
 
-def syn_train_blood_mnist(imgs_number, spike_train, labels, pruning_perc):
-    snps = SNPSystem(5, imgs_number + 5, 'image_spike_train')
-    snps.load_neurons_from_csv("neurons784image.csv")
+def syn_train_blood_mnist(spike_train, labels):
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, Config.INPUT_TYPE)
+    snps.load_neurons_from_csv(Config.CSV_NAME)
     snps.spike_train = spike_train
-    snps.layer_2_synapses = np.zeros((8, 49), dtype=float) # matrix for destroy synapses
+    snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_LAYER2), dtype=float) # matrix for destroy synapses
     snps.labels = labels
-    snps.layer_2_firing_counts = np.zeros(49, dtype=int)
+    snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
     snps.start()
 
-    pruned_matrix = prune_matrix(snps.layer_2_synapses, pruning_perc)
-    prune_PSystem(pruned_matrix, "neurons784image.csv", "neurons784image_pruned.csv")
+    pruned_matrix = prune_matrix(snps.layer_2_synapses, Config.PRUNING_PERC)
+    prune_PSystem(pruned_matrix, Config.CSV_NAME, Config.CSV_NAME_PRUNED)
 
 
-def compute_blood_mnist(imgs_number, spike_train, labels):
-    snps = SNPSystem(5, imgs_number + 5, 'image_spike_train')
-    snps.load_neurons_from_csv("neurons784image_pruned.csv")
+def compute_blood_mnist(spike_train):
+    snps = SNPSystem(5, Config.TEST_SIZE + 5, Config.INPUT_TYPE)
+    snps.load_neurons_from_csv(Config.CSV_NAME_PRUNED)
     snps.spike_train = spike_train
-    snps.layer_2_firing_counts = np.zeros(49, dtype=int)
+    snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
     snps.start()
-
-    print("array finale delle prediction: ", snps.output_array[3:-2])
-    print("Array delle labels: ", labels)
-    ranking_score(snps.output_array[3:-2], labels)
-
+    #print("array finale delle prediction: ", snps.output_array[3:-2])
+    #print("Array delle labels: ", labels)
+    #ranking_score(snps.output_array[3:-2], labels)
+    return snps.output_array[3:-2] #for merging the 3 results
 
 def normalize_rules(firing_counts, imgs_number):
-    plt.imshow(firing_counts, cmap='hot')
-    plt.title("Firing counts of layer 2")
-    plt.colorbar()
-    plt.show()
-    print(firing_counts)
 
     min_threshold = 1
-    max_threshold = 16
-
+    max_threshold = Config.BLOCK_SHAPE**2
     norm = firing_counts / imgs_number
     threshold_matrix = norm * (max_threshold - min_threshold) + min_threshold
     threshold_matrix = np.round(threshold_matrix).astype(int)
-
-    print(threshold_matrix)
     blood_SNPsystem_csv(threshold_matrix)
 
 
-def prune_matrix(synapses, percentage = 0.5):
+def prune_matrix(synapses, percentage):
     keep_matrix = np.ones_like(synapses, dtype=int)  # 8x49 made of 1
 
     for class_idx in range(synapses.shape[0]):
@@ -123,10 +118,9 @@ def prune_matrix(synapses, percentage = 0.5):
         prune_indices = np.argsort(weights)[:num_to_prune] # Index to prun
         keep_matrix[class_idx, prune_indices] = 0
 
-    print("Matrix for prune: ", keep_matrix)
     return keep_matrix
 
-def prune_PSystem(pruned_matrix, filename="neurons784image.csv", output="neurons784image_pruned.csv"):
+def prune_PSystem(pruned_matrix, filename=Config.CSV_NAME, output=Config.CSV_NAME_PRUNED):
     with open(filename, 'r') as f_in, open(output, 'w', newline='') as f_out:
         reader = csv.reader(f_in)
         writer = csv.writer(f_out)
@@ -135,44 +129,68 @@ def prune_PSystem(pruned_matrix, filename="neurons784image.csv", output="neurons
         # TODO potrei eliminare neuroni con 0 output
         for row in reader:
             neuron_id = int(row[0])
-            if 784 <= neuron_id <= 832:
-                neuron_index = neuron_id - 784
+            if Config.NEURONS_LAYER1 <= neuron_id < Config.NEURONS_LAYER1_2:
+                neuron_index = neuron_id - Config.NEURONS_LAYER1
                 pruned_outputs = [
-                    str(833 + class_idx)
-                    for class_idx in range(8)
+                    str(Config.NEURONS_LAYER1_2 + class_idx)
+                    for class_idx in range(Config.CLASSES)
                     if pruned_matrix[class_idx][neuron_index] == 1
                 ]
                 row[2] = "[" + ", ".join(pruned_outputs) + "]" #TODO qui è dove metterei gli anti-spike
 
             writer.writerow(row)
 
-def ranking_score(predictions, labels):
+
+def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
     scores = []
     top1_correct = 0
     top3_correct = 0
 
-    for pred_row, true_label in zip(predictions, labels):
-        sorted_indices = np.argsort(-pred_row)
-        rank = int(np.where(sorted_indices == true_label)[0][0])
+    per_class_correct = np.zeros(Config.CLASSES, dtype=int)
+    class_counts = np.zeros(Config.CLASSES, dtype=int)
+
+    for red_row, green_row, blue_row, true_label in zip(pred_red, pred_green, pred_blue, labels):
+        noise = np.random.rand(Config.CLASSES) * 1e-6
+        red_rank = np.argsort(-red_row - noise)
+        green_rank = np.argsort(-green_row - noise)
+        blue_rank = np.argsort(-blue_row - noise)
+
+        combined_score = np.zeros(Config.CLASSES, dtype=float)
+        for i in range(Config.CLASSES):
+            combined_score[i] = (
+                    np.where(red_rank == i)[0][0] +
+                    np.where(green_rank == i)[0][0] +
+                    np.where(blue_rank == i)[0][0]
+            )
+
+        final_ranking = np.argsort(combined_score)
+        rank = int(np.where(final_ranking == true_label)[0][0])
         scores.append(rank)
 
         if rank == 0:
             top1_correct += 1
+            per_class_correct[true_label] += 1
         if rank < 3:
             top3_correct += 1
+        class_counts[true_label] += 1
 
     top1_accuracy = top1_correct / len(labels)
     top3_accuracy = top3_correct / len(labels)
     avg_rank = sum(scores) / len(scores)
 
-    print("Score:", scores)
     print("Mean score:", avg_rank)
     print("Top-1 accuracy:", round(top1_accuracy * 100, 2), "%")
     print("Top-3 accuracy:", round(top3_accuracy * 100, 2), "%")
+    print("\nPer-class accuracy:")
+    for i in range(Config.CLASSES):
+        count = class_counts[i]
+        correct = per_class_correct[i]
+        acc = (correct / count) * 100 if count > 0 else 0
+        print(f"  Class {i}: {acc:.2f}% accuracy over {count} instances")
 
     return scores, avg_rank, top1_accuracy, top3_accuracy
 
-def blood_SNPsystem_csv(threshold_matrix=None, filename="neurons784image.csv"):
+def blood_SNPsystem_csv(threshold_matrix=None, filename=Config.CSV_NAME):
     """Generate the SN P system to analize blood mnist images
     If a matrix is passed, update the existing P system"""
     with open(filename, mode='w', newline='') as csv_file:
@@ -180,13 +198,13 @@ def blood_SNPsystem_csv(threshold_matrix=None, filename="neurons784image.csv"):
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
         # Layer 1: Input RGB (784 neurons) from 28x28 to 7x7 using 4x4 blocks
-        for neuron_id in range(784):
-            row = neuron_id // 28
-            col = neuron_id % 28
-            block_row = row // 4
-            block_col = col // 4
-            block_id = block_row * 7 + block_col
-            output_neuron = 784 + block_id
+        for neuron_id in range(Config.NEURONS_LAYER1):
+            row = neuron_id // Config.IMG_SHAPE #TODO unire quetse linee in molte meno
+            col = neuron_id % Config.IMG_SHAPE
+            block_row = row // Config.BLOCK_SHAPE
+            block_col = col // Config.BLOCK_SHAPE
+            block_id = block_row * int(Config.IMG_SHAPE/Config.BLOCK_SHAPE) + block_col
+            output_neuron = Config.NEURONS_LAYER1 + block_id
 
             writer.writerow([
                 neuron_id,            # id
@@ -197,12 +215,13 @@ def blood_SNPsystem_csv(threshold_matrix=None, filename="neurons784image.csv"):
             ])
 
         # Layer 2: Pooling (49 neurons) - id 784–832
+        output_targets = str(list(range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL))) # for firing at the output neurons
         if threshold_matrix is None:
-            for neuron_id in range(784, 784 + 49):
+            for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
                 writer.writerow([
                     neuron_id,            # id
                     0,                    # initial_charge
-                    "[833, 834, 835, 836, 837, 838, 839, 840]", # output_targets
+                    output_targets,       # output_targets TODO GENERALIZE
                     1,                    # neuron_type
                     "[-1,0,1,1,0]",       # firing rule if c >= 1
                     "[-1,0,1,0,0]"        # forgetting rule if didn't fire
@@ -210,32 +229,31 @@ def blood_SNPsystem_csv(threshold_matrix=None, filename="neurons784image.csv"):
 
         else: # change the P system using the new charges for the firing rules
             threshold_array = threshold_matrix.flatten()
-            for neuron_id in range(784, 784 + 49):
-                firing_threshold = threshold_array[neuron_id-784]
+            for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
+                firing_threshold = threshold_array[neuron_id-Config.NEURONS_LAYER1]
                 firing_rule = f"[-1,0,{firing_threshold},1,0]"
                 writer.writerow([
                     neuron_id,            # id
                     0,                    # initial_charge
-                    "[833, 834, 835, 836, 837, 838, 839, 840]", # output_targets
+                    output_targets, # output_targets TODO GENERALIZE
                     1,                    # neuron_type
                     firing_rule,          # firing rule based on input matrix
                     "[-1,0,1,0,0]"        # forgetting rule if didn't fire
                 ])
 
         # Layer 3: Output (8 neurons) - id 833–840
-        for neuron_id in range(833, 841):
-            label = neuron_id - 833
+        for neuron_id in range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL):
+            #label = neuron_id - Config.NEURONS_LAYER1_2
             writer.writerow([
                 neuron_id,            # id
                 0,                    # initial_charge
-                "[]", # output_targets
+                "[]",                 # output_targets
                 2,                    # neuron_type
                 "[1,0,1,0,0]"         # forgetting rule
             ])
 
-
-
-"""Code for showing full, binarized and red images"""
+#Code for showing full, binarized and red images
+"""
 def show_images(imgs, labels):
     num_images = len(labels)
     plt.figure(figsize=(10, 4))
@@ -280,3 +298,4 @@ def show_red_from_spike_train(spike_train, labels):
         plt.title(f"Label: {labels[i]}")
     plt.tight_layout()
     plt.show()
+"""

@@ -1,5 +1,6 @@
 """P Neuron"""
-import random
+from sps import Config
+
 
 class PNeuron:
     """
@@ -64,8 +65,8 @@ class PNeuron:
                     return self.consume(rule)
 
     def fire(self, rule):
-        if 783 < self.nid < 833:
-            self.snp_system.layer_2_firing_counts[self.nid - 784] += 1
+        if Config.NEURONS_LAYER1 <= self.nid < Config.NEURONS_LAYER1_2:
+            self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_LAYER1] += 1
         if rule.div != -1:
             self.charge = self.charge - rule.source
         else:
@@ -76,8 +77,8 @@ class PNeuron:
 
     def consume(self, rule):
         #self.charge = self.charge - rule.source
-        if 832 < self.nid < 841:
-            self.snp_system.output_array[self.snp_system.t_step][self.nid - 833] = self.charge
+        if Config.NEURONS_LAYER1_2 <= self.nid < Config.NEURONS_TOTAL:
+            self.snp_system.output_array[self.snp_system.t_step][self.nid - Config.NEURONS_LAYER1_2] = self.charge
         self.charge = 0
         self.snp_system.forgetting_applied += 1
         return rule
