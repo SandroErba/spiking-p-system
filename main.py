@@ -8,9 +8,11 @@ the rule consumes x spikes, or all the spikes if x is no defined. We use div and
 For the rules that want exact numbers, not regulars expressions, we are using div = k as "large number"
 '''
 from sps import MedMnist
-MedMnist.launch_blood()
+MedMnist.launch_SNPS()
 
-#TODO più la classe è rara e pegio etichetta. osservare classi 4, 5, 2, 7 perchè sono le peggiori.
+#TODO più la classe è rara e peggio etichetta. osservare classi 4, 5, 2, 7 perchè sono le peggiori.
+# NON esistono regole che, dopo essere state attivate, cancellano completametne gli spike presenti nel neurone
+# NEMMENO una singola regola di forgetting che elimina tutti gli spike, dovrebbero essere molte di più
 
 # - step 0: 1° immagine spara, layer 1 riceve 1°
 # - step 1: layer 1 legge 2° immagine e spara la 1°, layer 2 riceve spike 1° immagine

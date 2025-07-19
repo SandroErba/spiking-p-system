@@ -1,6 +1,13 @@
 """Spike related utils classes"""
 from texttable import Texttable
 
+#TODO il metodo di definizione delle regole non è efficace nè intuitivo, devo riscriverlo
+# mi serve un modo per tradurre un espressione regolare in un array di valori, avendo:
+# con valore esatto
+# che consumano tutte le spike rimanenti --> da cercare in letteratura per giustificarlo
+# divisibili per n
+# con almeno y spike interne da sparare
+
 class SpikeEvent:
     """contains originator neuron, charge and target neurons"""
     def __init__(self, nid, charge, targets):

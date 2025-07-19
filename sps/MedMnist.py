@@ -5,6 +5,14 @@ import csv
 from sps import Config
 from sps.SNPSystem import SNPSystem
 
+energy_tracker = {
+    "worst": 0,  # worst case of energy spent
+    "expected": 0    # expected case of energy spent
+}
+
+def update_energy(w_energy, e_energy):
+    energy_tracker["worst"] += w_energy
+    energy_tracker["expected"] += e_energy
 
 def get_blood_mnist_data():
     info = INFO['bloodmnist']
@@ -44,102 +52,105 @@ def binarize_rgb_image(img_rgb):
         downsampled.append(ch) #or ch_flat
     return downsampled  # List of 3 arrays of 784 bit
 
-def launch_blood():
+def launch_SNPS():
     (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data() #change when changing database
     #(train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_digits_data() # temporary example
 
-    blood_SNPsystem_csv() # red phase
-    rules_train_blood_mnist(train_red)
-    syn_train_blood_mnist(train_red, train_labels)
-    red_pred = compute_blood_mnist(test_red)
+    SNPS_csv() # red phase
+    rules_train_SNPS(train_red)
+    syn_train_SNPS(train_red, train_labels)
+    red_pred = compute_SNPS(test_red)
 
-    blood_SNPsystem_csv() # green phase
-    rules_train_blood_mnist(train_green)
-    syn_train_blood_mnist(train_green, train_labels)
-    green_pred = compute_blood_mnist(test_green)
+    SNPS_csv() # green phase
+    rules_train_SNPS(train_green)
+    syn_train_SNPS(train_green, train_labels)
+    green_pred = compute_SNPS(test_green)
 
-    blood_SNPsystem_csv() # blue phase
-    rules_train_blood_mnist(train_blue)
-    syn_train_blood_mnist(train_blue, train_labels)
-    blue_pred = compute_blood_mnist(test_blue)
+    SNPS_csv() # blue phase
+    rules_train_SNPS(train_blue)
+    syn_train_SNPS(train_blue, train_labels)
+    blue_pred = compute_SNPS(test_blue)
 
     combined_ranking_score(red_pred, green_pred, blue_pred, test_labels)
 
-def rules_train_blood_mnist(spike_train):
+    print(f"Worst energy spent: {energy_tracker['worst']} fJ")
+    print(f"Expected energy spent: {energy_tracker['expected']} fJ")
+
+def rules_train_SNPS(spike_train):
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, Config.INPUT_TYPE)
     snps.load_neurons_from_csv(Config.CSV_NAME)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
-    snps.start()
+    w, e = snps.start()
+    update_energy(w, e)
 
     normalize_rules(snps.layer_2_firing_counts.reshape((int(Config.IMG_SHAPE/Config.BLOCK_SHAPE), int(Config.IMG_SHAPE/Config.BLOCK_SHAPE))), Config.TRAIN_SIZE)
 
-def syn_train_blood_mnist(spike_train, labels):
+def syn_train_SNPS(spike_train, labels):
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, Config.INPUT_TYPE)
     snps.load_neurons_from_csv(Config.CSV_NAME)
     snps.spike_train = spike_train
     snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_LAYER2), dtype=float) # matrix for destroy synapses
     snps.labels = labels
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
-    snps.start()
+    w, e = snps.start()
+    update_energy(w, e)
 
-    pruned_matrix = prune_matrix(snps.layer_2_synapses, Config.PRUNING_PERC)
-    prune_PSystem(pruned_matrix, Config.CSV_NAME, Config.CSV_NAME_PRUNED)
+    pruned_matrix = prune_matrix(snps.layer_2_synapses)
+    prune_SNPS(pruned_matrix)
 
-
-def compute_blood_mnist(spike_train):
+def compute_SNPS(spike_train):
     snps = SNPSystem(5, Config.TEST_SIZE + 5, Config.INPUT_TYPE)
     snps.load_neurons_from_csv(Config.CSV_NAME_PRUNED)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
-    snps.start()
-    #print("array finale delle prediction: ", snps.output_array[3:-2])
-    #print("Array delle labels: ", labels)
-    #ranking_score(snps.output_array[3:-2], labels)
+    w, e = snps.start()
+    update_energy(w, e)
+
     return snps.output_array[3:-2] #for merging the 3 results
 
 def normalize_rules(firing_counts, imgs_number):
-
     min_threshold = 1
     max_threshold = Config.BLOCK_SHAPE**2
     norm = firing_counts / imgs_number
     threshold_matrix = norm * (max_threshold - min_threshold) + min_threshold
     threshold_matrix = np.round(threshold_matrix).astype(int)
-    blood_SNPsystem_csv(threshold_matrix)
+    SNPS_csv(threshold_matrix)
 
-
-def prune_matrix(synapses, percentage):
-    keep_matrix = np.ones_like(synapses, dtype=int)  # 8x49 made of 1
-
+def prune_matrix(synapses):
+    keep_matrix = np.zeros_like(synapses, dtype=int)  # start with all 0
     for class_idx in range(synapses.shape[0]):
         weights = synapses[class_idx]
-        num_to_prune = int(percentage * len(weights))
+        num_excite = int((1 - Config.PRUNING_PERC - Config.INHIBIT_PERC) * len(weights))
+        num_inhibit = int(Config.INHIBIT_PERC * len(weights))
 
-        prune_indices = np.argsort(weights)[:num_to_prune] # Index to prun
-        keep_matrix[class_idx, prune_indices] = 0
-
+        excite_indices = np.argsort(weights)[-num_excite:]
+        inhibit_indices = np.argsort(weights)[:num_inhibit]
+        keep_matrix[class_idx, excite_indices] = 1
+        keep_matrix[class_idx, inhibit_indices] = -1
     return keep_matrix
 
-def prune_PSystem(pruned_matrix, filename=Config.CSV_NAME, output=Config.CSV_NAME_PRUNED):
-    with open(filename, 'r') as f_in, open(output, 'w', newline='') as f_out:
+def prune_SNPS(pruned_matrix):
+    with open(Config.CSV_NAME, 'r') as f_in, open(Config.CSV_NAME_PRUNED, 'w', newline='') as f_out:
         reader = csv.reader(f_in)
         writer = csv.writer(f_out)
         header = next(reader)
         writer.writerow(header)
-        # TODO potrei eliminare neuroni con 0 output
         for row in reader:
             neuron_id = int(row[0])
             if Config.NEURONS_LAYER1 <= neuron_id < Config.NEURONS_LAYER1_2:
                 neuron_index = neuron_id - Config.NEURONS_LAYER1
-                pruned_outputs = [
-                    str(Config.NEURONS_LAYER1_2 + class_idx)
-                    for class_idx in range(Config.CLASSES)
-                    if pruned_matrix[class_idx][neuron_index] == 1
-                ]
-                row[2] = "[" + ", ".join(pruned_outputs) + "]" #TODO qui è dove metterei gli anti-spike
+                pruned_outputs = []
+                for class_idx in range(Config.CLASSES):
+                    val = pruned_matrix[class_idx][neuron_index]
+                    if val != 0:
+                        target_id = Config.NEURONS_LAYER1_2 + class_idx
+                        if val == -1:
+                            target_id = -target_id  # inhibitory
+                        pruned_outputs.append(str(target_id))
+                row[2] = "[" + ", ".join(pruned_outputs) + "]"
 
             writer.writerow(row)
-
 
 def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
     scores = []
@@ -167,11 +178,12 @@ def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
         rank = int(np.where(final_ranking == true_label)[0][0])
         scores.append(rank)
 
-        if rank == 0:
-            top1_correct += 1
-            per_class_correct[true_label] += 1
+
         if rank < 3:
             top3_correct += 1
+            if rank == 0:
+                top1_correct += 1
+                per_class_correct[true_label] += 1
         class_counts[true_label] += 1
 
     top1_accuracy = top1_correct / len(labels)
@@ -190,8 +202,8 @@ def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
 
     return scores, avg_rank, top1_accuracy, top3_accuracy
 
-def blood_SNPsystem_csv(threshold_matrix=None, filename=Config.CSV_NAME):
-    """Generate the SN P system to analize blood mnist images
+def SNPS_csv(threshold_matrix=None, filename=Config.CSV_NAME):
+    """Generate the SN P system to analize chosen images
     If a matrix is passed, update the existing P system"""
     with open(filename, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
@@ -199,10 +211,8 @@ def blood_SNPsystem_csv(threshold_matrix=None, filename=Config.CSV_NAME):
 
         # Layer 1: Input RGB (784 neurons) from 28x28 to 7x7 using 4x4 blocks
         for neuron_id in range(Config.NEURONS_LAYER1):
-            row = neuron_id // Config.IMG_SHAPE #TODO unire quetse linee in molte meno
-            col = neuron_id % Config.IMG_SHAPE
-            block_row = row // Config.BLOCK_SHAPE
-            block_col = col // Config.BLOCK_SHAPE
+            block_row = (neuron_id // Config.IMG_SHAPE) // Config.BLOCK_SHAPE
+            block_col = (neuron_id % Config.IMG_SHAPE) // Config.BLOCK_SHAPE
             block_id = block_row * int(Config.IMG_SHAPE/Config.BLOCK_SHAPE) + block_col
             output_neuron = Config.NEURONS_LAYER1 + block_id
 
@@ -221,7 +231,7 @@ def blood_SNPsystem_csv(threshold_matrix=None, filename=Config.CSV_NAME):
                 writer.writerow([
                     neuron_id,            # id
                     0,                    # initial_charge
-                    output_targets,       # output_targets TODO GENERALIZE
+                    output_targets,       # output_targets
                     1,                    # neuron_type
                     "[-1,0,1,1,0]",       # firing rule if c >= 1
                     "[-1,0,1,0,0]"        # forgetting rule if didn't fire
@@ -235,7 +245,7 @@ def blood_SNPsystem_csv(threshold_matrix=None, filename=Config.CSV_NAME):
                 writer.writerow([
                     neuron_id,            # id
                     0,                    # initial_charge
-                    output_targets, # output_targets TODO GENERALIZE
+                    output_targets, # output_targets
                     1,                    # neuron_type
                     firing_rule,          # firing rule based on input matrix
                     "[-1,0,1,0,0]"        # forgetting rule if didn't fire

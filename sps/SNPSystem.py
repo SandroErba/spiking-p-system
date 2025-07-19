@@ -1,4 +1,3 @@
-"""Spiking Neural P System"""
 import numpy as np
 from sps import Config
 
@@ -28,6 +27,7 @@ class SNPSystem:
         self.firing_applied = 0
         self.forgetting_applied = 0
         self.spike_fired = 0
+        self.inhibition_fired = 0
 
         # record firing of layer 2 for the training phase
         self.labels = []
@@ -50,7 +50,18 @@ class SNPSystem:
         # keep on ticking until output condition is met or max number of ticks is exceeded
         while True:
             if not self.tick():
-                break
+                """For more info, see latex document and chapter 5.5 of 'Beyond classification: directly training spiking
+                neural networks for semantic segmentation' -> paper "https://arxiv.org/pdf/2110.07742" """
+                #print(self.firing_applied, " firing rules applied")
+                #print(self.forgetting_applied, " forgetting rules applied")
+                #print(self.spike_fired, " spike generated")
+                #print(self.inhibition_fired, " inhibition sent")
+                total_synapses = sum(len(neuron.targets) for neuron in self.neurons)
+                total_rules = sum(len(neuron.transf_rules) for neuron in self.neurons)
+                w_energy = self.t_step * (total_synapses + total_rules * Config.WORST_REGEX)
+                e_energy = int(self.spike_fired * Config.EXPECTED_SPIKE + (self.firing_applied + self.forgetting_applied) * Config.EXPECTED_REGEX)
+
+                return w_energy, e_energy
 
     def tick(self):
         """at each time step, first evolve and then receive spikes, cant do both in the same step, refractory will prevent it"""
@@ -95,7 +106,10 @@ class SNPSystem:
         # consume current spiking events
         for spike_event in self.spike_events[self.t_step % self.max_delay]:
             for idx in spike_event.targets:
-                self.neurons[idx].receive(spike_event.charge) # A neuron can receive more than 1 spike at time only from different input neurons
+                if idx >= 0:
+                    self.neurons[idx].receive(spike_event.charge)
+                else:
+                    self.neurons[-idx].inhibit(spike_event.charge)
                 self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
 
         # clear current spiking events
@@ -119,14 +133,13 @@ class SNPSystem:
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
         any_spike_in_transit = any(self.spike_events[i] for i in range(self.max_delay))
         if not any_rule_applied and not any_in_delay and not any_spike_in_transit and not input_spike and self.t_step > 1:
-            print("System halts at tick", self.t_step)
-            return self.end_computation()
+            return False # end computation
 
         # advance time
         self.t_step += 1
         # exit if closing condition is met, otherwise continue
         if self.t_step > self.max_steps:
-            return self.end_computation()
+            return False # end computation
         else:
             return True
 
@@ -162,17 +175,6 @@ class SNPSystem:
 
                 # Create neuron
                 neuron = PNeuron(snp_system=self, charge = initial_charge, targets=targets, transf_rules=transf_rules, neuron_type=neuron_type)
-                #print(neuron)
                 neurons.append(neuron)
         self.neurons = neurons
         return neurons
-
-    def end_computation(self):
-        """For more info, see chapter 5.5 of 'Beyond classification: directly training spiking
-        neural networks for semantic segmentation'."""
-        #I have to calculate the joule costs with the operations made
-        print(self.firing_applied, " firing rules applied")
-        print(self.forgetting_applied, " forgetting rules applied")
-        print(self.spike_fired, " spike generated")
-        return False
-

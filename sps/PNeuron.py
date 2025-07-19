@@ -23,7 +23,6 @@ class PNeuron:
     def reset_nid():
         PNeuron.nid = 0
 
-
     def __init__(self, snp_system, charge, targets, transf_rules, neuron_type=1):
         self.nid = PNeuron.get_nid()
         self.snp_system = snp_system
@@ -32,7 +31,7 @@ class PNeuron:
         self.charge = charge
         self.refractory = 0 # can not fire or receive outside spikes between firing at t0 and spiking at t0+delay
         self.transf_rules = transf_rules
-        self.neuron_type = neuron_type #can be 0 (input) - 1 (intermediate) - 2 (output)
+        self.neuron_type = neuron_type # can be 0 (input) - 1 (intermediate) - 2 (output)
 
     def receive(self, charge):
         # only receive input if outside the refractory period
@@ -40,9 +39,15 @@ class PNeuron:
             self.charge += charge
             self.snp_system.spike_fired += 1
 
+    def inhibit(self, charge):
+        if self.refractory == 0:
+            self.charge -= charge
+            if self.charge < 0:
+                self.charge = 0
+            self.snp_system.inhibition_fired += 1
+
     def tick(self):
         """Tick and apply one transformation rule (either fire or consume), if possible."""
-
         # If the neuron is still in its refractory period, decrease the counter and skip this tick
         if self.refractory > 0:
             self.refractory = self.refractory -1
@@ -51,7 +56,7 @@ class PNeuron:
         # In this code there is no priority - randomly shuffle the indices of the available transformation rules
         # This introduces nondeterminism in which rule is selected if multiple match
         idxs = list(range(len(self.transf_rules)))
-        #random.shuffle(idxs) #TODO deleted for prioritize firing rules
+        #random.shuffle(idxs) #TODO deleted for prioritize firing rules. devo randomizzare, ma solo tra le firing
 
         # Iterate through the shuffled rules and apply the first one that is valid for the current charge
         for idx in idxs:
@@ -97,4 +102,3 @@ class PNeuron:
             info += f"    Rule {i+1}: div={rule.div}, mod={rule.mod}, source={rule.source}, target={rule.target}, delay={rule.delay}\n"
 
         return info
-
