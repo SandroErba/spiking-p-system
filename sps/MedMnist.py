@@ -233,22 +233,22 @@ def SNPS_csv(threshold_matrix=None, filename=Config.CSV_NAME):
                     0,                    # initial_charge
                     output_targets,       # output_targets
                     1,                    # neuron_type
-                    "[-1,0,1,1,0]",       # firing rule if c >= 1
-                    "[-1,0,1,0,0]"        # forgetting rule if didn't fire
+                    "[1,1,0,1,0]",       # firing rule if c >= 1
+                    "[1,1,1,0,0]"        # forgetting rule if didn't fire
                 ])
 
         else: # change the P system using the new charges for the firing rules
             threshold_array = threshold_matrix.flatten()
             for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
                 firing_threshold = threshold_array[neuron_id-Config.NEURONS_LAYER1]
-                firing_rule = f"[-1,0,{firing_threshold},1,0]"
+                firing_rule = f"[1,{firing_threshold},0,1,0]"
                 writer.writerow([
                     neuron_id,            # id
                     0,                    # initial_charge
                     output_targets, # output_targets
                     1,                    # neuron_type
                     firing_rule,          # firing rule based on input matrix
-                    "[-1,0,1,0,0]"        # forgetting rule if didn't fire
+                    "[1,1,1,0,0]"        # forgetting rule if didn't fire
                 ])
 
         # Layer 3: Output (8 neurons) - id 833–840
@@ -259,7 +259,7 @@ def SNPS_csv(threshold_matrix=None, filename=Config.CSV_NAME):
                 0,                    # initial_charge
                 "[]",                 # output_targets
                 2,                    # neuron_type
-                "[1,0,1,0,0]"         # forgetting rule
+                "[1,1,1,0,0]"         # forgetting rule
             ])
 
 #Code for showing full, binarized and red images

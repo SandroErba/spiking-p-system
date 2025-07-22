@@ -63,7 +63,6 @@ class PNeuron:
             rule = self.transf_rules[idx]
             if rule.check(self.charge):
                 # rule.target > 0 indicates this is a firing rule (spike sent to targets)
-                # rule.target <= 0 probably means it's a forgetting or charge-reducing rule
                 if rule.target > 0:
                     return self.fire(rule)
                 else:
@@ -72,9 +71,9 @@ class PNeuron:
     def fire(self, rule):
         if Config.NEURONS_LAYER1 <= self.nid < Config.NEURONS_LAYER1_2:
             self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_LAYER1] += 1
-        if rule.div != -1:
+        if rule.source != 0:
             self.charge = self.charge - rule.source
-        else:
+        else: #TODO this is not exact
             self.charge = 0
         self.refractory = rule.delay
         self.snp_system.firing_applied += 1

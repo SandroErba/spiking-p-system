@@ -10,9 +10,8 @@ For the rules that want exact numbers, not regulars expressions, we are using di
 from sps import MedMnist
 MedMnist.launch_SNPS()
 
-#TODO più la classe è rara e peggio etichetta. osservare classi 4, 5, 2, 7 perchè sono le peggiori.
-# NON esistono regole che, dopo essere state attivate, cancellano completametne gli spike presenti nel neurone
-# NEMMENO una singola regola di forgetting che elimina tutti gli spike, dovrebbero essere molte di più
+#TODO più la classe è rara e peggio etichetta. osservare classi 4, 5, 2 perchè sono le peggiori.
+# solo le forgetting rules cancellano completamente gli spike presenti nel neurone, le firing non possono, lo sto facendo comunque
 
 # - step 0: 1° immagine spara, layer 1 riceve 1°
 # - step 1: layer 1 legge 2° immagine e spara la 1°, layer 2 riceve spike 1° immagine

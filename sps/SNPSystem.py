@@ -164,8 +164,6 @@ class SNPSystem:
                         break
                     try:
                         values = eval(cell)
-                        if values[0] == 0:
-                            values[0] = 999
                         if len(values) != 5:
                             raise ValueError(f"Wrong rules: {cell}")
                         rule = TransformationRule(values[0], values[1],values[2],values[3],values[4])

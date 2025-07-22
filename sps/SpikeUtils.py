@@ -1,13 +1,6 @@
 """Spike related utils classes"""
 from texttable import Texttable
 
-#TODO il metodo di definizione delle regole non è efficace nè intuitivo, devo riscriverlo
-# mi serve un modo per tradurre un espressione regolare in un array di valori, avendo:
-# con valore esatto
-# che consumano tutte le spike rimanenti --> da cercare in letteratura per giustificarlo
-# divisibili per n
-# con almeno y spike interne da sparare
-
 class SpikeEvent:
     """contains originator neuron, charge and target neurons"""
     def __init__(self, nid, charge, targets):
@@ -29,8 +22,8 @@ class TransformationRule:
         - value = x, firing rule to x neurons
     # source is always substracted from current charge
 
-    # div = 0 become 999, means firing when charge == mod
-    # div = -1 fire always and consume all the charge, if charge >= source. mod is useless
+    # mod is the number of basic a in the formula, div the looped a. so: a^mod (a^div)^*
+    # with source == 0, the rule consumes all the spike
     """
     def __init__(self, div, mod, source, target, delay):
         self.div = div
@@ -41,10 +34,11 @@ class TransformationRule:
 
     def check(self, charge):
         # with div and mod is possible to manage odd, even, and all value condition for "charge"
-        if self.div != -1:
-            return charge >= self.source and charge % self.div == self.mod
-        else: #managing consuming rules for layer 2
-            return charge >= self.source
+        if charge > 0 and charge >= self.mod: #for avoid negative subtractions
+            if self.div > 0:
+                return charge >= self.source and (charge - self.mod) % self.div == 0 #[1,13,0,1,0]
+            elif self.div == 0:
+                return charge >= self.source and charge == self.mod
 
     def exec(self, charge):
         return charge - self.source
