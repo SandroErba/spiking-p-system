@@ -10,42 +10,30 @@ class SpikeEvent:
 
 class TransformationRule:
     """
-    E1/a^r1->a;t1
-    E2/a^r2->a;t2
-    a+/a->a | a^k -> a | ...
-    a^2 exact condition, a^2n+1 | a^2n condition, a^+ condition
-    # match condition:
-        - exact, div = 1, mod = 0
-        - match, an+b, div = a, mod = b
-    # target
-        - value = 0, forgetting rule
-        - value = x, firing rule to x neurons
-    # source is always substracted from current charge
-
-    # mod is the number of basic a in the formula, div the looped a. so: a^mod (a^div)^*
+    # regex are in the form: a^mod (a^div)^*
     # with source == 0, the rule consumes all the spike
     """
     def __init__(self, div, mod, source, target, delay):
-        self.div = div
-        self.mod = mod
-        self.source = source
-        self.target = target
-        self.delay = delay
+        self.div = div # looped "a" in the regex
+        self.mod = mod # basic "a" in the regex
+        self.source = source # spike consumed when the rule applies
+        self.target = target # 0 if forgetting rule, 1 otherwise
+        self.delay = delay # refractory period of the rules
 
     def check(self, charge):
-        # with div and mod is possible to manage odd, even, and all value condition for "charge"
-        if charge > 0 and charge >= self.mod: #for avoid negative subtractions
+        # with div and mod is possible to manage all value condition for charge
+        if charge > 0 and charge >= self.mod: #for avoid negative values
             if self.div > 0:
-                return charge >= self.source and (charge - self.mod) % self.div == 0 #[1,13,0,1,0]
-            elif self.div == 0:
+                return charge >= self.source and (charge - self.mod) % self.div == 0
+            if self.div == 0:
                 return charge >= self.source and charge == self.mod
+        return False
 
     def exec(self, charge):
         return charge - self.source
 
     def __str__(self):
         # Build the condition part of the rule, e.g., "2a+1" if div=2 and mod=1
-        # This describes when the rule is applicable based on charge (e.g., odd/even)
         rulecond = "{0}a{1}".format(self.div, "+{0}".format(self.mod) if self.mod > 0 else "")
 
         # Build the transformation part: "source->target"
@@ -54,7 +42,6 @@ class TransformationRule:
         ruletransf = "{0}->{1}{2}".format(self.source, self.target, "!" if self.target > 0 else "")
 
         # Final string format: condition;transformation;delay
-        # Example: "2a+1;3->1!;2"
         return "{0};{1};{2}".format(rulecond, ruletransf, self.delay)
 
 class History:
@@ -66,8 +53,7 @@ class History:
         self.ticks = [] # every element is the state of a neuron
         self.n_len = len(neurons)
 
-        # add initial charge
-        self.add_new_tick()
+        self.add_new_tick() # add initial charge
         for neuron in neurons:
             self.ticks[-1][neuron.nid] = neuron.charge
 

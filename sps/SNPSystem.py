@@ -13,7 +13,7 @@ class SNPSystem:
         PNeuron.reset_nid()
         self.t_step = 0
         self.max_steps = max_steps
-        self.input_type = input_type #generative, binary_spike_train, 8x8_spike_train
+        self.input_type = input_type #generative, binary_spike_train or image_spike_train
         self.history = None
 
         # init circular future spiking events based on max_delay
@@ -37,7 +37,7 @@ class SNPSystem:
 
         # record output
         self.output = [] # time between two spikes in the output neuron
-        self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int)
+        self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int) # array of prediction
 
     def init_history(self):
         """init tick history based on the system's neurons"""
@@ -45,17 +45,13 @@ class SNPSystem:
 
     def start(self):
         """start sending and receiving spikes"""
-        # init history
         self.init_history()
         # keep on ticking until output condition is met or max number of ticks is exceeded
         while True:
             if not self.tick():
+                # calculate consumed energy
                 """For more info, see latex document and chapter 5.5 of 'Beyond classification: directly training spiking
                 neural networks for semantic segmentation' -> paper "https://arxiv.org/pdf/2110.07742" """
-                #print(self.firing_applied, " firing rules applied")
-                #print(self.forgetting_applied, " forgetting rules applied")
-                #print(self.spike_fired, " spike generated")
-                #print(self.inhibition_fired, " inhibition sent")
                 total_synapses = sum(len(neuron.targets) for neuron in self.neurons)
                 total_rules = sum(len(neuron.transf_rules) for neuron in self.neurons)
                 w_energy = self.t_step * (total_synapses + total_rules * Config.WORST_REGEX)
@@ -73,17 +69,15 @@ class SNPSystem:
             used_rule = neuron.tick()
             if used_rule:
                 any_rule_applied = True
-
             # fire event
             if used_rule and used_rule.target > 0:
                 # Generate a firing event that will be received in the future, if it has delay
                 self.spike_events[(self.t_step + used_rule.delay) % self.max_delay].append(SpikeEvent(neuron.nid, used_rule.target, neuron.targets))
-                # record output if neuron belongs to output
-                if neuron.neuron_type == 2:
+                if neuron.neuron_type == 2: # output neuron
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
-        input_spike = False
+        input_spike = False # check if there are more input
         if hasattr(self, "spike_train"):
             if self.t_step < len(self.spike_train):
                 input_spike = True
@@ -92,7 +86,7 @@ class SNPSystem:
                     for i, neuron in enumerate(self.neurons):
                         if neuron.neuron_type == 0:
                             if input_vector[i] == 1:
-                                neuron.charge += 1
+                                neuron.charge += 1 # add charge to the corresponding neuron
                                 self.spike_fired += 1
                                 self.history.record_incoming(neuron, 1, "input")
                 if (self.input_type == "binary_spike_train") and self.spike_train[self.t_step] == 1: # You have one spike train for all the input neurons
@@ -101,7 +95,6 @@ class SNPSystem:
                             neuron.charge += 1
                             self.spike_fired += 1
                             self.history.record_incoming(neuron, 1, "input")
-
 
         # consume current spiking events
         for spike_event in self.spike_events[self.t_step % self.max_delay]:
@@ -114,19 +107,23 @@ class SNPSystem:
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
-        #enter only if layer_2_synapses is instantiated
-        if isinstance(self.layer_2_synapses, np.ndarray) and self.layer_2_synapses.size > 0:
 
+        # set negative charge to 0 for the inhibitor spike
+        for neuron in self.neurons:
+            if neuron.charge < 0:
+                neuron.charge = 0
+
+        # synapses tuning, enter only if layer_2_synapses is instantiated
+        if isinstance(self.layer_2_synapses, np.ndarray) and self.layer_2_synapses.size > 0:
             fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
             fired_indices = np.where(fired_diff > 0)[0]  # index of firing neurons
             if fired_indices.size > 0:
-                label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step of computation
+                label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step for start the computation
                 for idx in fired_indices:
                     self.layer_2_synapses[label][idx] += Config.POSITIVE_REINFORCE
                     for wrong_label in range(Config.CLASSES):
                         if wrong_label != label:
                             self.layer_2_synapses[wrong_label][idx] -= Config.NEGATIVE_PENALIZATION
-
                 self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
 
         #check for halting computation
@@ -135,13 +132,11 @@ class SNPSystem:
         if not any_rule_applied and not any_in_delay and not any_spike_in_transit and not input_spike and self.t_step > 1:
             return False # end computation
 
-        # advance time
-        self.t_step += 1
-        # exit if closing condition is met, otherwise continue
+        self.t_step += 1 # advance time
         if self.t_step > self.max_steps:
             return False # end computation
         else:
-            return True
+            return True # continue computation
 
     def load_neurons_from_csv(self, filename):
         """Read a CSV file and create the corresponding SNPS"""
@@ -154,9 +149,8 @@ class SNPSystem:
                     break
 
                 initial_charge = int(row[1])
-                targets = eval(row[2])  # example: "[1,3]" → [1,3]
+                targets = eval(row[2])
                 neuron_type = int(row[3])
-
                 # Read rules
                 transf_rules = []
                 for cell in row[4:]:
@@ -166,7 +160,7 @@ class SNPSystem:
                         values = eval(cell)
                         if len(values) != 5:
                             raise ValueError(f"Wrong rules: {cell}")
-                        rule = TransformationRule(values[0], values[1],values[2],values[3],values[4])
+                        rule = TransformationRule(values[0],values[1],values[2],values[3],values[4])
                         transf_rules.append(rule)
                     except Exception as e:
                         print(f"Error during rule reading {cell}: {e}")

@@ -4,38 +4,32 @@ from sps.SNPSystem import SNPSystem
 import numpy as np
 from sklearn.datasets import fetch_openml, load_digits
 import matplotlib.pyplot as plt
-
 from skimage.measure import block_reduce
 
-"""
-# for testing networks with different shape
-def get_digits_data():
+# for testing different types of networks, or with different input shapes
+
+def get_digits_data(): #8 x 8 database and relative model
     digits = load_digits()
     imgs = digits.images  # shape: (1797, 8, 8), grayscale
     labels = digits.target  # shape: (1797,)
 
     def to_rgb(img_gray):
-        # Converte 8x8 grayscale in 8x8x3 RGB replicando i canali
         return np.stack([img_gray]*3, axis=-1).astype(np.uint8)
 
     rgb_imgs = [to_rgb(img) for img in imgs]
 
-    # Simula una struttura tipo MedMNIST dataset per compatibilità
     class DummyDataset:
         def __init__(self, imgs, labels):
             self.imgs = imgs
             self.labels = labels
 
     full_dataset = DummyDataset(rgb_imgs, labels)
-
     train_dataset = DummyDataset(full_dataset.imgs[:Config.TRAIN_SIZE], full_dataset.labels[:Config.TRAIN_SIZE])
     test_dataset = DummyDataset(full_dataset.imgs[-Config.TEST_SIZE:], full_dataset.labels[-Config.TEST_SIZE:])
-
     return (
         process_dataset(train_dataset, Config.TRAIN_SIZE),
         process_dataset(test_dataset, Config.TEST_SIZE)
     )
-
 
 def compute_divisible_3():
     #SNPS that classify if a number is divisible by 3
@@ -51,6 +45,7 @@ def compute_divisible_3():
 def compute_gen_even():
     #SNPS that generate all possible even numbers
     #see Figure 3 of paper https://www.researchgate.net/publication/220443792_Spiking_Neural_P_Systems
+    #require nondeterminism, see method tick in class PNeuron
     snps = SNPSystem(5, 100, 'generative')
     snps.load_neurons_from_csv("neuronsGenerateEven.csv")
     snps.start()
@@ -68,15 +63,6 @@ def compute_mnist():
     snps.start()
     print(snps.history)
 
-    plt.figure(figsize=(10, 4))
-    for i in range(10):
-        plt.subplot(2, 5, i + 1)  # 2 righe, 5 colonne
-        plt.imshow(binary_8x8[i], cmap='gray', vmin=0, vmax=1)
-        plt.axis('off')
-        plt.title(f"Label: {y[i]}")
-    plt.tight_layout()
-    plt.show()
-
 def binarize_mnist_image(img_flat, target_size=(8, 8), threshold=128):
     img = img_flat.reshape(28, 28)
     img_cropped = img[2:26, 2:26]  # Took central image
@@ -84,4 +70,3 @@ def binarize_mnist_image(img_flat, target_size=(8, 8), threshold=128):
     img_resized = img_resized * 255
     binary_img = (img_resized > threshold).astype(int)
     return binary_img
-"""
