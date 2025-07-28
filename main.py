@@ -11,7 +11,7 @@ from sps import MedMnist
 MedMnist.launch_SNPS()
 
 #TODO più la classe è rara e peggio etichetta. osservare classi 4, 5, 2 perchè sono le peggiori.
-# solo le forgetting rules cancellano completamente gli spike presenti nel neurone, le firing non possono, lo sto facendo comunque
+# solo le forgetting rules cancellano completamente gli spike presenti nel neurone, le firing non possono
 
 # - step 0: 1° immagine spara, layer 1 riceve 1°
 # - step 1: layer 1 legge 2° immagine e spara la 1°, layer 2 riceve spike 1° immagine

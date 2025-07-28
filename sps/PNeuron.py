@@ -1,7 +1,6 @@
 """P Neuron"""
 from sps import Config
 
-
 class PNeuron:
     """
     each neuron has a unique nid, connects to other neurons (targets),and follows a set of charge transformation rules
@@ -21,8 +20,8 @@ class PNeuron:
         PNeuron.nid = 0
 
     def __init__(self, snp_system, charge, targets, transf_rules, neuron_type=1):
-        PNeuron.increment_nid()
         self.nid = PNeuron.get_nid()
+        PNeuron.increment_nid()
         self.snp_system = snp_system
         self.targets = targets
         self.charge = charge
