@@ -1,7 +1,7 @@
 Spiking Neural P System
 =======================
 
-<a href="./technical_info.pdf" target="_blank">📄 See more documentation </a>
+See more documentation in the "technical_info.pdf" file
 
 Examples
 --------
