@@ -1,7 +1,7 @@
 Spiking Neural P System
 =======================
 
-[Leggi la documentazione in PDF](docs/technical_info.pdf)
+See more documentation at (technical_info.pdf)
 
 
 
