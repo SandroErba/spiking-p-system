@@ -39,6 +39,9 @@ class SNPSystem:
         self.output = [] # time between two spikes in the output neuron
         self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int) # array of prediction
 
+        #TODO delete after
+        self.segmentation_output = np.zeros((Config.SEGMENTATED_SHAPE * Config.SEGMENTATED_SHAPE, Config.TRAIN_SIZE), dtype=int)
+
     def init_history(self):
         """init tick history based on the system's neurons"""
         self.history = History(self.neurons)
@@ -77,6 +80,10 @@ class SNPSystem:
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
+
+
+
+
         input_spike = False # check if there are more input
         if hasattr(self, "spike_train"):
             if self.t_step < len(self.spike_train):
@@ -104,6 +111,14 @@ class SNPSystem:
                 else:
                     self.neurons[-idx].inhibit(spike_event.charge)
                 self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
+
+
+        #TODO print and variables only for checking the graycode - da mettere su tutte nel layer 3
+        for input_id in range(Config.SEGMENTATED_SHAPE * Config.SEGMENTATED_SHAPE):
+            offset = input_id + Config.NEURONS_LAYER1 + (Config.SEGMENTATED_SHAPE * Config.SEGMENTATED_SHAPE * Config.KERNEL_NUMBER)
+            if self.neurons[offset].charge > 0:
+                self.segmentation_output[input_id][self.t_step-2] = 1
+
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()

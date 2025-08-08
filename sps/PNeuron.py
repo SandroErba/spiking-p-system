@@ -82,7 +82,7 @@ class PNeuron:
         neuron_type = type_map.get(getattr(self, "neuron_type", 1), "Unknown")
         info = f"Neuron ID: {getattr(self, 'nid', '?')}\n"
         info += f"  Type: {neuron_type}\n"
-        info += f"  Initial Charge: {self.charge}\n"
+        info += f"  Charge: {self.charge}\n"
         info += f"  Output Targets: {self.targets}\n"
         info += f"  Rules ({len(self.transf_rules)}):\n"
         for i, rule in enumerate(self.transf_rules):

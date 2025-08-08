@@ -244,7 +244,7 @@ def SNPS_csv(threshold_matrix=None, filename=Config.CSV_NAME):
         else: # change the P system using the new charges for the firing rules
             threshold_array = threshold_matrix.flatten()
             for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
-                firing_threshold = threshold_array[neuron_id-Config.NEURONS_LAYER1]
+                firing_threshold = threshold_array[neuron_id - Config.NEURONS_LAYER1]
                 firing_rule = f"[1,{firing_threshold},0,1,0]"
                 writer.writerow([
                     neuron_id,            # id
