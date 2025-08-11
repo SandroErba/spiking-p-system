@@ -4,6 +4,10 @@ r: rule applied. r:7a+2;3->0;1 mean "using 3 charge, 0 spike are fired, with 1 d
 c: internal charge of neuron. i:x(y) means "x charge received from neuron y"
 '''
 
-from sps import EdgeDetection, MedMnist
+from sps import EdgeDetection, MedMnist, OtherNetworks
+
 #MedMnist.launch_SNPS()
+
 EdgeDetection.launch_gray_SNPS()
+
+#OtherNetworks.compute_divisible_3()

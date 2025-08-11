@@ -8,12 +8,12 @@ from sps import MedMnist, Config
 def launch_gray_SNPS():
     (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = MedMnist.get_blood_mnist_data()
     kernel_SNPS_csv()
-    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, Config.INPUT_TYPE)
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "images", True)
     snps.load_neurons_from_csv(Config.CSV_KERNEL_NAME)
     snps.spike_train = train_red
     snps.start()
 
-    show_images(snps.segmentation_output)
+    show_images(snps.edge_output)
 
 def show_images(output_array, img_size=27, max_images=Config.TRAIN_SIZE):
     images = np.asarray(output_array)
@@ -49,7 +49,7 @@ def kernel_SNPS_csv():
         [[1, -1], [-1, 1]]  # Diagonal 2
     ]
     layer1_size = Config.IMG_SHAPE * Config.IMG_SHAPE
-    layer2_size_per_kernel = Config.SEGMENTATED_SHAPE * Config.SEGMENTATED_SHAPE
+    layer2_size_per_kernel = Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE
     total_layer2_size = layer2_size_per_kernel * len(kernels)
     layer3_offset = Config.NEURONS_LAYER1 + total_layer2_size
 
@@ -71,8 +71,8 @@ def kernel_SNPS_csv():
                         o_row = i_row - ki
                         o_col = i_col - kj
 
-                        if 0 <= o_row < Config.SEGMENTATED_SHAPE and 0 <= o_col < Config.SEGMENTATED_SHAPE:
-                            output_idx = o_row * Config.SEGMENTATED_SHAPE + o_col
+                        if 0 <= o_row < Config.SEGMENTED_SHAPE and 0 <= o_col < Config.SEGMENTED_SHAPE:
+                            output_idx = o_row * Config.SEGMENTED_SHAPE + o_col
                             target_id = layer2_offset + output_idx
                             weight = kernel[ki][kj]
                             if weight == 1:
