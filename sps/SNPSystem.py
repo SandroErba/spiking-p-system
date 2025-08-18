@@ -14,7 +14,7 @@ class SNPSystem:
         self.t_step = 0
         self.max_steps = max_steps
         self.input_type = input_type # can be none, spike_train, images
-        self.output_type = output_type # can be halting, generative, images, prediction
+        self.output_type = output_type # can be halting, generative, prediction, images
         self.deterministic = deterministic # can be true or false
 
         self.history = None

@@ -67,7 +67,7 @@ class PNeuron:
         if rule.source != 0:
             self.charge = self.charge - rule.source
         else:
-            self.charge = 0 #TODO this is not theoretical possible
+            self.charge = 0 #This is not theoretical possible
         self.refractory = rule.delay
         self.snp_system.firing_applied += 1
         return rule

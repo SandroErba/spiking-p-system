@@ -11,3 +11,5 @@ from sps import EdgeDetection, MedMnist, OtherNetworks
 EdgeDetection.launch_gray_SNPS()
 
 #OtherNetworks.compute_divisible_3()
+
+#OtherNetworks.compute_gen_even()
