@@ -1,4 +1,5 @@
 """P Neuron"""
+import random
 from sps import Config
 
 class PNeuron:
@@ -46,9 +47,10 @@ class PNeuron:
             self.refractory = self.refractory -1
             return None
 
-        # Rule are applied in order, so the priority is intrinsic and there isn't nondeterminism
+        # Rule are applied in order or shuffled depending on the determinism of the SNPS
         idxs = list(range(len(self.transf_rules)))
-        #random.shuffle(idxs) # randomly shuffle the available transformation rules, firing and forgetting
+        if not self.snp_system.deterministic:
+            random.shuffle(idxs) # randomly shuffle the available transformation rules, firing and forgetting
 
         # Iterate through the shuffled rules and apply the first one that is valid
         for idx in idxs:
@@ -60,18 +62,18 @@ class PNeuron:
                     return self.consume(rule)
 
     def fire(self, rule):
-        if Config.NEURONS_LAYER1 <= self.nid < Config.NEURONS_LAYER1_2:
+        if Config.NEURONS_LAYER1 <= self.nid < Config.NEURONS_LAYER1_2 and self.snp_system.output_type == "prediction":
             self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_LAYER1] += 1 # for rules tuning
         if rule.source != 0:
             self.charge = self.charge - rule.source
         else:
-            self.charge = 0 #TODO this is not theoretical possible
+            self.charge = 0 #This is not theoretical possible
         self.refractory = rule.delay
         self.snp_system.firing_applied += 1
         return rule
 
     def consume(self, rule):
-        if Config.NEURONS_LAYER1_2 <= self.nid < Config.NEURONS_TOTAL: # output array with predictions
+        if Config.NEURONS_LAYER1_2 <= self.nid < Config.NEURONS_TOTAL and self.snp_system.output_type == "prediction": # output array with predictions
             self.snp_system.output_array[self.snp_system.t_step][self.nid - Config.NEURONS_LAYER1_2] = self.charge
         self.charge = 0
         self.snp_system.forgetting_applied += 1
@@ -82,7 +84,7 @@ class PNeuron:
         neuron_type = type_map.get(getattr(self, "neuron_type", 1), "Unknown")
         info = f"Neuron ID: {getattr(self, 'nid', '?')}\n"
         info += f"  Type: {neuron_type}\n"
-        info += f"  Initial Charge: {self.charge}\n"
+        info += f"  Charge: {self.charge}\n"
         info += f"  Output Targets: {self.targets}\n"
         info += f"  Rules ({len(self.transf_rules)}):\n"
         for i, rule in enumerate(self.transf_rules):

@@ -77,7 +77,7 @@ def launch_SNPS():
     print(f"Expected energy spent: {energy_tracker['expected']} fJ")
 
 def rules_train_SNPS(spike_train):
-    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, Config.INPUT_TYPE)
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
     snps.load_neurons_from_csv(Config.CSV_NAME)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
@@ -87,7 +87,7 @@ def rules_train_SNPS(spike_train):
     normalize_rules(snps.layer_2_firing_counts.reshape((int(Config.IMG_SHAPE/Config.BLOCK_SHAPE), int(Config.IMG_SHAPE/Config.BLOCK_SHAPE))), Config.TRAIN_SIZE)
 
 def syn_train_SNPS(spike_train, labels):
-    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, Config.INPUT_TYPE)
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
     snps.load_neurons_from_csv(Config.CSV_NAME)
     snps.spike_train = spike_train
     snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_LAYER2), dtype=float) # matrix for destroy synapses
@@ -100,7 +100,7 @@ def syn_train_SNPS(spike_train, labels):
     prune_SNPS(pruned_matrix)
 
 def compute_SNPS(spike_train):
-    snps = SNPSystem(5, Config.TEST_SIZE + 5, Config.INPUT_TYPE)
+    snps = SNPSystem(5, Config.TEST_SIZE + 5, "images", "prediction", True)
     snps.load_neurons_from_csv(Config.CSV_NAME_PRUNED)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
@@ -244,7 +244,7 @@ def SNPS_csv(threshold_matrix=None, filename=Config.CSV_NAME):
         else: # change the P system using the new charges for the firing rules
             threshold_array = threshold_matrix.flatten()
             for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
-                firing_threshold = threshold_array[neuron_id-Config.NEURONS_LAYER1]
+                firing_threshold = threshold_array[neuron_id - Config.NEURONS_LAYER1]
                 firing_rule = f"[1,{firing_threshold},0,1,0]"
                 writer.writerow([
                     neuron_id,            # id

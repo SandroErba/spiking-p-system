@@ -8,12 +8,15 @@ import csv
 class SNPSystem:
     """Spiking Neural P System"""
 
-    def __init__(self, max_delay, max_steps, input_type):
+    def __init__(self, max_delay, max_steps, input_type, output_type, deterministic):
         # init time step, history
         PNeuron.reset_nid()
         self.t_step = 0
         self.max_steps = max_steps
-        self.input_type = input_type #generative, binary_spike_train or image_spike_train
+        self.input_type = input_type # can be none, spike_train, images
+        self.output_type = output_type # can be halting, generative, prediction, images
+        self.deterministic = deterministic # can be true or false
+
         self.history = None
 
         # init circular future spiking events based on max_delay
@@ -29,15 +32,21 @@ class SNPSystem:
         self.spike_fired = 0
         self.inhibition_fired = 0
 
-        # record firing of layer 2 for the training phase
-        self.labels = []
-        self.old_layer_2_firing_counts = 0
-        self.layer_2_firing_counts = 0
-        self.layer_2_synapses = []
+        if input_type == "images" and output_type == "prediction":
+            # record firing of layer 2 for the training phase
+            self.labels = []
+            self.old_layer_2_firing_counts = 0
+            self.layer_2_firing_counts = 0
+            self.layer_2_synapses = []
 
         # record output
-        self.output = [] # time between two spikes in the output neuron
-        self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int) # array of prediction
+        if output_type == "generative":
+            self.output = [] # time between two spikes in the output neuron
+        elif output_type == "prediction":
+            self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int) # array of prediction
+
+        if input_type == "images" and output_type == "images":
+            self.edge_output = np.zeros((Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE, Config.TRAIN_SIZE), dtype=int)
 
     def init_history(self):
         """init tick history based on the system's neurons"""
@@ -57,6 +66,8 @@ class SNPSystem:
                 w_energy = self.t_step * (total_synapses + total_rules * Config.WORST_REGEX)
                 e_energy = int(self.spike_fired * Config.EXPECTED_SPIKE + (self.firing_applied + self.forgetting_applied) * Config.EXPECTED_REGEX)
 
+                if self.output_type == "generative":
+                    print("Spike fired at time step", self.output[0], "and time step", self.output[1], ". The output is", self.output[1] - self.output[0])
                 return w_energy, e_energy
 
     def tick(self):
@@ -73,15 +84,16 @@ class SNPSystem:
             if used_rule and used_rule.target > 0:
                 # Generate a firing event that will be received in the future, if it has delay
                 self.spike_events[(self.t_step + used_rule.delay) % self.max_delay].append(SpikeEvent(neuron.nid, used_rule.target, neuron.targets))
-                if neuron.neuron_type == 2: # output neuron
+                if neuron.neuron_type == 2 and self.output_type == "generative": # output neuron
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
+        # input handling
         input_spike = False # check if there are more input
-        if hasattr(self, "spike_train"):
+        if (self.input_type == "spike_train" or self.input_type == "images") and hasattr(self, "spike_train"):
             if self.t_step < len(self.spike_train):
                 input_spike = True
-                if self.input_type == "image_spike_train": # If you have an array of spike trains (images) as input
+                if self.input_type == "images": # if you have an array of images as input
                     input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
                     for i, neuron in enumerate(self.neurons):
                         if neuron.neuron_type == 0:
@@ -89,7 +101,7 @@ class SNPSystem:
                                 neuron.charge += 1 # add charge to the corresponding neuron
                                 self.spike_fired += 1
                                 self.history.record_incoming(neuron, 1, "input")
-                if (self.input_type == "binary_spike_train") and self.spike_train[self.t_step] == 1: # You have one spike train for all the input neurons
+                if (self.input_type == "spike_train") and self.spike_train[self.t_step] == 1: # You have one spike train for all the input neurons
                     for neuron in self.neurons:
                         if neuron.neuron_type == 0:
                             neuron.charge += 1
@@ -105,6 +117,12 @@ class SNPSystem:
                     self.neurons[-idx].inhibit(spike_event.charge)
                 self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
 
+        if self.output_type == "images":
+            for input_id in range(Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE):
+                offset = input_id + Config.NEURONS_LAYER1 + (Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE * Config.KERNEL_NUMBER)
+                if self.neurons[offset].charge > 0:
+                    self.edge_output[input_id][self.t_step-2] = 1
+
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
 
@@ -113,8 +131,8 @@ class SNPSystem:
             if neuron.charge < 0:
                 neuron.charge = 0
 
-        # synapses tuning, enter only if layer_2_synapses is instantiated
-        if isinstance(self.layer_2_synapses, np.ndarray) and self.layer_2_synapses.size > 0:
+        # synapses tuning, enter only in the image classification mode
+        if self.input_type == "images" and self.output_type == "prediction" and len(self.layer_2_synapses) > 0:
             fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
             fired_indices = np.where(fired_diff > 0)[0]  # index of firing neurons
             if fired_indices.size > 0:
@@ -126,14 +144,20 @@ class SNPSystem:
                             self.layer_2_synapses[wrong_label][idx] -= Config.NEGATIVE_PENALIZATION
                 self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
 
-        #check for halting computation
+        # check for halting computation
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
         any_spike_in_transit = any(self.spike_events[i] for i in range(self.max_delay))
+        if self.output_type == "generative" and len(self.output) == 2: # halt computation if output has fired 2 times
+            return False
         if not any_rule_applied and not any_in_delay and not any_spike_in_transit and not input_spike and self.t_step > 1:
+            if self.output_type == "halting":
+                print("The computation halts because no further rules can be applied; the input is accepted")
             return False # end computation
 
         self.t_step += 1 # advance time
         if self.t_step > self.max_steps:
+            if self.output_type == "halting":
+                print("The system did not halt naturally within the given step bound; the input is rejected")
             return False # end computation
         else:
             return True # continue computation
