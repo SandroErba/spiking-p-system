@@ -3,6 +3,8 @@ Spiking Neural P System
 
 See more documentation in the "Technical_info.pdf" file
 
+The initial fork was taken from https://github.com/a1sabau/spiking-p-system
+
 Examples
 --------
 
