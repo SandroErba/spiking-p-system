@@ -43,15 +43,7 @@ Installation
 
    .. code-block:: bash
 
-      pip install -r requirements.txt
-
-   **Main dependencies:**
-
-   - ``numpy`` — numerical computations  
-   - ``matplotlib`` — data visualization  
-   - ``medmnist`` — image datasets for classification  
-   - ``texttable`` — formatted console tables  
-   - ``setuptools`` — package management utilities  
+      pip install -r requirements.txt 
 
 ----------------------
 
@@ -63,9 +55,9 @@ This allows you to explore and test different P System structures and behaviors.
 
 Refer to the ``Technical_info.pdf`` document for a detailed explanation of:
 
-- the internal structure and functioning of the simulator,  
-- how networks are defined,  
-- and how to extend or modify them.
+- the internal structure and functioning of the simulator
+- how networks are defined
+- how to extend or modify them
 
 ----------------------
 
@@ -80,8 +72,8 @@ To start the simulator, run:
 
 From ``main.py``, you can test the main network modules:
 
-- **``MedMnist``** – networks for image classification tasks  
-- **``EdgeDetection``** – networks that generate edge-based images  
+- **``MedMnist``** – network for image classification tasks  
+- **``EdgeDetection``** – network that generate edge-based images  
 - **``OtherNetworks``** – small networks from literature and reference papers  
 
 Each module represents a different use case of Spiking Neural P Systems.
@@ -96,12 +88,5 @@ Documentation
   *Ionescu, Mihai, Gheorghe Păun, and Takashi Yokomori.*  
   *Fundamenta Informaticae*, 71.2–3 (2006): 279–308.
 
-----------------------
-
-Author
-------
-
-**Sandro Erba**  
-Repository: `spiking-p-system <https://github.com/SandroErba/spiking-p-system>`_
 
 ----------------------
