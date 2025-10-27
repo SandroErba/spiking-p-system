@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from sps import Config
 
@@ -165,7 +167,9 @@ class SNPSystem:
     def load_neurons_from_csv(self, filename):
         """Read a CSV file and create the corresponding SNPS"""
         neurons = []
-        with open(filename, newline='') as csvfile:
+        csv_path = os.path.join("csv", filename)
+
+        with open(csv_path, newline='') as csvfile:
             reader = csv.reader(csvfile)
             next(reader)
             for row in reader:
