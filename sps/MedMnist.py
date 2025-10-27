@@ -54,14 +54,14 @@ def binarize_rgb_image(img_rgb): # binarize for create the input array
 
 def launch_SNPS():
     """main method of the class, manage all the SN P systems"""
-    (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data() # prepare database
+    (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data() # prepare and split database
 
     SNPS_csv() # red phase
     rules_train_SNPS(train_red) # adapt the firing rules in layer 2
     syn_train_SNPS(train_red, train_labels) # prune and inhibit synapses
     red_pred = compute_SNPS(test_red) # test the obtained P system
 
-    SNPS_csv() # repeat for the other two color channels
+    SNPS_csv() # repeat for the other two color channels - green phase
     rules_train_SNPS(train_green)
     syn_train_SNPS(train_green, train_labels)
     green_pred = compute_SNPS(test_green)
@@ -265,51 +265,3 @@ def SNPS_csv(threshold_matrix=None, filename=Config.CSV_NAME):
                 2,                    # neuron_type
                 "[1,1,1,0,0]"         # forgetting rule
             ])
-
-#Code for showing full, binarized and red (or other colors) images
-"""
-def show_images(imgs, labels):
-    num_images = len(labels)
-    plt.figure(figsize=(10, 4))
-    for i in range(num_images):
-        img_rgb = imgs[i]
-        plt.subplot(2, 5, i + 1)
-        plt.imshow(img_rgb)
-        plt.axis('off')
-        plt.title(f"Label: {labels[i]}")
-    plt.tight_layout()
-    plt.show()
-
-def show_rgb_from_spike_train(spike_train, labels):
-    # Show the binarized images obtained
-    num_images = len(labels)
-    plt.figure(figsize=(10, 4))
-    for i in range(num_images):
-        r = spike_train[i * 3 + 0].reshape(28, 28)
-        g = spike_train[i * 3 + 1].reshape(28, 28)
-        b = spike_train[i * 3 + 2].reshape(28, 28)
-        img_rgb = np.stack([r, g, b], axis=-1) * 255
-        img_rgb = img_rgb.astype(np.uint8)
-        plt.subplot(2, 5, i + 1)
-        plt.imshow(img_rgb)
-        plt.axis('off')
-        plt.title(f"Label: {labels[i]}")
-    plt.tight_layout()
-    plt.show()
-
-def show_red_from_spike_train(spike_train, labels):
-    num_images = len(labels)
-    plt.figure(figsize=(10, 4))
-    for i in range(num_images):
-        r = spike_train[i].reshape(28, 28)
-        g = np.zeros_like(r)
-        b = np.zeros_like(r)
-        img_rgb = np.stack([r, g, b], axis=-1) * 255
-        img_rgb = img_rgb.astype(np.uint8)
-        plt.subplot(2, 5, i + 1)
-        plt.imshow(img_rgb)
-        plt.axis('off')
-        plt.title(f"Label: {labels[i]}")
-    plt.tight_layout()
-    plt.show()
-"""

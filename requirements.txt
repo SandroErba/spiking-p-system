@@ -1,0 +1,5 @@
+numpy~=2.2.6
+medmnist~=3.0.2
+texttable~=1.7.0
+matplotlib~=3.10.3
+setuptools~=80.8.0

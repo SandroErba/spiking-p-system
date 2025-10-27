@@ -1,10 +1,4 @@
-from sps import Config
-from sps.MedMnist import process_dataset
 from sps.SNPSystem import SNPSystem
-import numpy as np
-from sklearn.datasets import fetch_openml, load_digits
-import matplotlib.pyplot as plt
-from skimage.measure import block_reduce
 
 # for testing different types of networks
 def compute_divisible_3():
@@ -21,7 +15,6 @@ def compute_divisible_3():
 def compute_gen_even():
     #SNPS that generate all possible even numbers
     #see Figure 3 of paper https://www.researchgate.net/publication/220443792_Spiking_Neural_P_Systems
-    #require nondeterminism, see method tick in class PNeuron
     snps = SNPSystem(5, 100, "none", "generative", False)
     snps.load_neurons_from_csv("neuronsGenerateEven.csv")
     snps.start()

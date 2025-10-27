@@ -47,7 +47,7 @@ class PNeuron:
             self.refractory = self.refractory -1
             return None
 
-        # Rule are applied in order or shuffled depending on the determinism of the SNPS
+        # Determinism: rules are applied in order or shuffled, depending on the determinism of the SNPS
         idxs = list(range(len(self.transf_rules)))
         if not self.snp_system.deterministic:
             random.shuffle(idxs) # randomly shuffle the available transformation rules, firing and forgetting
