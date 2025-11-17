@@ -167,9 +167,8 @@ class SNPSystem:
     def load_neurons_from_csv(self, filename):
         """Read a CSV file and create the corresponding SNPS"""
         neurons = []
-        csv_path = os.path.join("csv", filename)
 
-        with open(csv_path, newline='') as csvfile:
+        with open(filename, newline='') as csvfile:
             reader = csv.reader(csvfile)
             next(reader)
             for row in reader:

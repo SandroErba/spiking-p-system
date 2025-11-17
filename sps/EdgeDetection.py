@@ -53,7 +53,7 @@ def kernel_SNPS_csv():
     total_layer2_size = layer2_size_per_kernel * len(kernels)
     layer3_offset = Config.NEURONS_LAYER1 + total_layer2_size
 
-    with open(Config.CSV_KERNEL_NAME, mode='w', newline='') as csv_file:
+    with open("csv/" + Config.CSV_KERNEL_NAME, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 

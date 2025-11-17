@@ -78,7 +78,7 @@ def launch_SNPS():
 
 def rules_train_SNPS(spike_train):
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
-    snps.load_neurons_from_csv(Config.CSV_NAME)
+    snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
     w, e = snps.start()
@@ -88,7 +88,7 @@ def rules_train_SNPS(spike_train):
 
 def syn_train_SNPS(spike_train, labels):
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
-    snps.load_neurons_from_csv(Config.CSV_NAME)
+    snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = spike_train
     snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_LAYER2), dtype=float) # matrix for destroy synapses
     snps.labels = labels
@@ -101,7 +101,7 @@ def syn_train_SNPS(spike_train, labels):
 
 def compute_SNPS(spike_train):
     snps = SNPSystem(5, Config.TEST_SIZE + 5, "images", "prediction", True)
-    snps.load_neurons_from_csv(Config.CSV_NAME_PRUNED)
+    snps.load_neurons_from_csv("csv/" + Config.CSV_NAME_PRUNED)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
     w, e = snps.start()
@@ -134,7 +134,7 @@ def prune_matrix(synapses):
 
 def prune_SNPS(pruned_matrix):
     """change the synapses in the csv file"""
-    with open(Config.CSV_NAME, 'r') as f_in, open(Config.CSV_NAME_PRUNED, 'w', newline='') as f_out:
+    with open("csv/" + Config.CSV_NAME, 'r') as f_in, open("csv/" + Config.CSV_NAME_PRUNED, 'w', newline='') as f_out:
         reader = csv.reader(f_in)
         writer = csv.writer(f_out)
         header = next(reader)
@@ -156,7 +156,39 @@ def prune_SNPS(pruned_matrix):
             writer.writerow(row)
 
 def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
-    """calculate the model's performance"""
+    """calculate the model's performance including per-channel and combined ranking"""
+
+    def evaluate_single_channel(predictions, labels):
+        """Return top-1 and top-3 accuracy for one color channel."""
+        top1, top3 = 0, 0
+        for row, true_label in zip(predictions, labels):
+            noise = np.random.rand(Config.CLASSES) * 1e-6
+            ranking = np.argsort(-(row + noise))
+            rank = int(np.where(ranking == true_label)[0][0])
+            if rank == 0:
+                top1 += 1
+            if rank < 3:
+                top3 += 1
+        n = len(labels)
+        return top1 / n, top3 / n
+
+
+    # ----------------------------------------------------------
+    # 1) Compute individual channel accuracies
+    # ----------------------------------------------------------
+    red_top1, red_top3 = evaluate_single_channel(pred_red, labels)
+    green_top1, green_top3 = evaluate_single_channel(pred_green, labels)
+    blue_top1, blue_top3 = evaluate_single_channel(pred_blue, labels)
+
+    print("\n=== Individual Channel Accuracies ===")
+    print(f"Red   - Top-1: {red_top1*100:.2f}%, Top-3: {red_top3*100:.2f}%")
+    print(f"Green - Top-1: {green_top1*100:.2f}%, Top-3: {green_top3*100:.2f}%")
+    print(f"Blue  - Top-1: {blue_top1*100:.2f}%, Top-3: {blue_top3*100:.2f}%")
+
+
+    # ----------------------------------------------------------
+    # 2) Existing combined ranking logic (unchanged)
+    # ----------------------------------------------------------
     scores = []
     top1_correct = 0
     top3_correct = 0
@@ -182,21 +214,24 @@ def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
         rank = int(np.where(final_ranking == true_label)[0][0])
         scores.append(rank)
 
-
         if rank < 3:
             top3_correct += 1
             if rank == 0:
                 top1_correct += 1
                 per_class_correct[true_label] += 1
+
         class_counts[true_label] += 1
 
+    # Combined metrics
     top1_accuracy = top1_correct / len(labels)
     top3_accuracy = top3_correct / len(labels)
     avg_rank = sum(scores) / len(scores)
 
+    print("\n=== Combined Ranking Accuracy ===")
     print("Mean score:", avg_rank)
     print("Top-1 accuracy:", round(top1_accuracy * 100, 2), "%")
     print("Top-3 accuracy:", round(top3_accuracy * 100, 2), "%")
+
     print("\nPer-class accuracy:")
     for i in range(Config.CLASSES):
         count = class_counts[i]
@@ -204,9 +239,18 @@ def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
         acc = (correct / count) * 100 if count > 0 else 0
         print(f"  Class {i}: {acc:.2f}% accuracy over {count} instances")
 
-    return scores, avg_rank, top1_accuracy, top3_accuracy
+    return (
+        scores,
+        avg_rank,
+        top1_accuracy,
+        top3_accuracy,
+        (red_top1, red_top3),
+        (green_top1, green_top3),
+        (blue_top1, blue_top3)
+    )
 
-def SNPS_csv(threshold_matrix=None, filename=Config.CSV_NAME):
+
+def SNPS_csv(threshold_matrix=None, filename="csv/" + Config.CSV_NAME):
     """Generate the SN P system to analize chosen images
     If a matrix is passed, update the existing P system"""
     with open(filename, mode='w', newline='') as csv_file:

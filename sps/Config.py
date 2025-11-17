@@ -12,9 +12,9 @@ NEURONS_TOTAL = NEURONS_LAYER1_2 + CLASSES # 841
 
 # PARAMETER TUNING
 TRAIN_SIZE = 1000
-TEST_SIZE = 500
+TEST_SIZE = 1000
 PRUNING_PERC = 0.2
-INHIBIT_PERC = 0.2
+INHIBIT_PERC = 0.3
 POSITIVE_REINFORCE = CLASSES - 1
 NEGATIVE_PENALIZATION = 1
 
@@ -28,7 +28,9 @@ KERNEL_SHAPE = 2
 KERNEL_NUMBER = 6
 SEGMENTED_SHAPE = IMG_SHAPE - KERNEL_SHAPE + 1
 
+#TODO !!!when i added the csv/ , the performance has increased but with different classes. see 11/17 commit
+
 # STRING
-CSV_NAME = "neurons784image.csv"
-CSV_NAME_PRUNED = "neurons784image_pruned.csv"
+CSV_NAME = "SNPS_classification.csv"
+CSV_NAME_PRUNED = "SNPS_classification_pruned.csv"
 CSV_KERNEL_NAME = "SNPS_kernel.csv"
