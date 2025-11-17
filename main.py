@@ -7,8 +7,8 @@ from sps import EdgeDetection, MedMnist, OtherNetworks
 
 #MedMnist.launch_SNPS()
 
-#EdgeDetection.launch_gray_SNPS() #Use Config.TRAIN_SIZE < 30 for a good visualization
+EdgeDetection.launch_gray_SNPS() #Use Config.TRAIN_SIZE < 30 for a good visualization
 
-OtherNetworks.compute_divisible_3()
+#OtherNetworks.compute_divisible_3()
 
 #OtherNetworks.compute_gen_even()

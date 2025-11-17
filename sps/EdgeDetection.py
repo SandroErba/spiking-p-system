@@ -9,7 +9,7 @@ def launch_gray_SNPS():
     (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = MedMnist.get_blood_mnist_data()
     kernel_SNPS_csv()
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "images", True)
-    snps.load_neurons_from_csv(Config.CSV_KERNEL_NAME)
+    snps.load_neurons_from_csv("csv/" + Config.CSV_KERNEL_NAME)
     snps.spike_train = train_red
     snps.start()
 
