@@ -21,8 +21,8 @@ class TransformationRule:
         self.delay = delay # refractory period of the rules
 
     def check(self, charge):
-        # with div and mod is possible to manage all value condition for charge
-        if charge > 0 and charge >= self.mod: #for avoid negative values
+        #with div and mod is possible to manage all value condition for charge
+        if charge > 0 and charge >= self.mod and charge >= self.target: #for avoid negative values
             if self.div > 0:
                 return charge >= self.source and (charge - self.mod) % self.div == 0
             if self.div == 0:

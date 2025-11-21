@@ -19,3 +19,11 @@ def compute_gen_even():
     snps.load_neurons_from_csv("csv/" + "neuronsGenerateEven.csv")
     snps.start()
     print(snps.history)
+
+def compute_extended():
+    #SNPS that test the extended version of the rules
+    #see https://www.researchgate.net/publication/31597157_Spiking_Neural_P_Systems_with_Extended_Rules
+    snps = SNPSystem(5, 10, "none", "halting", False)
+    snps.load_neurons_from_csv("csv/" + "ExampleExtended.csv")
+    snps.start()
+    print(snps.history)

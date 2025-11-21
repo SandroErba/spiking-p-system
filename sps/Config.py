@@ -14,7 +14,6 @@ NEGATIVE_PENALIZATION = 1
 
 # RULE TUNING
 WHITE_HOLE = True #After a rule application, all the remaining spikes are deleted
-EXTENDED = False #The rules have 6 parameters, and the 6th is the number of spike sent, that can be more than 1
 
 # NUMBER OF NEURONS
 NEURONS_LAYER1 = int(IMG_SHAPE ** 2) #784
@@ -33,7 +32,7 @@ KERNEL_NUMBER = 6
 SEGMENTED_SHAPE = IMG_SHAPE - KERNEL_SHAPE + 1
 
 #TODO !!!when i added the csv/ , the performance has increased but with different classes. see 11/17 commit
-# change threshold; count the number of activated rules and tune in this way can be really wrong
+# count the number of activated rules and tune in this way can be really wrong
 
 # STRING
 CSV_NAME = "SNPS_classification.csv"
