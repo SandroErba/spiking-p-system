@@ -66,8 +66,8 @@ class PNeuron:
             self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_LAYER1] += 1 # for rules tuning
         if rule.source != 0:
             self.charge = self.charge - rule.source
-        else:
-            self.charge = 0 #This is not theoretical possible
+        if Config.WHITE_HOLE: #delete all the internal spike
+            self.charge = 0
         self.refractory = rule.delay
         self.snp_system.firing_applied += 1
         return rule
