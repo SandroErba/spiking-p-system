@@ -33,12 +33,12 @@ class PNeuron:
     def receive(self, charge):
         if self.refractory == 0: # only receive input if outside the refractory period
             self.charge += charge
-            self.snp_system.spike_fired += 1
+            self.snp_system.spike_fired += charge
 
     def inhibit(self, charge):
         if self.refractory == 0: # only receive input if outside the refractory period
             self.charge -= charge
-            self.snp_system.inhibition_fired += 1
+            self.snp_system.inhibition_fired += charge
 
     def tick(self):
         """Tick and apply one transformation rule (either fire or consume), if possible."""
@@ -63,7 +63,10 @@ class PNeuron:
 
     def fire(self, rule):
         if Config.NEURONS_LAYER1 <= self.nid < Config.NEURONS_LAYER1_2 and self.snp_system.output_type == "prediction":
-            self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_LAYER1] += 1 # for rules tuning
+            if Config.QUANTIZATION:
+                self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_LAYER1] += rule.target # for rules tuning
+            else:
+                self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_LAYER1] += 1 # for rules tuning
         if rule.source != 0:
             self.charge = self.charge - rule.source
         if Config.WHITE_HOLE: #delete all the internal spike

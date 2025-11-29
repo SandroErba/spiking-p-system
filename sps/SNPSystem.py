@@ -7,6 +7,12 @@ from .PNeuron import PNeuron
 from .SpikeUtils import SpikeEvent, TransformationRule, History
 import csv
 
+charge_map_l1 = np.zeros(Config.NEURONS_LAYER1, dtype=float) # support array - for saving and showing the internal charge
+charge_map_l2 = np.zeros(Config.NEURONS_LAYER1_2 - Config.NEURONS_LAYER1, dtype=float)
+charge_map_l3 = np.zeros(Config.NEURONS_TOTAL - Config.NEURONS_LAYER1_2, dtype=float)
+
+
+
 class SNPSystem:
     """Spiking Neural P System"""
 
@@ -68,6 +74,7 @@ class SNPSystem:
                 w_energy = self.t_step * (total_synapses + total_rules * Config.WORST_REGEX)
                 e_energy = int(self.spike_fired * Config.EXPECTED_SPIKE + (self.firing_applied + self.forgetting_applied) * Config.EXPECTED_REGEX)
 
+
                 if self.output_type == "generative":
                     print("Spike fired at time step", self.output[0], "and time step", self.output[1], ". The output is", self.output[1] - self.output[0])
                 return w_energy, e_energy
@@ -79,6 +86,7 @@ class SNPSystem:
         any_rule_applied = False
         # evolve each neuron
         for neuron in self.neurons:
+            self.save_charge(neuron) #DEBUGGING ONLY - for saving the internal charge
             used_rule = neuron.tick()
             if used_rule:
                 any_rule_applied = True
@@ -90,6 +98,8 @@ class SNPSystem:
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
+        #self.show_charge() #DEBUGGING ONLY - for saving the internal charge
+
         # input handling
         input_spike = False # check if there are more input
         if (self.input_type == "spike_train" or self.input_type == "images") and hasattr(self, "spike_train"):
@@ -99,11 +109,11 @@ class SNPSystem:
                     input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
                     for i, neuron in enumerate(self.neurons):
                         if neuron.neuron_type == 0:
-                            if input_vector[i] == 1:
-                                neuron.charge += 1 # add charge to the corresponding neuron
-                                self.spike_fired += 1
-                                self.history.record_incoming(neuron, 1, "input")
-                if (self.input_type == "spike_train") and self.spike_train[self.t_step] == 1: # You have one spike train for all the input neurons
+                            if input_vector[i] > 0:
+                                neuron.charge +=  input_vector[i] # add charge to the corresponding neuron
+                                self.spike_fired += input_vector[i]
+                                self.history.record_incoming(neuron, input_vector[i], "input")
+                if (self.input_type == "spike_train") and self.spike_train[self.t_step] == 1: # You have one boolean spike train for all the input neurons
                     for neuron in self.neurons:
                         if neuron.neuron_type == 0:
                             neuron.charge += 1
@@ -135,16 +145,29 @@ class SNPSystem:
 
         # synapses tuning, enter only in the image classification mode
         if self.input_type == "images" and self.output_type == "prediction" and len(self.layer_2_synapses) > 0:
-            fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
-            fired_indices = np.where(fired_diff > 0)[0]  # index of firing neurons
-            if fired_indices.size > 0:
+            if Config.QUANTIZATION and np.any(charge_map_l2):
+                #print("MATRICE LAYER 2: ", charge_map_l2)
+                # TODO check image for image for the correct spike
                 label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step for start the computation
-                for idx in fired_indices:
-                    self.layer_2_synapses[label][idx] += Config.POSITIVE_REINFORCE
+                for idx in range(Config.NEURONS_LAYER2):
+                    self.layer_2_synapses[label][idx] += charge_map_l2[idx]
                     for wrong_label in range(Config.CLASSES):
                         if wrong_label != label:
-                            self.layer_2_synapses[wrong_label][idx] -= Config.NEGATIVE_PENALIZATION
-                self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
+                            self.layer_2_synapses[wrong_label][idx] -= charge_map_l2[idx]
+                #for idx in range(Config.CLASSES):
+                    #print("MATRICE CONTEGGIO LAYER : ", idx, ": ", self.layer_2_synapses[idx])
+
+            elif not Config.QUANTIZATION:
+                fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
+                fired_indices = np.where(fired_diff > 0)[0]  # index of firing neurons
+                if fired_indices.size > 0:
+                    label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step for start the computation
+                    for idx in fired_indices:
+                        self.layer_2_synapses[label][idx] += Config.POSITIVE_REINFORCE
+                        for wrong_label in range(Config.CLASSES):
+                            if wrong_label != label:
+                                self.layer_2_synapses[wrong_label][idx] -= Config.NEGATIVE_PENALIZATION
+                    self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
 
         # check for halting computation
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
@@ -197,3 +220,29 @@ class SNPSystem:
                 neurons.append(neuron)
         self.neurons = neurons
         return neurons
+
+
+
+
+    # support array - for saving and showing the internal charge
+    def save_charge(self, neuron):
+        nid = neuron.nid
+        if 0 <= nid < Config.NEURONS_LAYER1:
+            charge_map_l1[nid] = neuron.charge
+            return
+        l2_index = nid - Config.NEURONS_LAYER1
+        if 0 <= l2_index < (Config.NEURONS_LAYER1_2 - Config.NEURONS_LAYER1):
+            charge_map_l2[l2_index] = neuron.charge
+            return
+        l3_index = nid - Config.NEURONS_LAYER1_2
+        if 0 <= l3_index < (Config.NEURONS_TOTAL - Config.NEURONS_LAYER1_2):
+            charge_map_l3[l3_index] = neuron.charge
+            return
+
+    def show_charge(self):
+        print("-------------MATRIX LAYER 1 at time step ", self.t_step, "------------------")
+        print(charge_map_l1)
+        print("-------------MATRIX LAYER 2 at time step ", self.t_step, "------------------")
+        print(charge_map_l2)
+        print("-------------MATRIX LAYER 3 at time step ", self.t_step, "------------------")
+        print(charge_map_l3)
