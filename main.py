@@ -8,8 +8,7 @@ from sps import EdgeDetection, MedMnist, OtherNetworks, Config
 
 MedMnist.launch_quantized_SNPS() if Config.QUANTIZATION else MedMnist.launch_binarized_SNPS()
 
-
-#EdgeDetection.launch_gray_SNPS() #Use Config.TRAIN_SIZE < 30 for a good visualization
+#EdgeDetection.launch_gray_SNPS() #TRAIN_SIZE < 30, INVERT = False, QUANTIZATION = False
 
 #OtherNetworks.compute_extended()
 

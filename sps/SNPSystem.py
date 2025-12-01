@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 from sps import Config
 
@@ -29,7 +27,7 @@ class SNPSystem:
 
         # init circular future spiking events based on max_delay
         self.max_delay = max_delay
-        self.spike_events = [[] for x in range(self.max_delay)]
+        self.spike_events = [[] for _ in range(self.max_delay)]
 
         # init neuron container
         self.neurons = []
@@ -154,8 +152,6 @@ class SNPSystem:
                     for wrong_label in range(Config.CLASSES):
                         if wrong_label != label:
                             self.layer_2_synapses[wrong_label][idx] -= charge_map_l2[idx]
-                #for idx in range(Config.CLASSES):
-                    #print("MATRICE CONTEGGIO LAYER : ", idx, ": ", self.layer_2_synapses[idx])
 
             elif not Config.QUANTIZATION:
                 fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
@@ -225,7 +221,8 @@ class SNPSystem:
 
 
     # support array - for saving and showing the internal charge
-    def save_charge(self, neuron):
+    @staticmethod
+    def save_charge(neuron):
         nid = neuron.nid
         if 0 <= nid < Config.NEURONS_LAYER1:
             charge_map_l1[nid] = neuron.charge

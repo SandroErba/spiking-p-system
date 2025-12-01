@@ -1,5 +1,4 @@
 import numpy as np
-import csv
 from sps import Config
 from sps.HandleCSV import binarized_SNPS_csv, quantized_SNPS_csv, prune_SNPS
 from sps.HandleImage import get_blood_mnist_data
@@ -135,18 +134,18 @@ def prune_matrix(synapses):
 def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
     """calculate the model's performance including per-channel and combined ranking"""
 
-    def evaluate_single_channel(predictions, labels):
+    def evaluate_single_channel(predictions, s_labels):
         """Return top-1 and top-3 accuracy for one color channel."""
         top1, top3 = 0, 0
-        for row, true_label in zip(predictions, labels):
-            noise = np.random.rand(Config.CLASSES) * 1e-6
-            ranking = np.argsort(-(row + noise))
-            rank = int(np.where(ranking == true_label)[0][0])
-            if rank == 0:
+        for row, s_true_label in zip(predictions, s_labels):
+            s_noise = np.random.rand(Config.CLASSES) * 1e-6
+            ranking = np.argsort(-(row + s_noise))
+            s_rank = int(np.where(ranking == s_true_label)[0][0])
+            if s_rank == 0:
                 top1 += 1
-            if rank < 3:
+            if s_rank < 3:
                 top3 += 1
-        n = len(labels)
+        n = len(s_labels)
         return top1 / n, top3 / n
 
 

@@ -2,8 +2,8 @@ import csv
 from sps import Config
 
 
-def quantized_SNPS_csv(threshold_matrix=None, filename="csv/" + Config.CSV_NAME_Q):
-    """Generate the SN P system to analize chosen images
+def quantized_SNPS_csv(filename="csv/" + Config.CSV_NAME_Q):
+    """Generate the SN P system to analyze chosen images
     If a matrix is passed, update the existing P system"""
     with open(filename, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
@@ -55,7 +55,7 @@ def quantized_SNPS_csv(threshold_matrix=None, filename="csv/" + Config.CSV_NAME_
 
 
 def binarized_SNPS_csv(threshold_matrix=None, filename="csv/" + Config.CSV_NAME_B):
-    """Generate the SN P system to analize chosen images
+    """Generate the SN P system to analyze chosen images
     If a matrix is passed, update the existing P system"""
     with open(filename, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
@@ -148,7 +148,7 @@ def kernel_SNPS_csv():
     - Layer 1: Input neurons (784 neurons), firing to 6 parallel subnetworks
     - Layer 2: One 27x27 grid per kernel (6 kernels → 4374 neurons)
     - Layer 3: 27x27 neurons (729 neurons), sum of all filtered maps
-    for more info see: Ultrafast neuromorphic photonic image processing with aVCSEL neuron"""
+    for more info see: Ultrafast neuromorphic photonic image processing with a VCSEL neuron"""
     kernels = [
         [[1, -1], [1, -1]], # Vertical 1
         [[-1, 1], [-1, 1]], # Vertical 2

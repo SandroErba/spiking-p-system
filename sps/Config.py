@@ -6,8 +6,9 @@ THRESHOLD = 128 #128 higher Thr -> more spike - with higher threshold I get bett
 INVERT = True #invert or not invert the spike in the starting images (0...4) -> (4...0)
 QUANTIZATION = True
 Q_RANGE = 4 # the range of quantization, it works on images, rules and tuning TODO generalize the code with it
-# TODO NOW: search for an easy CNN and try to recreate it
+# TODO NOW: search for an easy CNN and try to recreate it -> https://pythonguides.com/simple-mnist-convnet-keras/
 # TODO for B: counting the number of activated rules and tune in this way can be really wrong
+# TODO i can try with dropout during training
 
 # PARAMETER TUNING
 TRAIN_SIZE = 1000
