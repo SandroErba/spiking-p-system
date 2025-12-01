@@ -23,18 +23,15 @@ def process_dataset(dataset, count): # flatten and split among color channels
     blue_channel = []
 
     for img in imgs:
-        #ch_r, ch_g, ch_b = binarize_rgb_image(img) #TODO B/Q
-        ch_r, ch_g, ch_b = quantize_rgb_image(img)
+        if Config.QUANTIZATION:
+            ch_r, ch_g, ch_b = quantize_rgb_image(img)
+        else:
+            ch_r, ch_g, ch_b = binarize_rgb_image(img)
         red_channel.append(ch_r)
         green_channel.append(ch_g)
         blue_channel.append(ch_b)
 
-    #Show first image
-    original = dataset.imgs[0]
-    q_r = red_channel[0]
-    q_g = green_channel[0]
-    q_b = blue_channel[0]
-    #show_quantized_image(original, q_r, q_g, q_b)
+    #show_quantized_image(dataset.imgs[0], red_channel[0], green_channel[0], blue_channel[0]) #Show first image
 
     return (
         np.array(red_channel),
@@ -58,7 +55,7 @@ def quantize_rgb_image(img_rgb):
     inverted = np.where(
         quantized == 0,
         0,
-        5 - quantized
+        Config.Q_RANGE + 1 - quantized
     )
     channels = []
     if Config.INVERT:
@@ -69,6 +66,12 @@ def quantize_rgb_image(img_rgb):
             channels.append(quantized[:, :, c])
     return channels
 
+
+
+
+
+
+# Debug only
 def show_quantized_image(original_img, q_r, q_g, q_b):
     """
     original_img: original RGB image (H,W,3)

@@ -114,6 +114,31 @@ def binarized_SNPS_csv(threshold_matrix=None, filename="csv/" + Config.CSV_NAME_
                 "[1,1,1,0,0]"         # forgetting rule
             ])
 
+def prune_SNPS(pruned_matrix):
+    """change the synapses in the csv file"""
+    csv_name = Config.CSV_NAME_Q if Config.QUANTIZATION else Config.CSV_NAME_B
+    csv_name_pruned = Config.CSV_NAME_Q_PRUNED if Config.QUANTIZATION else Config.CSV_NAME_B_PRUNED
+    with open("csv/" + csv_name, 'r') as f_in, open("csv/" + csv_name_pruned, 'w', newline='') as f_out:
+        reader = csv.reader(f_in)
+        writer = csv.writer(f_out)
+        header = next(reader)
+        writer.writerow(header)
+        for row in reader:
+            neuron_id = int(row[0])
+            if Config.NEURONS_LAYER1 <= neuron_id < Config.NEURONS_LAYER1_2:
+                neuron_index = neuron_id - Config.NEURONS_LAYER1
+                pruned_outputs = []
+                for class_idx in range(Config.CLASSES):
+                    val = pruned_matrix[class_idx][neuron_index]
+                    if val != 0:
+                        target_id = Config.NEURONS_LAYER1_2 + class_idx
+                        if val == -1:
+                            target_id = -target_id  # inhibitory
+                        pruned_outputs.append(str(target_id))
+                row[2] = "[" + ", ".join(pruned_outputs) + "]"
+
+            writer.writerow(row)
+
 
 def kernel_SNPS_csv():
     """

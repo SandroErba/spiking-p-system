@@ -1,7 +1,7 @@
 import numpy as np
 import csv
 from sps import Config
-from sps.HandleCSV import binarized_SNPS_csv, quantized_SNPS_csv
+from sps.HandleCSV import binarized_SNPS_csv, quantized_SNPS_csv, prune_SNPS
 from sps.HandleImage import get_blood_mnist_data
 from sps.SNPSystem import SNPSystem
 
@@ -15,57 +15,59 @@ def update_energy(w_energy, e_energy):
     energy_tracker["expected"] += e_energy
 
 def launch_binarized_SNPS():
-    """manage all the binarized SN P systems"""
-    (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data() # prepare and split database
+    """Manage all the binarized SN P systems"""
 
-    binarized_SNPS_csv() # red phase
-    rules_train_SNPS(train_red) # adapt the firing rules in layer 2
-    syn_train_SNPS(train_red, train_labels) # prune and inhibit synapses
-    red_pred = compute_SNPS(test_red) # test the obtained P system
+    # Load and split database
+    (train_red, train_green, train_blue, train_labels), \
+        (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data()
 
-    binarized_SNPS_csv() # repeat for the other two color channels - green phase
-    rules_train_SNPS(train_green)
-    syn_train_SNPS(train_green, train_labels)
-    green_pred = compute_SNPS(test_green)
+    # Group color channels
+    train_channels = [train_red, train_green, train_blue]
+    test_channels = [test_red, test_green, test_blue]
 
-    binarized_SNPS_csv() # blue phase
-    rules_train_SNPS(train_blue)
-    syn_train_SNPS(train_blue, train_labels)
-    blue_pred = compute_SNPS(test_blue)
+    predictions = []
 
-    combined_ranking_score(red_pred, green_pred, blue_pred, test_labels) # merge the three results
+    for train_data, test_data in zip(train_channels, test_channels):
+
+        binarized_SNPS_csv()                    # prepare CSV for this channel
+        rules_train_SNPS(train_data)            # adapt firing rules (layer 2)
+        syn_train_SNPS(train_data, train_labels)  # prune + inhibit
+        pred = compute_SNPS(test_data)          # test P system
+        predictions.append(pred)
+
+    # Unpack predictions
+    red_pred, green_pred, blue_pred = predictions
+
+    combined_ranking_score(red_pred, green_pred, blue_pred, test_labels)
 
     #print(f"Worst energy spent: {energy_tracker['worst']} fJ")
     #print(f"Expected energy spent: {energy_tracker['expected']} fJ")
 
+
 def launch_quantized_SNPS():
-    """manage all the quantized SN P systems"""
-    (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data() # prepare and split database
+    """Manage all quantized SN P systems"""
+     #TODO something strange is happening, the number of step change at every color
+    # Load and split database
+    (train_red, train_green, train_blue, train_labels), \
+        (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data()
 
-    #print(train_green[0])
+    # Group data into color channels
+    train_channels = [train_red, train_green, train_blue]
+    test_channels = [test_red, test_green, test_blue]
 
-    print("RED - quantized_SNPS_csv()") #TODO something strange is happening, the number of step change at every color ?
-    quantized_SNPS_csv() # red phase
-    print("RED - syn_train_SNPS()")
-    syn_train_SNPS(train_red, train_labels) # prune and inhibit synapses
-    print("RED - compute_SNPS()")
-    red_pred = compute_SNPS(test_red) # test the obtained P system
+    predictions = []
 
-    print("GREEN - quantized_SNPS_csv()")
-    quantized_SNPS_csv() # repeat for the other two color channels - green phase
-    print("GREEN - syn_train_SNPS()")
-    syn_train_SNPS(train_green, train_labels)
-    print("GREEN - compute_SNPS()")
-    green_pred = compute_SNPS(test_green)
+    for train_data, test_data in zip(train_channels, test_channels):
 
-    print("BLUE - quantized_SNPS_csv()")
-    quantized_SNPS_csv() # blue phase
-    print("BLUE - syn_train_SNPS()")
-    syn_train_SNPS(train_blue, train_labels)
-    print("BLUE - compute_SNPS()")
-    blue_pred = compute_SNPS(test_blue)
+        quantized_SNPS_csv()                # prepare CSV for this color
+        syn_train_SNPS(train_data, train_labels)   # prune + inhibit
+        pred = compute_SNPS(test_data)             # test
+        predictions.append(pred)
 
-    combined_ranking_score(red_pred, green_pred, blue_pred, test_labels) # merge the three results
+    # Unpack predictions after loop
+    red_pred, green_pred, blue_pred = predictions
+
+    combined_ranking_score(red_pred, green_pred, blue_pred, test_labels)
 
     #print(f"Worst energy spent: {energy_tracker['worst']} fJ")
     #print(f"Expected energy spent: {energy_tracker['expected']} fJ")
@@ -83,7 +85,8 @@ def rules_train_SNPS(spike_train):
 
 def syn_train_SNPS(spike_train, labels):
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
-    snps.load_neurons_from_csv("csv/" + Config.CSV_NAME_Q) #TODO B/Q
+    csv_name = Config.CSV_NAME_Q if Config.QUANTIZATION else Config.CSV_NAME_B
+    snps.load_neurons_from_csv("csv/" + csv_name)
     snps.spike_train = spike_train
     snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_LAYER2), dtype=float) # matrix for train synapses
     snps.labels = labels
@@ -96,7 +99,8 @@ def syn_train_SNPS(spike_train, labels):
 
 def compute_SNPS(spike_train):
     snps = SNPSystem(5, Config.TEST_SIZE + 5, "images", "prediction", True)
-    snps.load_neurons_from_csv("csv/" + Config.CSV_NAME_Q_PRUNED) #TODO B/Q
+    csv_name_pruned = Config.CSV_NAME_Q_PRUNED if Config.QUANTIZATION else Config.CSV_NAME_B_PRUNED
+    snps.load_neurons_from_csv("csv/" + csv_name_pruned)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
     w, e = snps.start() # run the SNPS
@@ -127,28 +131,6 @@ def prune_matrix(synapses):
         keep_matrix[class_idx, inhibit_indices] = -1
     return keep_matrix
 
-def prune_SNPS(pruned_matrix):
-    """change the synapses in the csv file""" #TODO B/Q
-    with open("csv/" + Config.CSV_NAME_Q, 'r') as f_in, open("csv/" + Config.CSV_NAME_Q_PRUNED, 'w', newline='') as f_out:
-        reader = csv.reader(f_in)
-        writer = csv.writer(f_out)
-        header = next(reader)
-        writer.writerow(header)
-        for row in reader:
-            neuron_id = int(row[0])
-            if Config.NEURONS_LAYER1 <= neuron_id < Config.NEURONS_LAYER1_2:
-                neuron_index = neuron_id - Config.NEURONS_LAYER1
-                pruned_outputs = []
-                for class_idx in range(Config.CLASSES):
-                    val = pruned_matrix[class_idx][neuron_index]
-                    if val != 0:
-                        target_id = Config.NEURONS_LAYER1_2 + class_idx
-                        if val == -1:
-                            target_id = -target_id  # inhibitory
-                        pruned_outputs.append(str(target_id))
-                row[2] = "[" + ", ".join(pruned_outputs) + "]"
-
-            writer.writerow(row)
 
 def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
     """calculate the model's performance including per-channel and combined ranking"""
