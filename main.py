@@ -9,7 +9,7 @@ from sps import EdgeDetection, MedMnist, OtherNetworks, EdgeDetection2, MioMedMn
 
 #Trova_soglie.find_optimal_thresholds_kmeans(n_thresholds=6)
 
-#MedMnist.launch_SNPS()
+#MedMnist.launch_SNPS()   prova push
 
 #MioMedMnist1.launch_SNPS()
 
