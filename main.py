@@ -5,10 +5,10 @@ c: internal charge of neuron. i:x(y) means "x charge received from neuron y" """
 
 from sps import EdgeDetection, MedMnist, OtherNetworks
 
-#MedMnist.launch_SNPS()
+MedMnist.launch_SNPS() #example comment
 
-#EdgeDetection.launch_gray_SNPS() #Use Config.TRAIN_SIZE < 30 for a good visualization
+#EdgeDetection.launch_gray_SNPS() #Use Config.TRAIN_SIZE < 30 for a good visualization 
 
-OtherNetworks.compute_divisible_3()
+#OtherNetworks.compute_divisible_3()
 
 #OtherNetworks.compute_gen_even()

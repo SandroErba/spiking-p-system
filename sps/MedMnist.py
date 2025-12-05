@@ -269,7 +269,7 @@ def SNPS_csv(threshold_matrix=None, filename="csv/" + Config.CSV_NAME):
                 0,                    # initial_charge
                 f"[{output_neuron}]", # output_targets
                 0,                    # neuron_type
-                "[0,1,1,1,0]"         # firing rule
+                "[1,1,1,1,0]"         # firing rule: ensure only definite spikes are forwarded with [1,1,1,1,0], previous was [0,1,1,1, 0]
             ])
 
         # Layer 2: Pooling (49 neurons) - id 784–832
