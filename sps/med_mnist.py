@@ -1,8 +1,8 @@
 import numpy as np
-from sps import Config
-from sps.HandleCSV import binarized_SNPS_csv, quantized_SNPS_csv, prune_SNPS
-from sps.HandleImage import get_blood_mnist_data
-from sps.SNPSystem import SNPSystem
+from sps.config import Config
+from sps.handle_csv import binarized_SNPS_csv, quantized_SNPS_csv, prune_SNPS
+from sps.handle_image import get_mnist_data
+from sps.snp_system import SNPSystem
 
 energy_tracker = {
     "worst": 0,  # worst case of energy spent
@@ -18,7 +18,7 @@ def launch_binarized_SNPS():
 
     # Load and split database
     (train_red, train_green, train_blue, train_labels), \
-        (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data()
+        (test_red, test_green, test_blue, test_labels) = get_mnist_data('bloodmnist')
 
     # Group color channels
     train_channels = [train_red, train_green, train_blue]
@@ -45,10 +45,10 @@ def launch_binarized_SNPS():
 
 def launch_quantized_SNPS():
     """Manage all quantized SN P systems"""
-     #TODO something strange is happening, the number of step change at every color
+     #TODO something strange is happening, the number of steps (sometimes) change with different colors
     # Load and split database
     (train_red, train_green, train_blue, train_labels), \
-        (test_red, test_green, test_blue, test_labels) = get_blood_mnist_data()
+        (test_red, test_green, test_blue, test_labels) = get_mnist_data('bloodmnist')
 
     # Group data into color channels
     train_channels = [train_red, train_green, train_blue]

@@ -2,18 +2,19 @@ import matplotlib.pyplot as plt
 import medmnist
 import numpy as np
 from medmnist import INFO
+from sps.config import Config
 
-from sps import Config
-
-def get_blood_mnist_data(): # download the database
-    info = INFO['bloodmnist']
+def get_mnist_data(dataName): # download the database
+    info = INFO[dataName]
     data_class = getattr(medmnist, info['python_class'])
     train_dataset = data_class(split='train', download=True)
     test_dataset = data_class(split='test', download=True)
+
     return (
         (process_dataset(train_dataset, Config.TRAIN_SIZE)),
         (process_dataset(test_dataset, Config.TEST_SIZE))
     )
+
 
 def process_dataset(dataset, count): # flatten and split among color channels
     imgs = dataset.imgs[:count]
@@ -65,10 +66,6 @@ def quantize_rgb_image(img_rgb):
         for c in range(3):
             channels.append(quantized[:, :, c])
     return channels
-
-
-
-
 
 
 # Debug only

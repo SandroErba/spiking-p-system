@@ -1,4 +1,4 @@
-from sps.SNPSystem import SNPSystem
+from sps.snp_system import SNPSystem
 
 # for testing different types of networks
 def compute_divisible_3():

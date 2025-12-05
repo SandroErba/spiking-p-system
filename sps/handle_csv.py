@@ -1,5 +1,7 @@
 import csv
-from sps import Config
+from sps.config import Config
+
+
 
 
 def quantized_SNPS_csv(filename="csv/" + Config.CSV_NAME_Q):
