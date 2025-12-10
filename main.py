@@ -1,14 +1,16 @@
-"""How to read the output table:
-r: rule applied. r:7a+2;3->0;1 mean "using 3 charge, 0 spike are fired, with 1 delay". ! = firing rules.
-1a is the condition part that follows: if c %7 == 2, the rule applies
-c: internal charge of neuron. i:x(y) means "x charge received from neuron y" """
+from sps import edge_detection, med_mnist, other_networks, cnn, handle_image, cnn
+from sps.config import Config, configure
 
-from sps import EdgeDetection, MedMnist, OtherNetworks
 
-#MedMnist.launch_SNPS() #example 2
+configure("quantized") #can be binarized, quantized, edge
 
-EdgeDetection.launch_gray_SNPS() #Use Config.TRAIN_SIZE < 30 for a good visualization 
+#CNN.launch_CNN_SNPS()
 
+#med_mnist.launch_binarized_SNPS()
+med_mnist.launch_quantized_SNPS()
+
+#edge_detection.launch_gray_SNPS()
+
+#OtherNetworks.compute_extended()
 #OtherNetworks.compute_divisible_3()
-
 #OtherNetworks.compute_gen_even()

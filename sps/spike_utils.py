@@ -17,12 +17,12 @@ class TransformationRule:
         self.div = div # looped "a" in the regex
         self.mod = mod # basic "a" in the regex
         self.source = source # spike consumed when the rule applies
-        self.target = target # 0 if forgetting rule, 1 otherwise
+        self.target = target # spike fired when the rule applies
         self.delay = delay # refractory period of the rules
 
     def check(self, charge):
-        # with div and mod is possible to manage all value condition for charge
-        if charge > 0 and charge >= self.mod: #for avoid negative values
+        #with div and mod is possible to manage all value condition for charge
+        if charge > 0 and charge >= self.mod and charge >= self.target: #for avoid negative values
             if self.div > 0:
                 return charge >= self.source and (charge - self.mod) % self.div == 0
             if self.div == 0:

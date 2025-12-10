@@ -1,7 +1,7 @@
 import unittest
-from sps.PNeuron import PNeuron
-from sps.SNPSystem import SNPSystem
-from sps.SpikeUtils import TransformationRule
+from sps.p_neuron import PNeuron
+from sps.snp_system import SNPSystem
+from sps.spike_utils import TransformationRule
 
 class PNeuronTest(unittest.TestCase):
     def test_fire(self):
