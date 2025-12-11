@@ -1,4 +1,5 @@
 class Config:
+    MODE = "Default"
     # IMAGES
     IMG_SHAPE = 28 #ipotizing squared shape images of 28 pixels
     CLASSES = 8
@@ -33,16 +34,18 @@ class Config:
     EXPECTED_SPIKE = 0.5
 
     # SEGMENTATION
-    KERNEL_SHAPE = 2
-    KERNEL_NUMBER = 6
-    SEGMENTED_SHAPE = IMG_SHAPE - KERNEL_SHAPE + 1
+    KERNEL_SHAPE = None # 2 or 3
+    KERNEL_NUMBER = None #TODO not matching with cnn
+    SEGMENTED_SHAPE = None # 26
 
     # STRING
     CSV_NAME = "Null"
     CSV_NAME_PRUNED = "Null"
 
+# TODO use mode in all the code for handle different behaviour, maybe managing input and output type
 def configure(mode):
     if mode == "quantized":
+        Config.MODE = "quantized"
         Config.BLOCK_SHAPE = 2 #the size of the window block for the second layer
         Config.QUANTIZATION = True
         Config.Q_RANGE = 4 #TODO generalize the code with it
@@ -61,6 +64,7 @@ def configure(mode):
         Config.CSV_NAME_PRUNED = "SNPS_quantize_pruned.csv"
 
     if mode == "binarized":
+        Config.MODE = "binarized"
         Config.BLOCK_SHAPE = 4
         Config.THRESHOLD = 128
         Config.QUANTIZATION = False
@@ -82,11 +86,15 @@ def configure(mode):
         Config.CSV_NAME_PRUNED = "SNPS_binarize_pruned.csv"
 
     if mode == "edge":
+        Config.MODE = "edge"
         Config.BLOCK_SHAPE = 4
         Config.THRESHOLD = 128
         Config.INVERT = False
         Config.TRAIN_SIZE = 30
         Config.CSV_NAME = "SNPS_kernel.csv"
+        Config.KERNEL_SHAPE = 2
+        Config.KERNEL_NUMBER = 6
+        Config.SEGMENTED_SHAPE = Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1 # 27
 
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
         Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
@@ -95,5 +103,16 @@ def configure(mode):
 
 
     if mode == "cnn":
-        Config.BLOCK_SHAPE = 3
+        Config.MODE = "cnn"
+        Config.QUANTIZATION = True
+        Config.Q_RANGE = 4
+        Config.TRAIN_SIZE = 13
+        Config.INVERT = False
+
+        Config.KERNEL_SHAPE = 3
+        Config.KERNEL_NUMBER = 1
+
+        Config.SEGMENTED_SHAPE = Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1 # 26
+        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
+
         Config.CSV_NAME = "SNPS_cnn.csv"
