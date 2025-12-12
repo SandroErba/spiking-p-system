@@ -62,7 +62,11 @@ class PNeuron:
                     return self.consume(rule)
 
     def fire(self, rule):
+<<<<<<< HEAD
         if Config.NEURONS_LAYER1 <= self.nid < Config.NEURONS_LAYER1_2 and self.snp_system.output_type == "prediction":
+=======
+        if Config.MODE != "cnn" and Config.NEURONS_LAYER1 <= self.nid < Config.NEURONS_LAYER1_2 and self.snp_system.output_type == "prediction":
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
             if Config.QUANTIZATION:
                 self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_LAYER1] += rule.target # for rules tuning
             else:
@@ -76,7 +80,11 @@ class PNeuron:
         return rule
 
     def consume(self, rule):
+<<<<<<< HEAD
         if Config.NEURONS_LAYER1_2 <= self.nid < Config.NEURONS_TOTAL and self.snp_system.output_type == "prediction": # output array with predictions
+=======
+        if Config.MODE != "cnn" and Config.NEURONS_LAYER1_2 <= self.nid < Config.NEURONS_TOTAL and self.snp_system.output_type == "prediction": # output array with predictions
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
             self.snp_system.output_array[self.snp_system.t_step][self.nid - Config.NEURONS_LAYER1_2] = self.charge
         self.charge = 0
         self.snp_system.forgetting_applied += 1

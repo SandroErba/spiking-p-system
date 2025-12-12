@@ -4,10 +4,16 @@ from sps.config import Config
 
 
 
+<<<<<<< HEAD
 def quantized_SNPS_csv(filename="csv/" + Config.CSV_NAME_Q):
     """Generate the SN P system to analyze chosen images
     If a matrix is passed, update the existing P system"""
     with open(filename, mode='w', newline='') as csv_file:
+=======
+def quantized_SNPS_csv():
+    """Generate the SN P system to analyze chosen images"""
+    with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
@@ -26,7 +32,11 @@ def quantized_SNPS_csv(filename="csv/" + Config.CSV_NAME_Q):
                 "[0,4,4,4,0]",
                 "[0,3,3,3,0]",
                 "[0,2,2,2,0]",
+<<<<<<< HEAD
                 "[0,1,1,1,0]"         # firing rule #boolean is "[0,1,1,1,0]"
+=======
+                "[0,1,1,1,0]"         # firing rules
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
             ])
 
         # Layer 2: Pooling (49 neurons)
@@ -56,10 +66,17 @@ def quantized_SNPS_csv(filename="csv/" + Config.CSV_NAME_Q):
             ])
 
 
+<<<<<<< HEAD
 def binarized_SNPS_csv(threshold_matrix=None, filename="csv/" + Config.CSV_NAME_B):
     """Generate the SN P system to analyze chosen images
     If a matrix is passed, update the existing P system"""
     with open(filename, mode='w', newline='') as csv_file:
+=======
+def binarized_SNPS_csv(threshold_matrix=None):
+    """Generate the SN P system to analyze chosen images
+    If a matrix is passed, update the existing P system"""
+    with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
@@ -118,9 +135,13 @@ def binarized_SNPS_csv(threshold_matrix=None, filename="csv/" + Config.CSV_NAME_
 
 def prune_SNPS(pruned_matrix):
     """change the synapses in the csv file"""
+<<<<<<< HEAD
     csv_name = Config.CSV_NAME_Q if Config.QUANTIZATION else Config.CSV_NAME_B
     csv_name_pruned = Config.CSV_NAME_Q_PRUNED if Config.QUANTIZATION else Config.CSV_NAME_B_PRUNED
     with open("csv/" + csv_name, 'r') as f_in, open("csv/" + csv_name_pruned, 'w', newline='') as f_out:
+=======
+    with open("csv/" + Config.CSV_NAME, 'r') as f_in, open("csv/" + Config.CSV_NAME_PRUNED, 'w', newline='') as f_out:
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
         reader = csv.reader(f_in)
         writer = csv.writer(f_out)
         header = next(reader)
@@ -164,7 +185,11 @@ def kernel_SNPS_csv():
     total_layer2_size = layer2_size_per_kernel * len(kernels)
     layer3_offset = Config.NEURONS_LAYER1 + total_layer2_size
 
+<<<<<<< HEAD
     with open("csv/" + Config.CSV_KERNEL_NAME, mode='w', newline='') as csv_file:
+=======
+    with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
@@ -221,4 +246,71 @@ def kernel_SNPS_csv():
                 "[]",                        # output_targets
                 2,                           # neuron_type (output)
                 "[1,1,0,0,0]"                # Forgetting rule
+<<<<<<< HEAD
             ])
+=======
+            ])
+
+
+def cnn_SNPS_csv():
+    """Generate the SN P system to replicate the cnn"""
+    kernels = [
+        [[0, 0, 0], [0, 1, 0], [0, 0, 0]], # Vertical 1
+    ]
+    layer1_size = Config.IMG_SHAPE * Config.IMG_SHAPE
+    layer2_size_per_kernel = Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE
+    #total_layer2_size = layer2_size_per_kernel * len(kernels)
+    #layer3_offset = Config.NEURONS_LAYER1 + total_layer2_size
+
+    with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
+
+        # Layer 1: Input a 28x28 grayscale image
+        for neuron_id in range(layer1_size):
+            i_row = neuron_id // Config.IMG_SHAPE
+            i_col = neuron_id % Config.IMG_SHAPE
+            output_targets = []
+
+            for k_index, kernel in enumerate(kernels):
+                layer2_offset = Config.NEURONS_LAYER1 + k_index * layer2_size_per_kernel
+
+                for ki in range(Config.KERNEL_SHAPE):
+                    for kj in range(Config.KERNEL_SHAPE):
+                        o_row = i_row - ki
+                        o_col = i_col - kj
+
+                        if 0 <= o_row < Config.SEGMENTED_SHAPE and 0 <= o_col < Config.SEGMENTED_SHAPE:
+                            output_idx = o_row * Config.SEGMENTED_SHAPE + o_col
+                            target_id = layer2_offset + output_idx
+                            weight = kernel[ki][kj]
+                            if weight == 1:
+                                output_targets.append(target_id)
+                            elif weight == -1:
+                                output_targets.append(-target_id)
+
+            writer.writerow([
+                neuron_id,                     # id
+                0,                             # initial_charge
+                str(output_targets),           # output_targets
+                0,                             # neuron_type
+                "[0,4,4,4,0]",
+                "[0,3,3,3,0]",
+                "[0,2,2,2,0]",
+                "[0,1,1,1,0]"                   # firing rules
+            ])
+
+        # Layer 2: Accumulate spikes from the kernels
+        for k_index in range(len(kernels)):
+            layer2_offset = Config.NEURONS_LAYER1 + k_index * layer2_size_per_kernel
+
+            for i in range(layer2_size_per_kernel):
+                #output_target = layer3_offset + i + k_index * layer2_size_per_kernel  # i-th neuron in layer 3
+                writer.writerow([
+                    layer2_offset + i,       # id
+                    0,                       # initial_charge
+                    "[]",                    # output_targets
+                    1,                       # neuron_type
+                    "[1,1,1,0,0]"            # For now I only need to see the resulting images
+                ])
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477

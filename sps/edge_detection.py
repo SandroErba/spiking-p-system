@@ -2,6 +2,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from sps.handle_csv import kernel_SNPS_csv
+<<<<<<< HEAD
+=======
+from sps.handle_image import show_images
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
 from sps.snp_system import SNPSystem
 from sps import med_mnist
 from sps.config import Config
@@ -9,6 +13,7 @@ from sps.config import Config
 def launch_gray_SNPS():
     (train_red, train_green, train_blue, train_labels), (_) = med_mnist.get_mnist_data('bloodmnist')
     kernel_SNPS_csv()
+<<<<<<< HEAD
 
     final_results = []
     
@@ -42,6 +47,16 @@ def show_images(output_array, img_size=27, max_images=Config.TRAIN_SIZE):
         plt.axis('off')
     plt.tight_layout()
     plt.show()
+=======
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "images", True)
+    snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
+    snps.spike_train = train_red
+    snps.start()
+
+    show_images(snps.image_output)
+
+
+>>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
 
 
 
