@@ -8,18 +8,19 @@ from sps.config import Config, configure
 
 #CNN.launch_CNN_SNPS()
 # configure("quantized")
-# print(Config.QUANTIZATION)
-#med_mnist.launch_quantized_SNPS()
+# print("quantized " + str(Config.QUANTIZATION))
+# med_mnist.launch_quantized_SNPS()
 
 #Config.TRAIN_SIZE = 30
+#edge_detection.kernel_SNPS_csv()
 #edge_detection.launch_gray_SNPS() #TRAIN_SIZE < 30, INVERT = False, QUANTIZATION = False
 
-configure("temporal")
-print(Config.TEMPORAL)
-med_mnist2.launch_SNPS()
+# configure("temporal")
+# print("temporal " + str(Config.TEMPORAL) )
+# med_mnist2.launch_SNPS()
 
-# edge_detection2.kernel_SNPS_csv()
-# edge_detection2.launch_gray_SNPS()
+edge_detection2.kernel_SNPS_csv()
+edge_detection2.launch_gray_SNPS()
 
 #OtherNetworks.compute_extended()
 
