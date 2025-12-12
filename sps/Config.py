@@ -3,7 +3,7 @@ class Config:
     IMG_SHAPE = 28 #ipotizing squared shape images of 28 pixels
     CLASSES = 8
     BLOCK_SHAPE = None
-    THRESHOLD = None
+    THRESHOLD = 128
     TEMPORAL_THRESHOLD_LEVELS = None #[ 75, 120,  180]
     MAX_TIME_STEPS = None
     NUM_INPUT_LEVELS = None
@@ -18,7 +18,7 @@ class Config:
     # TODO i can try with dropout during training
 
     # PARAMETER TUNING
-    TRAIN_SIZE = 3000
+    TRAIN_SIZE = 100
     TEST_SIZE = 1000
     PRUNING_PERC = 0.3
     INHIBIT_PERC = 0.2
@@ -91,8 +91,7 @@ def configure(mode):
         Config.BLOCK_SHAPE = 3
         if(Config.BLOCK_SHAPE == 3):
             Config.IMG_SHAPE = 27
-        Config.TEMPORAL_THRESHOLD_LEVELS = [50, 90, 130, 170, 210]     #[ 75, 120,  180]     #[75, 120, 180]    #[74, 118, 154, 184, 211, 237]     #[64, 94, 118, 139, 157, 174, 191, 207, 221, 240]     #[213, 170, 128, 85, 43] # levels
-
+        Config.TEMPORAL_THRESHOLD_LEVELS = [50, 90, 150,  190] #[50, 100, 150, 200]  #    #[50, 100, 150, 200]    #[65, 110, 150, 190]   #[50, 90, 130, 170, 210]     #     #[ 75, 120,  180]     #[75, 120, 180]    #[74, 118, 154, 184, 211, 237]     #[64, 94, 118, 139, 157, 174, 191, 207, 221, 240]     #[213, 170, 128, 85, 43] # levels
         Config.MAX_TIME_STEPS = Config.TEMPORAL_THRESHOLD_LEVELS.__len__() + 1 #5
         Config.NUM_INPUT_LEVELS = Config.MAX_TIME_STEPS 
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) * Config.NUM_INPUT_LEVELS #784
@@ -101,10 +100,17 @@ def configure(mode):
         Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
         Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
 
-        Config.POSITIVE_REINFORCE = Config.CLASSES * 2.7
-        Config.NEGATIVE_PENALIZATION = 0.6
-        Config.PRUNING_PERC = 0.6
-        Config.INHIBIT_PERC = 0.1
+        # Config.POSITIVE_REINFORCE = Config.CLASSES * 2.5
+        # Config.NEGATIVE_PENALIZATION = 0.5
+        # Config.PRUNING_PERC = 0.4
+        # Config.INHIBIT_PERC = 0.15
+        # Config.TEMPORAL = True
+
+        Config.POSITIVE_REINFORCE = Config.CLASSES * 2.4
+        Config.NEGATIVE_PENALIZATION = 0.7
+        Config.PRUNING_PERC = 0.5
+        Config.INHIBIT_PERC = 0.2
         Config.TEMPORAL = True
+
 
     #if mode == "cnn":

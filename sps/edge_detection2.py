@@ -27,18 +27,18 @@ def launch_gray_SNPS():
     snps.spike_train = train_red
     
     # Benchmark
-    start_time = time.perf_counter()
+    #start_time = time.perf_counter()
     w_energy, e_energy = snps.start() 
-    end_time = time.perf_counter()
+    #end_time = time.perf_counter()
 
     # Report
-    total_ms = (end_time - start_time) * 1000.0
+    #total_ms = (end_time - start_time) * 1000.0
     num_images = getattr(config.Config, "TRAIN_SIZE", None) or snps.edge_output.shape[1]
     
     print("\n" + "="*30)
     print("   REPORT EFFICIENZA SNPS")
     print("="*30)
-    print(f"⏱️  TEMPO: {total_ms:.3f} ms ({total_ms / float(num_images):.3f} ms/img)")
+    #print(f"⏱️  TEMPO: {total_ms:.3f} ms ({total_ms / float(num_images):.3f} ms/img)")
     print(f"⚡ ENERGIA: Worst={w_energy} fJ, Expected={e_energy} fJ")
     print(f"📊 TRAFFICO: Spike={snps.spike_fired}, Fire={snps.firing_applied}, Forget={snps.forgetting_applied}")
     print("="*30 + "\n")
@@ -93,7 +93,7 @@ def kernel_SNPS_csv():
     config.Config.NEURONS_LAYER2 = LAYER2_SIZE
     config.Config.NEURONS_LAYER1_2 = LAYER1_SIZE + LAYER2_SIZE
     config.Config.NEURONS_TOTAL = config.Config.NEURONS_LAYER1_2 + LAYER2_SIZE
-    config.Config.THRESHOLD = 140
+    config.Config.THRESHOLD = 145
     config.Config.TRAIN_SIZE = 100
     
     csv_path = os.path.join(project_root, "csv", config.Config.CSV_KERNEL_NAME)

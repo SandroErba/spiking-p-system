@@ -15,83 +15,79 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def visualize_batch(dataset, indices, thresholds):
     """
-    Visualizza in un UNICO grafico multiplo le immagini specificate nella lista 'indices'.
-    Ogni immagine occupa 3 righe (R, G, B).
+    Visualizes the images specified in the 'indices' list in a SINGLE multiple plot.
+    Each image occupies 3 rows (R, G, B).
     """
     
-    # Setup parametri
+    # Setup parameters
     interval_limits = [0] + sorted(thresholds) + [256]
     num_time_steps = len(interval_limits) - 1
     num_images = len(indices)
     
-    # Calcoliamo le dimensioni della griglia
-    # Righe: Numero immagini * 3 canali (R, G, B)
-    # Colonne: 1 (Originale) + Numero Time Steps
+    # Calculate grid dimensions
+    # Rows: Number of images * 3 channels (R, G, B)
+    # Columns: 1 (Original) + Number of Time Steps
     n_rows = num_images * 3
     n_cols = 1 + num_time_steps
     
-    # Dimensione dinamica della figura in altezza (3 pollici per riga)
+    # Dynamic figure height (3 inches per row)
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 2.5 * n_rows))
     
-    # Titolo generale
-    #fig.suptitle(f"Analisi Temporale su {num_images} immagini (Thresholds: {thresholds})", fontsize=16)
+    # General title
+    #fig.suptitle(f"Temporal Analysis on {num_images} images (Thresholds: {thresholds})", fontsize=16)
     
-    channel_names = ['Rosso', 'Verde', 'Blu']
+    channel_names = ['R', 'G', 'B']
     
-    # --- CICLO SULLE IMMAGINI ---
+    # --- LOOP OVER IMAGES ---
     for i, img_idx in enumerate(indices):
         img = dataset.imgs[img_idx]
         label = dataset.labels[img_idx]
         
-        # --- CICLO SUI CANALI (R, G, B) ---
+        # --- LOOP OVER CHANNELS (R, G, B) ---
         for c in range(3):
-            # Calcolo su quale riga del grafico siamo
-            # Es: Immagine 0 -> righe 0,1,2. Immagine 1 -> righe 3,4,5...
+            # Calculate which row of the plot we are on
+            # Ex: Image 0 -> rows 0,1,2. Image 1 -> rows 3,4,5...
             current_row = (i * 3) + c
             
             ch_data = img[:, :, c]
             
-            # --- COLONNA 0: Immagine Originale del Canale ---
+            # --- COLUMN 0: Original Channel Image ---
             ax_orig = axes[current_row, 0]
             ax_orig.imshow(ch_data, cmap='gray', vmin=0, vmax=255)
             
-            # Etichette laterali per capire cosa stiamo guardando
-            if c == 1: # Solo sulla riga centrale dell'immagine (Verde) metto l'ID
+            # Side labels to understand what we are looking at
+            if c == 1: # Only on the central row of the image (Green) put the ID
                 ax_orig.set_ylabel(f"IMG {img_idx}\n(Class {label})", fontsize=14, fontweight='bold', labelpad=20)
             
-            # Etichetta del canale
+            # Channel label
             ax_orig.text(-0.3, 0.5, channel_names[c], transform=ax_orig.transAxes, 
                          va='center', ha='right', fontsize=12, rotation=90)
 
             ax_orig.set_xticks([])
             ax_orig.set_yticks([])
-            if current_row == 0: ax_orig.set_title("Canale\nOriginale", fontsize=12)
+            if current_row == 0: ax_orig.set_title("Original\nChannel", fontsize=12)
 
-            # --- COLONNE 1..N: Time Steps ---
+            # --- COLUMNS 1..N: Time Steps ---
             for t in range(num_time_steps):
                 t_low = interval_limits[t]
                 t_high = interval_limits[t+1]
                 
-                # Maschera binaria (La logica del tuo SNPS)
+                # Binary mask (Your SNPS logic)
                 mask = np.logical_and(ch_data >= t_low, ch_data < t_high)
                 
                 ax_t = axes[current_row, t + 1]
-                ax_t.imshow(mask, cmap='binary_r') # Nero su bianco
+                ax_t.imshow(mask, cmap='binary_r') # Black on white
                 ax_t.axis('off')
                 
-                # Titoli solo sulla primissima riga in assoluto
+                # Titles only on the very first row
                 if current_row == 0:
                     ax_t.set_title(f"T={t+1}\nRange [{t_low}-{t_high})", fontsize=12)
 
-    plt.tight_layout(rect=[0, 0.03, 1, 0.97]) # Lascia spazio per il titolo sopra
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97]) # Leave space for the title above
     plt.show()
 
 
 
-
-
-
-# --- Variabili di Tracciamento ---
 energy_tracker = {
     "worst": 0,  
     "expected": 0    
@@ -111,43 +107,40 @@ def get_blood_mnist_data(): # download the database
         (process_dataset(test_dataset, Config.TEST_SIZE))
     )
 
-# ----------------------------------------------------------------------
-# --- NUOVA LOGICA DI CODIFICA TEMPORALE (NON CUMULATIVA) ---
-# ----------------------------------------------------------------------
 
 def temporal_encode_image(img_rgb, thresholds):
     """
-    Codifica l'immagine in un array di input tempo-risolto (Latency Coding).
-    Ogni mappa binaria si attiva solo per i pixel nel suo specifico intervallo 
-    di intensità (non cumulativo), mappando l'oscurità al tempo.
+    Encodes the image into a time-resolved input array (Latency Coding).
+    Each binary map activates only for pixels in its specific intensity interval
+    (non-cumulative), mapping darkness to time.
     """
     
-    # Crea i limiti degli intervalli di intensità: [0, T1), [T1, T2), ..., [TN, 256]
+    # Create intensity interval limits: [0, T1), [T1, T2), ..., [TN, 256]
     interval_limits = [0] + sorted(thresholds) + [256] 
     T_max = Config.MAX_TIME_STEPS 
     
-    time_slices = [] # Array finale di input (3 canali * T_max mappe)
+    time_slices = [] # Final input array (3 channels * T_max maps)
 
-    for c in range(3): # Canali 0 (R), 1 (G), 2 (B)
+    for c in range(3): # Channels 0 (R), 1 (G), 2 (B)
         channel = img_rgb[:, :, c]
         
-        # Iteriamo sugli intervalli. L'indice 'i' corrisponde al tempo (i+1)
-        # L'intervallo [0, T1) (più scuro) sarà il primo (i=0, tempo t=1)
+        # Iterate over intervals. Index 'i' corresponds to time (i+1)
+        # The interval [0, T1) (darkest) will be the first (i=0, time t=1)
         for i in range(T_max):
             T_low = interval_limits[i]
             T_high = interval_limits[i+1]
             
-            # Mappa binaria: 1 se il pixel è nell'intervallo di intensità [T_low, T_high)
+            # Binary map: 1 if the pixel is in the intensity interval [T_low, T_high)
             ch_map = np.logical_and(channel >= T_low, channel < T_high).astype(int)
 
             time_slices.append(ch_map.flatten())
 
     return time_slices
 
-# --- MODIFICA A process_dataset ---
+# --- MODIFICATION TO process_dataset ---
 
 def process_dataset(dataset, count): 
-    """ Prepara il dataset usando la codifica temporale. """
+    """ Prepares the dataset using temporal encoding. """
     imgs = dataset.imgs[:count]
     labels = dataset.labels[:count].flatten()
     
@@ -159,10 +152,10 @@ def process_dataset(dataset, count):
     T_max = Config.MAX_TIME_STEPS 
 
     for img in imgs:
-        # Ottiene (3 * T_max) array binarizzati (es. R_t1, R_t2, ..., B_t5)
+        # Gets (3 * T_max) binarized arrays (e.g. R_t1, R_t2, ..., B_t5)
         time_slices = temporal_encode_image(img, thresholds) 
         
-        # Concateniamo i T_max slice TEMPORALI per ogni canale 
+        # Concatenate the T_max TEMPORAL slices for each channel 
         # R = Slice 0, ..., T_max-1
         red_input.append(np.concatenate(time_slices[0 : T_max]))
         # G = Slice T_max, ..., 2*T_max-1
@@ -178,13 +171,13 @@ def process_dataset(dataset, count):
     )
 
 # ----------------------------------------------------------------------
-# --- LOGICA SNPS: Dedicated Pooling e Correzione Reshape ---
+# --- SNPS LOGIC: Dedicated Pooling and Reshape Correction ---
 # ----------------------------------------------------------------------
 
 def SNPS_csv(threshold_matrix=None, filename=None):
     """
-    Genera il SNPS. Adattato per collegare i N neuroni L1 (i N livelli di oscurità) 
-    al loro set di neuroni L2 dedicato (Dedicated Pooling).
+    Generates the SNPS. Adapted to connect the N L1 neurons (the N darkness levels)
+    to their dedicated L2 neuron set (Dedicated Pooling).
     """
     if filename is None:
         filename = os.path.join(project_root, "csv", Config.CSV_NAME)
@@ -195,58 +188,58 @@ def SNPS_csv(threshold_matrix=None, filename=None):
 
         # Layer 1: Input (NEURONS_LAYER1)
         img_pixels_old = Config.IMG_SHAPE**2 # 784
-        num_levels = Config.NUM_INPUT_LEVELS # N (es. 5)
+        num_levels = Config.NUM_INPUT_LEVELS # N (e.g. 5)
         
-        # Calcolo del numero di neuroni L2 in un singolo livello spaziale (es. 196)
+        # Calculate the number of L2 neurons in a single spatial level (e.g. 196)
         neurons_per_level = Config.NEURONS_LAYER2 // num_levels 
 
         for neuron_id in range(Config.NEURONS_LAYER1): 
-            # 1. Calcola l'indice del pixel originale (posizione 2D 0-783)
+            # 1. Calculate the original pixel index (2D position 0-783)
             pixel_index = neuron_id % img_pixels_old 
             
-            # 2. Calcola l'indice del livello (0 a N-1)
+            # 2. Calculate the level index (0 to N-1)
             level_index = neuron_id // img_pixels_old 
             
-            # 3. Calcola l'ID del blocco (posizione 2D del blocco 0-195)
+            # 3. Calculate the block ID (2D block position 0-195)
             r = pixel_index // Config.IMG_SHAPE
             c = pixel_index % Config.IMG_SHAPE
             block_row = r // Config.BLOCK_SHAPE
             block_col = c // Config.BLOCK_SHAPE
             block_id = block_row * (Config.IMG_SHAPE // Config.BLOCK_SHAPE) + block_col
             
-            # 4. Calcola l'ID del neurone di Layer 2 (L2) dedicato 
-            # L2_ID = Start_L2 + (Offset_Livello * Neuroni_per_Livello) + Posizione_Fisica
+            # 4. Calculate the dedicated Layer 2 (L2) neuron ID 
+            # L2_ID = Start_L2 + (Level_Offset * Neurons_per_Level) + Physical_Position
             base_l2_start = Config.NEURONS_LAYER1
             level_offset = level_index * neurons_per_level 
             output_neuron = base_l2_start + level_offset + block_id
             
-            # I neuroni di L1 si collegano al loro neurone L2 dedicato
+            # L1 neurons connect to their dedicated L2 neuron
             writer.writerow([
                 neuron_id, 0, f"[{output_neuron}]", 0, "[0,1,1,1,0]" 
             ])
 
-        # Layer 2: Pooling (NEURONS_LAYER2 neuroni) - Inizia da ID NEURONS_LAYER1
+        # Layer 2: Pooling (NEURONS_LAYER2 neurons) - Starts from ID NEURONS_LAYER1
         output_targets = str(list(range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL))) 
         
         if threshold_matrix is None:
-            # Fase 1: Regola iniziale [1, 1, 0, 1, 0]
+            # Phase 1: Initial rule [1, 1, 0, 1, 0]
             for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
                   writer.writerow([
                       neuron_id, 0, output_targets, 1, "[1, 1, 0, 1, 0]",
                       "[1,1,1,0,0]"
                   ])
         else: 
-            # Fase 2: Regola appresa da normalize_rules
+            # Phase 2: Rule learned from normalize_rules
             threshold_array = threshold_matrix.flatten()
             for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
                 firing_threshold = threshold_array[neuron_id - Config.NEURONS_LAYER1]
-                # La regola rimane [1, T, 0, 1, 0] (Spara se T, Azzeramento completo)
+                # The rule remains [1, T, 0, 1, 0] (Fire if T, Full reset)
                 firing_rule = f"[1,{firing_threshold},0,1,0]"
                 writer.writerow([
                     neuron_id, 0, output_targets, 1, firing_rule, "[1,1,1,0,0]"
                 ])
 
-        # Layer 3: Output (8 neuroni)
+        # Layer 3: Output (8 neurons)
         for neuron_id in range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL):
             writer.writerow([
                 neuron_id, 0, "[]", 2, "[1,1,1,0,0]"
@@ -254,35 +247,35 @@ def SNPS_csv(threshold_matrix=None, filename=None):
 
 def normalize_rules(firing_counts, imgs_number):
     """
-    Usata nella fase di addestramento delle regole. 
-    Aggiornata per il Pooling Dedicato.
+    Used in the rule training phase.
+    Updated for Dedicated Pooling.
     """
     min_threshold = 1
     
-    # max_threshold è solo BLOCK_SHAPE**2 per il Dedicated Pooling
+    # max_threshold is just BLOCK_SHAPE**2 for Dedicated Pooling
     max_threshold = Config.BLOCK_SHAPE**2 
     
-    # Calcola la frequenza di sparo normalizzata
+    # Calculate normalized firing frequency
     norm = firing_counts / imgs_number
     
-    # Scala la frequenza normalizzata tra la soglia minima e quella massima
+    # Scale normalized frequency between min and max threshold
     threshold_matrix = norm * (max_threshold - min_threshold) + min_threshold
     
-    # Arrotonda e converte in interi
+    # Round and convert to integers
     threshold_matrix = np.round(threshold_matrix).astype(int)
     
-    # Assicura che la soglia sia almeno 1
+    # Ensure threshold is at least 1
     threshold_matrix[threshold_matrix < 1] = 1 
     
     SNPS_csv(threshold_matrix)
 
 
 # ----------------------------------------------------------------------
-# --- LOGICA DI TRAIN E TEST (Correzione Reshape) ---
+# --- TRAIN AND TEST LOGIC (Reshape Correction) ---
 # ----------------------------------------------------------------------
 
 def rules_train_SNPS(spike_train):
-    # La simulazione dura MAX_TIME_STEPS per raccogliere l'evidenza temporale
+    # Simulation lasts MAX_TIME_STEPS to collect temporal evidence
     snps = SNPSystem(Config.MAX_TIME_STEPS, Config.TRAIN_SIZE + Config.MAX_TIME_STEPS, "images", "prediction", True)
     
     csv_path = os.path.join(project_root, "csv", Config.CSV_NAME)
@@ -293,17 +286,17 @@ def rules_train_SNPS(spike_train):
     w, e = snps.start()
     update_energy(w, e)
 
-    # --- CORREZIONE CRITICA: RESHAPE TRIDIMENSIONALE ---
+    # --- CRITICAL CORRECTION: 3D RESHAPE ---
     rows_cols = int(Config.IMG_SHAPE / Config.BLOCK_SHAPE) # 14
     levels = Config.NUM_INPUT_LEVELS # 5
     
-    # Rimodella in (Livelli, Righe, Colonne) (es. 5, 14, 14)
+    # Reshape to (Levels, Rows, Cols) (e.g. 5, 14, 14)
     reshaped_counts = snps.layer_2_firing_counts.reshape((levels, rows_cols, rows_cols))
     
     normalize_rules(reshaped_counts, Config.TRAIN_SIZE)
 
 def syn_train_SNPS(spike_train, labels):
-    # La simulazione dura MAX_TIME_STEPS per raccogliere l'evidenza temporale
+    # Simulation lasts MAX_TIME_STEPS to collect temporal evidence
     snps = SNPSystem(Config.MAX_TIME_STEPS, Config.TRAIN_SIZE + Config.MAX_TIME_STEPS, "images", "prediction", True)
     
     csv_path = os.path.join(project_root, "csv", Config.CSV_NAME)
@@ -320,7 +313,7 @@ def syn_train_SNPS(spike_train, labels):
     prune_SNPS(pruned_matrix)
 
 def compute_SNPS(spike_train):
-    # La simulazione dura MAX_TIME_STEPS
+    # Simulation lasts MAX_TIME_STEPS
     snps = SNPSystem(Config.MAX_TIME_STEPS, Config.TEST_SIZE + Config.MAX_TIME_STEPS, "images", "prediction", True)
     
     csv_path = os.path.join(project_root, "csv", Config.CSV_NAME_PRUNED)
@@ -331,28 +324,28 @@ def compute_SNPS(spike_train):
     w, e = snps.start()
     update_energy(w, e)
 
-    # Restituisce l'accumulo totale di spike in T_max passi (Codifica a Frequenza)
+    # Returns total spike accumulation in T_max steps (Frequency Encoding)
     return snps.output_array[3:-2] 
 
 def configure_custom_snps():
-    """Configura i parametri specifici per questo esperimento"""
-    # Imposta i nomi dei CSV corretti
+    """Configures specific parameters for this experiment"""
+    # Set correct CSV names
     Config.CSV_NAME = Config.CSV_NAME_T
     Config.CSV_NAME_PRUNED = Config.CSV_NAME_T_PRUNED
 
-    # Se i parametri non sono stati impostati da main.py (configure("temporal")), usa dei default
-    if Config.TEMPORAL_THRESHOLD_LEVELS is None:
-        print("⚠️ ATTENZIONE: Configurazione 'temporal' non rilevata. Uso parametri di default.")
-        Config.BLOCK_SHAPE = 2
-        Config.TEMPORAL_THRESHOLD_LEVELS = [50, 100, 150, 200]
-        Config.MAX_TIME_STEPS = len(Config.TEMPORAL_THRESHOLD_LEVELS) + 1
-        Config.NUM_INPUT_LEVELS = Config.MAX_TIME_STEPS
+    # If parameters were not set by main.py (configure("temporal")), use defaults
+    # if Config.TEMPORAL_THRESHOLD_LEVELS is None:
+    #     print("⚠️ ATTENZIONE: Configurazione 'temporal' non rilevata. Uso parametri di default.")
+    #     Config.BLOCK_SHAPE = 3
+    #     Config.TEMPORAL_THRESHOLD_LEVELS = [50, 100, 150, 200]
+    #     Config.MAX_TIME_STEPS = len(Config.TEMPORAL_THRESHOLD_LEVELS) + 1
+    #     Config.NUM_INPUT_LEVELS = Config.MAX_TIME_STEPS
         
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) * Config.NUM_INPUT_LEVELS
-        # Neuroni L2 = (Blocchi) * (Livelli Temporali)
-        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) * Config.NUM_INPUT_LEVELS
-        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2)
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES
+    #     Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) * Config.NUM_INPUT_LEVELS
+    #     # L2 Neurons = (Blocks) * (Temporal Levels)
+    #     Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) * Config.NUM_INPUT_LEVELS
+    #     Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2)
+    #     Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES
 
 
 def launch_SNPS():
@@ -382,20 +375,31 @@ def launch_SNPS():
     print(f"Expected energy spent: {energy_tracker['expected']} fJ")
 
 
-# --- Le funzioni prune_matrix, prune_SNPS, combined_ranking_score rimangono invariate ---
 
 def prune_matrix(synapses):
     """prepare the matrix for the synapses"""
     keep_matrix = np.zeros_like(synapses, dtype=int) 
     for class_idx in range(synapses.shape[0]):
         weights = synapses[class_idx]
-        num_excite = int((1 - Config.PRUNING_PERC - Config.INHIBIT_PERC) * len(weights))
-        num_inhibit = int(Config.INHIBIT_PERC * len(weights))
-
-        excite_indices = np.argsort(weights)[-num_excite:]
-        inhibit_indices = np.argsort(weights)[:num_inhibit]
-        keep_matrix[class_idx, excite_indices] = 1
+        N = len(weights)
+        
+        # Calculate quantities
+        num_pruned = int(Config.PRUNING_PERC * N)
+        num_inhibit = int(Config.INHIBIT_PERC * N)
+        num_excite = int((1 - Config.PRUNING_PERC - Config.INHIBIT_PERC) * N)
+        
+        sorted_indices = np.argsort(weights)
+        
+        # 1. Inhibitors: The lowest weights (Bottom)
+        inhibit_indices = sorted_indices[:num_inhibit]
         keep_matrix[class_idx, inhibit_indices] = -1
+        
+        # 2. Pruned: The middle weights (Remain 0)
+        
+        # 3. Excitators: The highest weights (Top)
+        excite_indices = sorted_indices[-num_excite:]
+        keep_matrix[class_idx, excite_indices] = 1
+        
     return keep_matrix
 
 def prune_SNPS(pruned_matrix):
