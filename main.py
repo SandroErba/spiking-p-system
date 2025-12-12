@@ -2,9 +2,9 @@ from sps import edge_detection, med_mnist, other_networks, cnn, handle_image, cn
 from sps.config import Config, configure
 
 
-configure("quantized") #can be binarized, quantized, edge
+configure("quantized") #can be binarized, quantized, edge, cnn
 
-#CNN.launch_CNN_SNPS()
+#cnn.launch_CNN_SNPS()
 
 #med_mnist.launch_binarized_SNPS()
 med_mnist.launch_quantized_SNPS()

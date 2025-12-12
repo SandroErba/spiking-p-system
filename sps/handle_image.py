@@ -33,6 +33,8 @@ def process_dataset(dataset, count): # flatten and split among color channels
         blue_channel.append(ch_b)
 
     #show_quantized_image(dataset.imgs[0], red_channel[0], green_channel[0], blue_channel[0]) #Show first image
+    #show_quantized_image(dataset.imgs[1], red_channel[1], green_channel[1], blue_channel[1]) #Show first image
+    #show_quantized_image(dataset.imgs[2], red_channel[2], green_channel[2], blue_channel[2]) #Show first image
 
     return (
         np.array(red_channel),
@@ -66,6 +68,26 @@ def quantize_rgb_image(img_rgb):
         for c in range(3):
             channels.append(quantized[:, :, c])
     return channels
+
+
+#for output an image
+def show_images(output_array):
+    images = np.asarray(output_array)
+    num_images = min(images.shape[1], Config.TRAIN_SIZE)
+    cols = min(num_images, 5)
+    rows = int(np.ceil(num_images / cols))
+    plt.figure(figsize=(2.5 * cols, 2.5 * rows))
+
+    for i in range(num_images):
+        img = images[:, i].reshape((Config.SEGMENTED_SHAPE, Config.SEGMENTED_SHAPE))
+        plt.subplot(rows, cols, i + 1)
+        plt.imshow(img, cmap='gray', vmin=0, vmax=1)
+        plt.title(f"Image {i}")
+        plt.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
 
 
 # Debug only

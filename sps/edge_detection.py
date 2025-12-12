@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from sps.handle_csv import kernel_SNPS_csv
+from sps.handle_image import show_images
 from sps.snp_system import SNPSystem
 from sps import med_mnist
 from sps.config import Config
@@ -14,22 +15,9 @@ def launch_gray_SNPS():
     snps.spike_train = train_red
     snps.start()
 
-    show_images(snps.edge_output)
+    show_images(snps.image_output)
 
-def show_images(output_array, img_size=27):
-    images = np.asarray(output_array)
-    num_images = min(images.shape[1], Config.TRAIN_SIZE)
-    cols = min(num_images, 5)
-    rows = int(np.ceil(num_images / cols))
-    plt.figure(figsize=(2.5 * cols, 2.5 * rows))
-    for i in range(num_images):
-        img = images[:, i].reshape((img_size, img_size))
-        plt.subplot(rows, cols, i + 1)
-        plt.imshow(img, cmap='gray', vmin=0, vmax=1)
-        plt.title(f"Image {i}")
-        plt.axis('off')
-    plt.tight_layout()
-    plt.show()
+
 
 
 

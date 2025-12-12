@@ -95,7 +95,7 @@ def syn_train_SNPS(spike_train, labels):
     update_energy(w, e)
 
     pruned_matrix = prune_matrix(snps.layer_2_synapses)
-    #TODO print for analyze the pruned synapses
+    #TODO print for analyze the pruned synapses - delete after
     print("SYN VALUES SHAPE", snps.layer_2_synapses.shape)
     print("SYN 0 VALUES", snps.layer_2_synapses[0])
     print("SYN 1 VALUES", snps.layer_2_synapses[1])
