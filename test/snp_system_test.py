@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 
+from sps.config import Config
 from sps.p_neuron import PNeuron
 from sps.snp_system import SNPSystem
 from sps.spike_utils import TransformationRule
@@ -11,7 +12,8 @@ class SNPSystemTest(unittest.TestCase):
         PNeuron.nid = 0
 
     def test_tick_neurons_not_triggering_rules(self):
-        snps = SNPSystem(5, 100, "test", "test", True)
+        Config.MODE = "test"
+        snps = SNPSystem(5, 100, "none", "halting", True)
 
         pn1 = PNeuron(snps, 0, targets=[], transf_rules=[])
         pn2 = PNeuron(snps, 0, targets=[], transf_rules=[])
@@ -29,9 +31,11 @@ class SNPSystemTest(unittest.TestCase):
         pn1.tick.assert_called_with()
         pn2.tick.assert_called_with()
 
+
     def test_tick_output_neuron(self):
+        Config.MODE = "test"
         """ the final system output should be [startTick, endTick] - the number of ticks passed between the first two firing of the output neuron"""
-        snps = SNPSystem(5, 100, "test", "generative", True)
+        snps = SNPSystem(5, 100, "none", "generative", True)
         
         p1 = PNeuron(snps, 0, targets=[], transf_rules=[])
         p_output = PNeuron(snps, 0, targets=[], transf_rules=[], neuron_type=2)

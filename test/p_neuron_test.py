@@ -1,10 +1,14 @@
 import unittest
+
+from sps.config import Config
 from sps.p_neuron import PNeuron
 from sps.snp_system import SNPSystem
 from sps.spike_utils import TransformationRule
 
 class PNeuronTest(unittest.TestCase):
     def test_fire(self):
+        Config.MODE = "test"
+        Config.WHITE_HOLE = False
         fire_rule = TransformationRule(div=1, mod=0, source=5, target=1, delay=3)
         snps = SNPSystem(5, 5, "test", "test", True)
         pn = PNeuron(snps, 0, targets=[], transf_rules=[fire_rule])
@@ -12,7 +16,7 @@ class PNeuronTest(unittest.TestCase):
         pn.fire(pn.transf_rules[0])
 
         # after a firing event, the neuron current charge is diminished by rule source condition
-        self.assertEqual(pn.charge, 8-5)
+        self.assertEqual(pn.charge, 3)
 
         # after a firing event, the neuron refractory period is equal to rule delay, diminishing by 1 per tick
         self.assertEqual(pn.refractory, 3)
@@ -21,6 +25,8 @@ class PNeuronTest(unittest.TestCase):
 
 
     def test_consume(self):
+        Config.MODE = "test"
+        Config.WHITE_HOLE = False
         fire_rule = TransformationRule(div=1, mod=0, source=5, target=1, delay=3)
         snps = SNPSystem(5, 5, "test", "test", True)
         pn = PNeuron(snps, 0, targets=[], transf_rules=[fire_rule])
@@ -28,7 +34,20 @@ class PNeuronTest(unittest.TestCase):
         pn.fire(pn.transf_rules[0])
 
         # after a consume event, the neuron current charge is diminished by rule source condition
-        self.assertEqual(pn.charge, 8-5)
+        self.assertEqual(pn.charge, 3)
+
+
+    def test_consume_white_hole(self):
+        Config.MODE = "test"
+        Config.WHITE_HOLE = True
+        fire_rule = TransformationRule(div=1, mod=0, source=5, target=1, delay=3)
+        snps = SNPSystem(5, 5, "test", "test", True)
+        pn = PNeuron(snps, 0, targets=[], transf_rules=[fire_rule])
+        pn.charge = 8
+        pn.fire(pn.transf_rules[0])
+
+        # after a consume event, the neuron current charge is diminished by rule source condition
+        self.assertEqual(pn.charge, 0)
 
 if __name__ == '__main__':
     unittest.main()

@@ -62,7 +62,7 @@ class PNeuron:
                     return self.consume(rule)
 
     def fire(self, rule):
-        if Config.MODE != "cnn" and Config.NEURONS_LAYER1 <= self.nid < Config.NEURONS_LAYER1_2 and self.snp_system.output_type == "prediction":
+        if Config.MODE != "cnn" and Config.MODE != "test" and Config.NEURONS_LAYER1 <= self.nid < Config.NEURONS_LAYER1_2 and self.snp_system.output_type == "prediction":
             if Config.QUANTIZATION:
                 self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_LAYER1] += rule.target # for rules tuning
             else:

@@ -44,15 +44,15 @@ class Config:
 
 # TODO use mode in all the code for handle different behaviour, maybe managing input and output type
 def configure(mode):
+    Config.MODE = mode
     if mode == "quantized":
-        Config.MODE = "quantized"
         Config.BLOCK_SHAPE = 2 #the size of the window block for the second layer
         Config.QUANTIZATION = True
         Config.Q_RANGE = 4 #TODO generalize the code with it
         Config.INVERT = True
 
-        Config.TRAIN_SIZE = 1000
-        Config.TEST_SIZE = 1000
+        Config.TRAIN_SIZE = 1500
+        Config.TEST_SIZE = 1500
 
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
         Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
@@ -64,7 +64,6 @@ def configure(mode):
         Config.CSV_NAME_PRUNED = "SNPS_quantize_pruned.csv"
 
     if mode == "binarized":
-        Config.MODE = "binarized"
         Config.BLOCK_SHAPE = 4
         Config.THRESHOLD = 128
         Config.QUANTIZATION = False
@@ -86,7 +85,6 @@ def configure(mode):
         Config.CSV_NAME_PRUNED = "SNPS_binarize_pruned.csv"
 
     if mode == "edge":
-        Config.MODE = "edge"
         Config.BLOCK_SHAPE = 4
         Config.THRESHOLD = 128
         Config.INVERT = False
@@ -103,14 +101,13 @@ def configure(mode):
 
 
     if mode == "cnn":
-        Config.MODE = "cnn"
         Config.QUANTIZATION = True
         Config.Q_RANGE = 4
-        Config.TRAIN_SIZE = 13
+        Config.TRAIN_SIZE = 5
         Config.INVERT = False
 
         Config.KERNEL_SHAPE = 3
-        Config.KERNEL_NUMBER = 1
+        Config.KERNEL_NUMBER = 5
 
         Config.SEGMENTED_SHAPE = Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1 # 26
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784

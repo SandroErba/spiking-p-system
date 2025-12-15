@@ -10,7 +10,7 @@ class SNPSystem:
     """Spiking Neural P System"""
 
     def __init__(self, max_delay, max_steps, input_type, output_type, deterministic):
-        if Config.MODE != "cnn":
+        if Config.MODE != "cnn" and Config.MODE != "test":
             self.charge_map_l1 = np.zeros(Config.NEURONS_LAYER1, dtype=float) # support array - for saving and showing the internal charge
             self.charge_map_l2 = np.zeros(Config.NEURONS_LAYER1_2 - Config.NEURONS_LAYER1, dtype=float)
             self.charge_map_l3 = np.zeros(Config.NEURONS_TOTAL - Config.NEURONS_LAYER1_2, dtype=float)
@@ -37,6 +37,8 @@ class SNPSystem:
         self.forgetting_applied = 0
         self.spike_fired = 0
         self.inhibition_fired = 0
+
+        self.spike_train = None
 
         if input_type == "images" and output_type == "prediction":
             # record firing of layer 2 for the training phase
@@ -86,7 +88,7 @@ class SNPSystem:
         any_rule_applied = False
         # evolve each neuron
         for neuron in self.neurons:
-            if Config.MODE != "cnn": self.save_charge(self, neuron) #DEBUGGING ONLY - for saving the internal charge
+            if Config.MODE != "cnn" and Config.MODE != "test": self.save_charge(self, neuron) #DEBUGGING ONLY - for saving the internal charge
             used_rule = neuron.tick()
             if used_rule:
                 any_rule_applied = True
@@ -102,13 +104,10 @@ class SNPSystem:
 
         # input handling
         input_spike = False # check if there are more input
-        if (self.input_type == "spike_train" or self.input_type == "images") and hasattr(self, "spike_train"):
-            #print("IF 1")
+        if (self.input_type == "spike_train" or self.input_type == "images"):
             if self.t_step < len(self.spike_train):
-                #print("IF 2") #TODO delete 3 print lines
                 input_spike = True
                 if self.input_type == "images": # if you have an array of images as input
-                    #print("IF 3")
                     input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
                     for i, neuron in enumerate(self.neurons):
                         if neuron.neuron_type == 0:
@@ -138,11 +137,10 @@ class SNPSystem:
                 offset = input_id + Config.NEURONS_LAYER1 + (Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE * Config.KERNEL_NUMBER)
                 if self.neurons[offset].charge > 0:
                     self.image_output[input_id][self.t_step - 2] = 1
-        if Config.MODE == "cnn":
+        if Config.MODE == "cnn" and 0 < self.t_step <= len(self.spike_train):
             for input_id in range(Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE * Config.KERNEL_NUMBER):
                 offset = input_id + Config.NEURONS_LAYER1
-                if offset == 909: print("OFFSET: ", offset, "CHARGE: ", self.neurons[offset].charge, "input_id: ", input_id, "tStep: ", self.t_step - 1)
-                self.image_output[input_id][self.t_step - 1] = self.neurons[offset].charge
+                self.image_output[input_id][self.t_step-1] = self.neurons[offset].charge
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
@@ -184,7 +182,6 @@ class SNPSystem:
         if not any_rule_applied and not any_in_delay and not any_spike_in_transit and not input_spike and self.t_step > 1:
             if self.output_type == "halting":
                 print("The computation halts because no further rules can be applied; the input is accepted")
-            #print("input_spike: ", input_spike) #TODO delete
             return False # end computation
 
         self.t_step += 1 # advance time

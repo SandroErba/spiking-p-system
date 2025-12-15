@@ -1,8 +1,8 @@
 #PRIMA: search for an easy CNN and try to recreate it -> https://pythonguides.com/simple-mnist-convnet-keras/
 # usare e mantenere aggiornati le test classes - lanciarli in pipeline con le push?
-#ORA:
 #LEGGERE DN-SNP: SNP-based lightweight deep network for CT image segmentation of COVID-19 o paper simili con CNN
-#POI continuare con la creazione e modifica della rete sotto capendo come fare il (o i) kernel
+#LEGGERE PER STDP: https://www.frontiersin.org/journals/computational-neuroscience/articles/10.3389/fncom.2015.00099/full
+#POI continuare con la creazione e modifica della rete capendo come tunare i kernel
 
 #start from the 28x28 -> 26x26xN with N kernels.
 #i have to create the kernels, copy from existing ones, and, if i can, train them.
@@ -17,7 +17,8 @@
 #tunare regole e neuroni assieme? uno alla volta?
 #evolvere i parametri durante le run
 #visto che sono non deterministici, come ACO e PSO, posso dire che le immagini sono incapsulate e non leggibili perchè non puoi fare backtraking
-#tODO commentare e mettere test!
+#tODO commentare e mettere test
+# usare Config.MODE al posto di input e output
 import csv
 
 import numpy as np
@@ -40,9 +41,9 @@ def launch_CNN_SNPS():
 
     predictions = []
 
-    cnn_SNPS_csv() #use only if the csv was changed
+    #cnn_SNPS_csv() #use only if the csv was changed
     for train_data in zip(train_channels):
-        compute_cnn(train_data)
+        compute_cnn(train_data[0])
         #rules_train_SNPS(train_data)            # adapt firing rules (layer 2)
         #syn_train_SNPS(train_data, train_labels)  # prune + inhibit
         #pred = compute_SNPS(test_data)          # test P system
@@ -54,7 +55,6 @@ def launch_CNN_SNPS():
     #combined_ranking_score(red_pred, green_pred, blue_pred, test_labels)
 
 def compute_cnn(train_data):
-    print(Config.TRAIN_SIZE)
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "images", True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = train_data

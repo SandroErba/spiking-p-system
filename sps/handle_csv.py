@@ -1,4 +1,6 @@
 import csv
+import os
+
 from sps.config import Config
 
 
@@ -224,13 +226,17 @@ def kernel_SNPS_csv():
 def cnn_SNPS_csv():
     """Generate the SN P system to replicate the cnn"""
     kernels = [
-        [[0, 0, 0], [0, 1, 0], [0, 0, 0]], # Vertical 1
+        [[1, 1, 1], [1, 1, 1], [1, 1, 1]],
+        [[-1, 0, -1], [0, 1, 0], [-1, 0, -1]],
+        [[-1, 1, -1], [1, 1, 1], [-1, 1, -1]],
+        [[1, 0, -1], [0, 1, 0], [-1, 0, 1]],
+        [[-1, 0, 1], [0, 1, 0], [1, 0, -1]]
     ]
     layer1_size = Config.IMG_SHAPE * Config.IMG_SHAPE
     layer2_size_per_kernel = Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE
     #total_layer2_size = layer2_size_per_kernel * len(kernels)
     #layer3_offset = Config.NEURONS_LAYER1 + total_layer2_size
-
+    os.makedirs("csv", exist_ok=True)
     with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
