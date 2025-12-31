@@ -6,7 +6,7 @@ class Config:
     BLOCK_SHAPE = None  #the size of the window block for the second layer
     THRESHOLD = None #128 higher Thr -> more spike - with higher threshold I get better performance, but more unbalanced classes -> !shortcut!
 
-    INVERT = False #invert or not invert the spike in the starting images (0...4) -> (4...0)
+    INVERT = True #invert or not invert the spike in the starting images (0...4) -> (4...0)
     QUANTIZATION = None
     Q_RANGE = None # the range of quantization, it works on images, rules and tuning
 
@@ -46,13 +46,21 @@ class Config:
 def configure(mode):
     if mode == "quantized":
         Config.MODE = "quantized"
-        Config.BLOCK_SHAPE = 2 #the size of the window block for the second layer
+        Config.BLOCK_SHAPE = 3 #the size of the window block for the second layer
+        if Config.BLOCK_SHAPE == 3:
+            Config.IMG_SHAPE = 27
         Config.QUANTIZATION = True
-        Config.Q_RANGE = 4 #TODO generalize the code with it
-        Config.INVERT = True
+        Config.Q_RANGE = 5 #TODO generalize the code with it
+        Config.INVERT = False
 
-        Config.TRAIN_SIZE = 1000
+
+        Config.TRAIN_SIZE = 3000
         Config.TEST_SIZE = 1000
+
+        Config.POSITIVE_REINFORCE = Config.CLASSES * 2
+        Config.NEGATIVE_PENALIZATION = 0.5
+        Config.PRUNING_PERC = 0.4
+        Config.INHIBIT_PERC = 0.3
 
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
         Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
@@ -116,3 +124,25 @@ def configure(mode):
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
 
         Config.CSV_NAME = "SNPS_cnn.csv"
+
+
+    if mode == "temporal":
+            Config.BLOCK_SHAPE = 3
+            if(Config.BLOCK_SHAPE == 3):
+                Config.IMG_SHAPE = 27
+            Config.TEMPORAL_THRESHOLD_LEVELS = [50, 100, 155,  190] #[50, 100, 150, 200]  #    #[50, 100, 150, 200]    #[65, 110, 150, 190]   #[50, 90, 130, 170, 210]     #     #[ 75, 120,  180]     #[75, 120, 180]    #[74, 118, 154, 184, 211, 237]     #[64, 94, 118, 139, 157, 174, 191, 207, 221, 240]     #[213, 170, 128, 85, 43] # levels
+            Config.MAX_TIME_STEPS = Config.TEMPORAL_THRESHOLD_LEVELS.__len__() + 1 #5
+            Config.NUM_INPUT_LEVELS = Config.MAX_TIME_STEPS 
+            Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) * Config.NUM_INPUT_LEVELS #784
+            Config.NEURONS_LAYER2_PER_LEVEL = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
+            Config.NEURONS_LAYER2 = Config.NEURONS_LAYER2_PER_LEVEL * Config.MAX_TIME_STEPS #245
+            Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
+            Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
+            Config.TRAIN_SIZE = 1000
+            Config.TEST_SIZE = 1000
+
+            Config.POSITIVE_REINFORCE = Config.CLASSES * 2.4
+            Config.NEGATIVE_PENALIZATION = 0.7
+            Config.PRUNING_PERC = 0.5
+            Config.INHIBIT_PERC = 0.2
+            Config.TEMPORAL = True

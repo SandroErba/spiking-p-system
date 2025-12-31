@@ -4,16 +4,9 @@ from sps.config import Config
 
 
 
-<<<<<<< HEAD
-def quantized_SNPS_csv(filename="csv/" + Config.CSV_NAME_Q):
-    """Generate the SN P system to analyze chosen images
-    If a matrix is passed, update the existing P system"""
-    with open(filename, mode='w', newline='') as csv_file:
-=======
 def quantized_SNPS_csv():
     """Generate the SN P system to analyze chosen images"""
     with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
->>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
@@ -32,11 +25,7 @@ def quantized_SNPS_csv():
                 "[0,4,4,4,0]",
                 "[0,3,3,3,0]",
                 "[0,2,2,2,0]",
-<<<<<<< HEAD
-                "[0,1,1,1,0]"         # firing rule #boolean is "[0,1,1,1,0]"
-=======
                 "[0,1,1,1,0]"         # firing rules
->>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
             ])
 
         # Layer 2: Pooling (49 neurons)
@@ -66,17 +55,10 @@ def quantized_SNPS_csv():
             ])
 
 
-<<<<<<< HEAD
-def binarized_SNPS_csv(threshold_matrix=None, filename="csv/" + Config.CSV_NAME_B):
-    """Generate the SN P system to analyze chosen images
-    If a matrix is passed, update the existing P system"""
-    with open(filename, mode='w', newline='') as csv_file:
-=======
 def binarized_SNPS_csv(threshold_matrix=None):
     """Generate the SN P system to analyze chosen images
     If a matrix is passed, update the existing P system"""
     with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
->>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
@@ -135,13 +117,7 @@ def binarized_SNPS_csv(threshold_matrix=None):
 
 def prune_SNPS(pruned_matrix):
     """change the synapses in the csv file"""
-<<<<<<< HEAD
-    csv_name = Config.CSV_NAME_Q if Config.QUANTIZATION else Config.CSV_NAME_B
-    csv_name_pruned = Config.CSV_NAME_Q_PRUNED if Config.QUANTIZATION else Config.CSV_NAME_B_PRUNED
-    with open("csv/" + csv_name, 'r') as f_in, open("csv/" + csv_name_pruned, 'w', newline='') as f_out:
-=======
     with open("csv/" + Config.CSV_NAME, 'r') as f_in, open("csv/" + Config.CSV_NAME_PRUNED, 'w', newline='') as f_out:
->>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
         reader = csv.reader(f_in)
         writer = csv.writer(f_out)
         header = next(reader)
@@ -185,11 +161,7 @@ def kernel_SNPS_csv():
     total_layer2_size = layer2_size_per_kernel * len(kernels)
     layer3_offset = Config.NEURONS_LAYER1 + total_layer2_size
 
-<<<<<<< HEAD
-    with open("csv/" + Config.CSV_KERNEL_NAME, mode='w', newline='') as csv_file:
-=======
     with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
->>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
@@ -246,9 +218,6 @@ def kernel_SNPS_csv():
                 "[]",                        # output_targets
                 2,                           # neuron_type (output)
                 "[1,1,0,0,0]"                # Forgetting rule
-<<<<<<< HEAD
-            ])
-=======
             ])
 
 
@@ -313,4 +282,3 @@ def cnn_SNPS_csv():
                     1,                       # neuron_type
                     "[1,1,1,0,0]"            # For now I only need to see the resulting images
                 ])
->>>>>>> 2c97215ec8e5ed5131013ed1d66014bbead5d477
