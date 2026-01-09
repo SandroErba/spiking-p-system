@@ -2,6 +2,7 @@
 # usare e mantenere aggiornati le test classes - lanciarli in pipeline con le push?
 #LEGGERE DN-SNP: SNP-based lightweight deep network for CT image segmentation of COVID-19 o paper simili con CNN
 #LEGGERE PER STDP: https://www.frontiersin.org/journals/computational-neuroscience/articles/10.3389/fncom.2015.00099/full
+#TODO pushare su master e aggiornare Fra con handwritten
 #POI continuare con la creazione e modifica della rete capendo come tunare i kernel
 
 #start from the 28x28 -> 26x26xN with N kernels.
@@ -17,40 +18,32 @@
 #tunare regole e neuroni assieme? uno alla volta?
 #evolvere i parametri durante le run
 #visto che sono non deterministici, come ACO e PSO, posso dire che le immagini sono incapsulate e non leggibili perchè non puoi fare backtraking
-#tODO commentare e mettere test
-# usare Config.MODE al posto di input e output
-import csv
 
+#guardare il lavoro di Iris Ermini, analizza immagini grandi binarizzandole
 import numpy as np
 from matplotlib import pyplot as plt
 
-from sps import handle_csv
-from sps.edge_detection import show_images
 from sps.handle_csv import cnn_SNPS_csv
 from sps.config import Config
-from sps.handle_image import get_mnist_data
+from sps.med_image import get_mnist_data
 from sps.snp_system import SNPSystem
 
 
 def launch_CNN_SNPS():
     (train_red, train_green, train_blue, train_labels), (_) = get_mnist_data('bloodmnist')
 
-    # Group color channels
-    train_channels = [train_red, train_green, train_blue]
+    train_channels = [train_red, train_green, train_blue] # Group color channels
     #test_channels = [test_red, test_green, test_blue]
+    #predictions = []
 
-    predictions = []
-
-    #cnn_SNPS_csv() #use only if the csv was changed
+    cnn_SNPS_csv() #use only if the csv was changed
     for train_data in zip(train_channels):
         compute_cnn(train_data[0])
-        #rules_train_SNPS(train_data)            # adapt firing rules (layer 2)
+        #rules_train_SNPS(train_data)              # adapt firing rules (layer 2)
         #syn_train_SNPS(train_data, train_labels)  # prune + inhibit
-        #pred = compute_SNPS(test_data)          # test P system
+        #pred = compute_SNPS(test_data)            # test P system
         #predictions.append(pred)
 
-    # Unpack predictions
-    #red_pred, green_pred, blue_pred = predictions
 
     #combined_ranking_score(red_pred, green_pred, blue_pred, test_labels)
 

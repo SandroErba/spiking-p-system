@@ -10,7 +10,7 @@ class SNPSystem:
     """Spiking Neural P System"""
 
     def __init__(self, max_delay, max_steps, input_type, output_type, deterministic):
-        if Config.MODE != "cnn" and Config.MODE != "test":
+        if Config.MODE in ("binarized", "quantized"):
             self.charge_map_l1 = np.zeros(Config.NEURONS_LAYER1, dtype=float) # support array - for saving and showing the internal charge
             self.charge_map_l2 = np.zeros(Config.NEURONS_LAYER1_2 - Config.NEURONS_LAYER1, dtype=float)
             self.charge_map_l3 = np.zeros(Config.NEURONS_TOTAL - Config.NEURONS_LAYER1_2, dtype=float)
@@ -40,17 +40,16 @@ class SNPSystem:
 
         self.spike_train = None
 
-        if input_type == "images" and output_type == "prediction":
-            # record firing of layer 2 for the training phase
+        if Config.MODE in ("binarized", "quantized"): # record firing of layer 2 for the training phase
             self.labels = []
             self.old_layer_2_firing_counts = 0
             self.layer_2_firing_counts = 0
             self.layer_2_synapses = []
 
         # record output
-        if output_type == "generative":
+        if output_type == "generative": #TODO continue to delete output type
             self.output = [] # time between two spikes in the output neuron
-        elif output_type == "prediction":
+        elif Config.MODE in ("binarized", "quantized"):
             self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int) # array of prediction
 
         if Config.MODE == "edge":
@@ -88,7 +87,7 @@ class SNPSystem:
         any_rule_applied = False
         # evolve each neuron
         for neuron in self.neurons:
-            if Config.MODE != "cnn" and Config.MODE != "test": self.save_charge(self, neuron) #DEBUGGING ONLY - for saving the internal charge
+            if Config.MODE in ("binarized", "quantized"): self.save_charge(self, neuron) #DEBUGGING ONLY - for saving the internal charge
             used_rule = neuron.tick()
             if used_rule:
                 any_rule_applied = True
@@ -100,27 +99,25 @@ class SNPSystem:
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
-        #self.show_charge() #DEBUGGING ONLY - for saving the internal charge
+        #self.show_charge() #debug only - for saving the internal charge
 
-        # input handling
-        input_spike = False # check if there are more input
-        if (self.input_type == "spike_train" or self.input_type == "images"):
-            if self.t_step < len(self.spike_train):
-                input_spike = True
-                if self.input_type == "images": # if you have an array of images as input
-                    input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
-                    for i, neuron in enumerate(self.neurons):
-                        if neuron.neuron_type == 0:
-                            if input_vector[i] > 0:
-                                neuron.charge +=  input_vector[i] # add charge to the corresponding neuron
-                                self.spike_fired += input_vector[i]
-                                self.history.record_incoming(neuron, input_vector[i], "input")
-                if (self.input_type == "spike_train") and self.spike_train[self.t_step] == 1: # You have one boolean spike train for all the input neurons
-                    for neuron in self.neurons:
-                        if neuron.neuron_type == 0:
-                            neuron.charge += 1
-                            self.spike_fired += 1
-                            self.history.record_incoming(neuron, 1, "input")
+        input_spike = False # check if there are more input for halting condition
+        if self.spike_train.any() and self.t_step < len(self.spike_train):
+            input_spike = True
+            if Config.MODE in ("binarized", "quantized", "edge", "cnn"): # you have an array of images as input
+                input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
+                for i, neuron in enumerate(self.neurons):
+                    if neuron.neuron_type == 0:
+                        if input_vector[i] > 0:
+                            neuron.charge +=  input_vector[i] # add charge to the corresponding neuron
+                            #self.spike_fired += input_vector[i]
+                            self.history.record_incoming(neuron, input_vector[i], "input")
+            elif self.spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
+                for neuron in self.neurons:
+                    if neuron.neuron_type == 0:
+                        neuron.charge += 1
+                        self.spike_fired += 1
+                        self.history.record_incoming(neuron, 1, "input")
 
         # consume current spiking events
         for spike_event in self.spike_events[self.t_step % self.max_delay]:
@@ -151,13 +148,12 @@ class SNPSystem:
                 neuron.charge = 0
 
         # synapses tuning, enter only in the image classification mode
-        if self.input_type == "images" and self.output_type == "prediction" and len(self.layer_2_synapses) > 0:
+        if Config.MODE in ("binarized", "quantized") and len(self.layer_2_synapses) > 0:
             if Config.QUANTIZATION and np.any(self.charge_map_l2):
                 #print("MATRICE LAYER 2: ", charge_map_l2)
-                # TODO check image for image for the correct spike
                 label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step for start the computation
                 for idx in range(Config.NEURONS_LAYER2):
-                    self.layer_2_synapses[label][idx] += self.charge_map_l2[idx]
+                    self.layer_2_synapses[label][idx] = self.layer_2_synapses[label][idx] + (self.charge_map_l2[idx] * (Config.CLASSES - 1))
                     for wrong_label in range(Config.CLASSES):
                         if wrong_label != label:
                             self.layer_2_synapses[wrong_label][idx] -= self.charge_map_l2[idx]

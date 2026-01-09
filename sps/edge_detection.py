@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from sps.handle_csv import kernel_SNPS_csv
-from sps.handle_image import show_images
+from sps.med_image import show_images
 from sps.snp_system import SNPSystem
 from sps import med_mnist
 from sps.config import Config

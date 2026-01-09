@@ -1,7 +1,9 @@
 import numpy as np
+
 from sps.config import Config
 from sps.handle_csv import binarized_SNPS_csv, quantized_SNPS_csv, prune_SNPS
-from sps.handle_image import get_mnist_data
+from sps.med_image import get_mnist_data
+from sps.flower_image import get_flowers102_data
 from sps.snp_system import SNPSystem
 
 energy_tracker = {
@@ -47,8 +49,12 @@ def launch_quantized_SNPS():
     """Manage all quantized SN P systems"""
      #TODO something strange is happening, the number of steps (sometimes) change with different colors
     # Load and split database
-    (train_red, train_green, train_blue, train_labels), \
+    if Config.DATABASE == 'medmnist':
+        (train_red, train_green, train_blue, train_labels), \
         (test_red, test_green, test_blue, test_labels) = get_mnist_data('bloodmnist')
+    elif Config.DATABASE == 'flower102':
+        (train_red, train_green, train_blue, train_labels), \
+            (test_red, test_green, test_blue, test_labels) = get_flowers102_data()
 
     # Group data into color channels
     train_channels = [train_red, train_green, train_blue]
@@ -65,7 +71,6 @@ def launch_quantized_SNPS():
 
     # Unpack predictions after loop
     red_pred, green_pred, blue_pred = predictions
-
     combined_ranking_score(red_pred, green_pred, blue_pred, test_labels)
 
     #print(f"Worst energy spent: {energy_tracker['worst']} fJ")
@@ -97,12 +102,9 @@ def syn_train_SNPS(spike_train, labels):
     pruned_matrix = prune_matrix(snps.layer_2_synapses)
     #TODO print for analyze the pruned synapses - delete after
     print("SYN VALUES SHAPE", snps.layer_2_synapses.shape)
-    print("SYN 0 VALUES", snps.layer_2_synapses[0])
-    print("SYN 1 VALUES", snps.layer_2_synapses[1])
-    print("SYN 2 VALUES", snps.layer_2_synapses[2])
-    print("PRUNED MATRIX 0", pruned_matrix[0])
-    print("PRUNED MATRIX 1", pruned_matrix[1])
-    print("PRUNED MATRIX 2", pruned_matrix[2])
+    for i in range(10):
+        print("PRUNED MATRIX ",i,  pruned_matrix[i])
+
     prune_SNPS(pruned_matrix)
 
 def compute_SNPS(spike_train):
@@ -141,14 +143,19 @@ def prune_matrix(synapses):
 
 def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
     """calculate the model's performance including per-channel and combined ranking"""
+    print("red pred", pred_red)
+    print("green pred", pred_green)
+    print("blue pred", pred_blue)
+    print("labels", labels)
 
     def evaluate_single_channel(predictions, s_labels):
         """Return top-1 and top-3 accuracy for one color channel."""
         top1, top3 = 0, 0
         for row, s_true_label in zip(predictions, s_labels):
-            s_noise = np.random.rand(Config.CLASSES) * 1e-6
-            ranking = np.argsort(-(row + s_noise))
-            s_rank = int(np.where(ranking == s_true_label)[0][0])
+            ranking = np.argsort(-row)
+            rank_table = np.empty_like(ranking)
+            rank_table[ranking] = np.arange(len(ranking))
+            s_rank = rank_table[s_true_label]
             if s_rank == 0:
                 top1 += 1
             if s_rank < 3:
@@ -177,10 +184,9 @@ def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
     class_counts = np.zeros(Config.CLASSES, dtype=int)
 
     for red_row, green_row, blue_row, true_label in zip(pred_red, pred_green, pred_blue, labels):
-        noise = np.random.rand(Config.CLASSES) * 1e-6
-        red_rank = np.argsort(-red_row - noise)
-        green_rank = np.argsort(-green_row - noise)
-        blue_rank = np.argsort(-blue_row - noise)
+        red_rank = np.argsort(-red_row)
+        green_rank = np.argsort(-green_row)
+        blue_rank = np.argsort(-blue_row)
 
         combined_score = np.zeros(Config.CLASSES, dtype=float)
         for i in range(Config.CLASSES):

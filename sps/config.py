@@ -1,5 +1,6 @@
 class Config:
     MODE = "Default"
+    DATABASE = 'medmnist'
     # IMAGES
     IMG_SHAPE = 28 #ipotizing squared shape images of 28 pixels
     CLASSES = 8
@@ -49,10 +50,10 @@ def configure(mode):
         Config.BLOCK_SHAPE = 2 #the size of the window block for the second layer
         Config.QUANTIZATION = True
         Config.Q_RANGE = 4 #TODO generalize the code with it
-        Config.INVERT = True
+        Config.INVERT = False
 
-        Config.TRAIN_SIZE = 1500
-        Config.TEST_SIZE = 1500
+        Config.TRAIN_SIZE = 100
+        Config.TEST_SIZE = 100
 
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
         Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
@@ -113,3 +114,30 @@ def configure(mode):
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
 
         Config.CSV_NAME = "SNPS_cnn.csv"
+
+    if mode == "flower":
+        Config.MODE = "quantized"
+        Config.TRAIN_SIZE = 500
+        Config.TEST_SIZE = 500
+        Config.IMG_SHAPE = 224
+        Config.DATABASE = 'flower102'
+        Config.CLASSES = 102
+
+        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #TODO check new values
+        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
+        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
+        Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
+
+    if mode == "digit":
+        Config.Q_RANGE = 8
+        Config.MODE = "quantized"
+        Config.TRAIN_SIZE = 2000
+        Config.TEST_SIZE = 1000
+        Config.IMG_SHAPE = 8
+        Config.CLASSES = 10
+        Config.INVERT = False
+
+        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2)
+        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
+        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
+        Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841

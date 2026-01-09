@@ -4,8 +4,9 @@ import numpy as np
 from medmnist import INFO
 from sps.config import Config
 
-def get_mnist_data(dataName): # download the database
-    info = INFO[dataName]
+
+def get_mnist_data(data_name): # download the database
+    info = INFO[data_name]
     data_class = getattr(medmnist, info['python_class'])
     train_dataset = data_class(split='train', download=True)
     test_dataset = data_class(split='test', download=True)
@@ -33,8 +34,8 @@ def process_dataset(dataset, count): # flatten and split among color channels
         blue_channel.append(ch_b)
 
     #show_quantized_image(dataset.imgs[0], red_channel[0], green_channel[0], blue_channel[0]) #Show first image
-    #show_quantized_image(dataset.imgs[1], red_channel[1], green_channel[1], blue_channel[1]) #Show first image
-    #show_quantized_image(dataset.imgs[2], red_channel[2], green_channel[2], blue_channel[2]) #Show first image
+    #show_quantized_image(dataset.imgs[1], red_channel[1], green_channel[1], blue_channel[1]) #Show second image
+    #show_quantized_image(dataset.imgs[2], red_channel[2], green_channel[2], blue_channel[2]) #Show third image
 
     return (
         np.array(red_channel),
@@ -101,7 +102,7 @@ def show_quantized_image(original_img, q_r, q_g, q_b):
     # Level 0 = 0
     # Level 1–4 spread across intensity range
     def expand_channel(ch):
-        return (ch / 4.0 * 255).astype(np.uint8)
+        return (ch / Config.Q_RANGE * 255).astype(np.uint8)
 
     r = expand_channel(q_r)
     g = expand_channel(q_g)

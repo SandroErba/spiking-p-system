@@ -226,11 +226,11 @@ def kernel_SNPS_csv():
 def cnn_SNPS_csv():
     """Generate the SN P system to replicate the cnn"""
     kernels = [
-        [[1, 1, 1], [1, 1, 1], [1, 1, 1]],
         [[-1, 0, -1], [0, 1, 0], [-1, 0, -1]],
         [[-1, 1, -1], [1, 1, 1], [-1, 1, -1]],
-        [[1, 0, -1], [0, 1, 0], [-1, 0, 1]],
-        [[-1, 0, 1], [0, 1, 0], [1, 0, -1]]
+        [[-1, 0, 1], [1, 0, 0], [1, 1, -1]],
+        [[-1, 1, -1], [0, -1, 1], [-1, 1, 1]],
+        [[-1, 1, 1], [1, -1, -1], [1, -1, -1]]
     ]
     layer1_size = Config.IMG_SHAPE * Config.IMG_SHAPE
     layer2_size_per_kernel = Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE
