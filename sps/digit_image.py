@@ -12,7 +12,7 @@ def get_digit_data():
     x = optical_recognition_of_handwritten_digits.data.features
     y = optical_recognition_of_handwritten_digits.data.targets
 
-    show_digit(x, y) #TODO for showing the input images
+    #show_digit(x, y) #TODO for showing the input images
 
     x_train, x_test, y_train, y_test = train_test_split(
         x, y,
@@ -28,7 +28,7 @@ def get_digit_data():
     y_train_np = y_train.to_numpy().ravel()
     y_test_np = y_test.to_numpy().ravel()
 
-    show_digit(x_train_q, y_train) #TODO for showing the quantized images
+    #show_digit(x_train_q, y_train) #TODO for showing the quantized images
     #print("x_train", x_train[0])
     #print("x_train_q", x_train_q[0])
 

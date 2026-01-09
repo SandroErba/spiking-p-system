@@ -11,29 +11,31 @@ class Config:
     QUANTIZATION = None
     Q_RANGE = None # the range of quantization, it works on images, rules and tuning
 
-# PARAMETER TUNING
-TRAIN_SIZE = 1000
-TEST_SIZE = 1000
-PRUNING_PERC = 0.3 #0.2
-INHIBIT_PERC = 0.4 #0.3
-POSITIVE_REINFORCE = CLASSES - 1
-NEGATIVE_PENALIZATION = 1
+    # PARAMETER TUNING
+    TRAIN_SIZE = 1000
+    TEST_SIZE = 1000
+    PRUNING_PERC = 0.3 #0.2
+    INHIBIT_PERC = 0.4 #0.3
+    POSITIVE_REINFORCE = CLASSES - 1
+    NEGATIVE_PENALIZATION = 1
 
-# ENERGY COSTS
-WORST_REGEX = 100
-EXPECTED_REGEX = 10
-EXPECTED_SPIKE = 0.5
+    # ENERGY COSTS
+    WORST_REGEX = 100
+    EXPECTED_REGEX = 10
+    EXPECTED_SPIKE = 0.5
 
-# SEGMENTATION
-KERNEL_SHAPE = 2
-KERNEL_NUMBER = 6
-SEGMENTED_SHAPE = IMG_SHAPE - KERNEL_SHAPE + 1
+    # SEGMENTATION
+    KERNEL_SHAPE = 2
+    KERNEL_NUMBER = 6
+    SEGMENTED_SHAPE = IMG_SHAPE - KERNEL_SHAPE + 1
 
-#TODO !!!when i added the csv/ , the performance has increased but with different classes. see 11/17 commit
+    #TODO !!!when i added the csv/ , the performance has increased but with different classes. see 11/17 commit
 
     # STRING
     CSV_NAME = "Null"
     CSV_NAME_PRUNED = "Null"
+
+    WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
 
 # TODO use mode in all the code for handle different behaviour, maybe managing input and output type
 def configure(mode):
@@ -50,7 +52,10 @@ def configure(mode):
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
         Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
         Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
+        Config.NEURONS_LAYER3 =  Config.NEURONS_LAYER1_2 + Config.CLASSES # aggiungo un layer con 8 neuroni 833+8=841
+        Config.NEURONS_TOTAL = Config.NEURONS_LAYER3 + Config.CLASSES # 841
+
+        Config.COMPARISON_THRESHOLD = 3  # threshold for the comparison during the quantized images processing
 
 
         Config.CSV_NAME = "SNPS_quantize.csv"
@@ -132,4 +137,5 @@ def configure(mode):
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2)
         Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
         Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
+        Config.NEURONS_LAYER3 =  Config.NEURONS_LAYER1_2 + Config.CLASSES # aggiungo un layer con 8 neuroni 833+8=841
+        Config.NEURONS_TOTAL = Config.NEURONS_LAYER3 + Config.CLASSES # 841

@@ -4,7 +4,7 @@ from sps.config import Config, configure
 
 configure("quantized") #can be binarized, quantized, edge, cnn
 configure("digit") #can be medmnist, digit, flower102
-
+print(Config.NEURONS_LAYER3, Config.NEURONS_TOTAL, Config.NEURONS_LAYER1_2)
 digit_image.launch_gray_SNPS()
 
 #cnn.launch_CNN_SNPS()
