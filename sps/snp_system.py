@@ -13,7 +13,8 @@ class SNPSystem:
         if Config.MODE != "cnn":
             self.charge_map_l1 = np.zeros(Config.NEURONS_LAYER1, dtype=float) # support array - for saving and showing the internal charge
             self.charge_map_l2 = np.zeros(Config.NEURONS_LAYER1_2 - Config.NEURONS_LAYER1, dtype=float)
-            self.charge_map_l3 = np.zeros(Config.NEURONS_TOTAL - Config.NEURONS_LAYER1_2, dtype=float)
+            self.charge_map_l3 = np.zeros(Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2, dtype=float)
+            self.charge_map_l4 = np.zeros(Config.NEURONS_TOTAL - Config.NEURONS_LAYER3, dtype=float)
 
         # init time step, history
         PNeuron.reset_nid()
@@ -44,6 +45,10 @@ class SNPSystem:
             self.old_layer_2_firing_counts = 0
             self.layer_2_firing_counts = 0
             self.layer_2_synapses = []
+            # structure to memorize layer 3 synampses' weights for training
+            self.layer_3_firing_counts = np.zeros(Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2, dtype=int)
+            self.old_layer_3_firing_counts = 0
+            self.layer_3_synapses = []
 
         # record output
         if output_type == "generative":
@@ -175,6 +180,20 @@ class SNPSystem:
                             if wrong_label != label:
                                 self.layer_2_synapses[wrong_label][idx] -= Config.NEGATIVE_PENALIZATION
                     self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
+        # synapses tuning for layer 3
+        if self.input_type == "images" and self.output_type == "prediction" and len(self.layer_3_synapses) > 0:
+            current_label_idx = self.t_step - 2
+            if 0 <= current_label_idx < len(self.labels): 
+                if Config.QUANTIZATION and np.any(self.charge_map_l3):
+                    label = self.labels[current_label_idx]
+                    num_l3_neurons = self.layer_3_synapses.shape[1] 
+                    for idx in range(num_l3_neurons):
+                        if self.charge_map_l3[idx] > 0:
+                            self.layer_3_synapses[label][idx] += self.charge_map_l3[idx]
+                            for wrong_label in range(Config.CLASSES):
+                                if wrong_label != label:
+                                    self.layer_3_synapses[wrong_label][idx] -= self.charge_map_l3[idx]
+
 
         # check for halting computation
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
@@ -240,12 +259,16 @@ class SNPSystem:
             self.charge_map_l1[nid] = neuron.charge
             return
         l2_index = nid - Config.NEURONS_LAYER1
-        if 0 <= l2_index < (Config.NEURONS_LAYER1_2 - Config.NEURONS_LAYER1):
+        if 0 <= nid < Config.NEURONS_LAYER1_2:
             self.charge_map_l2[l2_index] = neuron.charge
             return
         l3_index = nid - Config.NEURONS_LAYER1_2
-        if 0 <= l3_index < (Config.NEURONS_TOTAL - Config.NEURONS_LAYER1_2):
+        if 0 <= nid < Config.NEURONS_LAYER3:
             self.charge_map_l3[l3_index] = neuron.charge
+            return
+        l4_index = nid - Config.NEURONS_LAYER3
+        if 0 <= nid < Config.NEURONS_TOTAL:
+            self.charge_map_l4[l4_index] = neuron.charge
             return
 
     def show_charge(self):
@@ -255,3 +278,5 @@ class SNPSystem:
         print(self.charge_map_l2)
         print("-------------MATRIX LAYER 3 at time step ", self.t_step, "------------------")
         print(self.charge_map_l3)
+        print("-------------MATRIX LAYER 4 at time step ", self.t_step, "------------------")
+        print(self.charge_map_l4)

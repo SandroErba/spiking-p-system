@@ -8,9 +8,12 @@ configure("quantized") #can be binarized, quantized, edge, cnn
 
 #med_mnist.launch_binarized_SNPS()
 med_mnist.launch_quantized_SNPS()
+#med_mnist.launch_cnn_classification_SNPS()
 
 #edge_detection.launch_gray_SNPS()
 
 #OtherNetworks.compute_extended()
 #OtherNetworks.compute_divisible_3()
 #OtherNetworks.compute_gen_even()
+
+

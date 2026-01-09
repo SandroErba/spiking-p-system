@@ -49,7 +49,7 @@ def configure(mode):
         Config.BLOCK_SHAPE = 2 #the size of the window block for the second layer
         Config.QUANTIZATION = True
         Config.Q_RANGE = 4 #TODO generalize the code with it
-        Config.INVERT = True
+        Config.INVERT = True #inverte immagine
 
         Config.TRAIN_SIZE = 1000
         Config.TEST_SIZE = 1000
@@ -57,7 +57,11 @@ def configure(mode):
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
         Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
         Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
+        #ho modificato gli indici per aggiungere un layer di confronto
+        Config.NEURONS_LAYER3 =  Config.NEURONS_LAYER1_2 + Config.CLASSES # aggiungo un layer con 8 neuroni 833+8=841
+        Config.NEURONS_TOTAL = Config.NEURONS_LAYER3 + Config.CLASSES # 841
+
+        Config.COMPARISON_THRESHOLD = 3 #threshold per il layer di confronto
 
 
         Config.CSV_NAME = "SNPS_quantize.csv"
@@ -116,3 +120,5 @@ def configure(mode):
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
 
         Config.CSV_NAME = "SNPS_cnn.csv"
+
+    
