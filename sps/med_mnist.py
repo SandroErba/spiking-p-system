@@ -96,26 +96,34 @@ def syn_train_SNPS(spike_train, labels):
     snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_LAYER2), dtype=float) # matrix for train synapses
     snps.labels = labels
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
+    # I initialize the matrices also for layer 3 (8x8 matrices, since layer 3 has 8 neurons, as layer 4)
+    l3_neurons_count= Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2
+    snps.layer_3_synapses =  np.zeros((Config.CLASSES, l3_neurons_count), dtype=float) # matrix for train synapses
+    snps.layer_3_firing_counts = np.zeros(l3_neurons_count, dtype=int)
+    
     w, e = snps.start() # run the SNPS
     update_energy(w, e)
 
-    pruned_matrix = prune_matrix(snps.layer_2_synapses)
+    pruned_matrix_l2 = prune_matrix(snps.layer_2_synapses)
+    pruned_matrix_l3 = prune_matrix(snps.layer_3_synapses)
+    
     #TODO print for analyze the pruned synapses - delete after
     print("SYN VALUES SHAPE", snps.layer_2_synapses.shape)
     for i in range(10):
-        print("PRUNED MATRIX ",i,  pruned_matrix[i])
+        print("PRUNED MATRIX ",i,  pruned_matrix_l2[i])
+        print("PRUNED MATRIX ",i,  pruned_matrix_l3[i])
 
-    prune_SNPS(pruned_matrix)
+    prune_SNPS(pruned_matrix_l2, pruned_matrix_l3)
 
 def compute_SNPS(spike_train):
-    snps = SNPSystem(5, Config.TEST_SIZE + 5, "images", "prediction", True)
+    snps = SNPSystem(5, Config.TEST_SIZE + 10, "images", "prediction", True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME_PRUNED)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
     w, e = snps.start() # run the SNPS
     update_energy(w, e)
 
-    return snps.output_array[3:-2] #for merging the 3 results
+    return snps.output_array[4:-2] #for merging the 3 results #salta i primi 4 step temporali perchè sono vuoti, taglia gli ultimi 2 step 
 
 def normalize_rules(firing_counts, imgs_number):
     """used in the rules training phase"""

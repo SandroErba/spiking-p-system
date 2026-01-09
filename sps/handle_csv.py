@@ -31,12 +31,12 @@ def quantized_SNPS_csv():
             ])
 
         # Layer 2: Pooling (49 neurons)
-        output_targets = str(list(range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL))) # for firing at the output neurons
+        layer3_targets = str(list(range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL))) # for firing at the third layer neurons
         for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
             writer.writerow([
                 neuron_id,            # id
                 0,                    # initial_charge
-                output_targets,       # output_targets
+                layer3_targets,       # output_targets
                 1,                    # neuron_type
                 "[1,13,1,4,0]",
                 "[1,9,1,3,0]",
@@ -45,8 +45,34 @@ def quantized_SNPS_csv():
                 "[1,1,1,0,0]"        # forgetting rule if didn't fire
             ])
 
-        # Layer 3: Output (8 neurons)
-        for neuron_id in range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL):
+        # Layer 3: Comparison (8 neurons)
+        base_thresh = Config.COMPARISON_THRESHOLD #treshold to overcome for layer 3 neurons to fire to layer 4 neurons
+        layer4_targets = str(list(range(Config.NEURONS_LAYER3, Config.NEURONS_TOTAL))) # for firing at the output neurons, now layers 3 and 4 are fully connected, this list contains all output layer neurons' indices 
+        for neuron_id in range(Config.NEURONS_LAYER1_2, Config.NEURONS_LAYER3):
+            current_thresh = base_thresh
+
+            # REGOLA 1: Alta Confidenza (Spara 3)
+            rule_high = f"[1, {base_thresh + 10}, 1, 3, 0]"
+            
+            # REGOLA 2: Media Confidenza (Spara 2)
+            rule_med = f"[1, {base_thresh + 5}, 1, 2, 0]"
+            
+            # REGOLA 3: Bassa Confidenza (Spara 1 - Default)
+            rule_low = f"[1, {base_thresh}, 1, 1, 0]"
+    
+            writer.writerow([
+                neuron_id,            # id
+                0,                    # initial_charge
+                layer4_targets,       # output_targets
+                1,                    # neuron_type
+                rule_high,
+                rule_med,
+                rule_low,
+                "[1,1,1,0,0]"        # forgetting rule
+            ])  
+
+        # Layer 4: Output (8 neurons)
+        for neuron_id in range(Config.NEURONS_LAYER3, Config.NEURONS_TOTAL):
             #label = neuron_id - Config.NEURONS_LAYER1_2
             writer.writerow([
                 neuron_id,            # id
@@ -117,8 +143,10 @@ def binarized_SNPS_csv(threshold_matrix=None):
                 "[1,1,1,0,0]"         # forgetting rule
             ])
 
-def prune_SNPS(pruned_matrix):
-    """change the synapses in the csv file"""
+def prune_SNPS(pruned_matrix_l2, pruned_matrix_l3=None):
+    """change the synapses in the csv file, now takes two matrices instead of one, for synapse pruning between layer 2 and 3 and 3 and 4
+    prune_matrix_l2: weights between layer 2 and 3
+    prune_matrix_l3: weights between layer 3 and 4"""
     with open("csv/" + Config.CSV_NAME, 'r') as f_in, open("csv/" + Config.CSV_NAME_PRUNED, 'w', newline='') as f_out:
         reader = csv.reader(f_in)
         writer = csv.writer(f_out)
@@ -130,9 +158,21 @@ def prune_SNPS(pruned_matrix):
                 neuron_index = neuron_id - Config.NEURONS_LAYER1
                 pruned_outputs = []
                 for class_idx in range(Config.CLASSES):
-                    val = pruned_matrix[class_idx][neuron_index]
+                    val = pruned_matrix_l2[class_idx][neuron_index]
                     if val != 0:
                         target_id = Config.NEURONS_LAYER1_2 + class_idx
+                        if val == -1:
+                            target_id = -target_id  # inhibitory
+                        pruned_outputs.append(str(target_id))
+                row[2] = "[" + ", ".join(pruned_outputs) + "]"
+
+            elif Config.NEURONS_LAYER1_2 <= neuron_id < Config.NEURONS_LAYER3:
+                neuron_index = neuron_id - Config.NEURONS_LAYER1_2
+                pruned_outputs = []
+                for class_idx in range(Config.CLASSES):
+                    val = pruned_matrix_l3[class_idx][neuron_index]
+                    if val != 0:
+                        target_id = Config.NEURONS_LAYER3 + class_idx
                         if val == -1:
                             target_id = -target_id  # inhibitory
                         pruned_outputs.append(str(target_id))
@@ -288,3 +328,4 @@ def cnn_SNPS_csv():
                     1,                       # neuron_type
                     "[1,1,1,0,0]"            # For now I only need to see the resulting images
                 ])
+

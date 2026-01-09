@@ -11,33 +11,25 @@ class Config:
     QUANTIZATION = None
     Q_RANGE = None # the range of quantization, it works on images, rules and tuning
 
-    # PARAMETER TUNING
-    TRAIN_SIZE = None
-    TEST_SIZE = None
-    PRUNING_PERC = 0.3
-    INHIBIT_PERC = 0.2
-    POSITIVE_REINFORCE = None
-    NEGATIVE_PENALIZATION = None
+# PARAMETER TUNING
+TRAIN_SIZE = 1000
+TEST_SIZE = 1000
+PRUNING_PERC = 0.3 #0.2
+INHIBIT_PERC = 0.4 #0.3
+POSITIVE_REINFORCE = CLASSES - 1
+NEGATIVE_PENALIZATION = 1
 
+# ENERGY COSTS
+WORST_REGEX = 100
+EXPECTED_REGEX = 10
+EXPECTED_SPIKE = 0.5
 
-    # RULE TUNING
-    WHITE_HOLE = True #After a rule application, all the remaining spikes are deleted
+# SEGMENTATION
+KERNEL_SHAPE = 2
+KERNEL_NUMBER = 6
+SEGMENTED_SHAPE = IMG_SHAPE - KERNEL_SHAPE + 1
 
-    # NUMBER OF NEURONS
-    NEURONS_LAYER1 = None
-    NEURONS_LAYER2 = None
-    NEURONS_LAYER1_2 = None
-    NEURONS_TOTAL = None
-
-    # ENERGY COSTS
-    WORST_REGEX = 100
-    EXPECTED_REGEX = 10
-    EXPECTED_SPIKE = 0.5
-
-    # SEGMENTATION
-    KERNEL_SHAPE = None # 2 or 3
-    KERNEL_NUMBER = None #TODO not matching with cnn
-    SEGMENTED_SHAPE = None # 26
+#TODO !!!when i added the csv/ , the performance has increased but with different classes. see 11/17 commit
 
     # STRING
     CSV_NAME = "Null"
