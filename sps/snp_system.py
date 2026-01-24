@@ -104,6 +104,13 @@ class SNPSystem:
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
+        # Stampa solo se c'è attività nel Layer 3 (utile per capire la decisione)
+        #if Config.MODE in ("binarized", "quantized") and np.any(self.charge_map_l3):
+        #    print(f"\n=== T_STEP {self.t_step} ===")
+        #    print(f"Attivazioni Layer 3 (Neuroni Intermedi):")
+        #    print(self.charge_map_l3) # Stampa l'array dei tuoi 24 neuroni
+            
+
         #self.show_charge() #debug only - for saving the internal charge
 
         input_spike = False # check if there are more input for halting condition
@@ -114,7 +121,7 @@ class SNPSystem:
                 for i, neuron in enumerate(self.neurons):
                     if neuron.neuron_type == 0:
                         if input_vector[i] > 0:
-                            neuron.charge +=  input_vector[i] # add charge to the corresponding neuron
+                            neuron.charge +=  int(input_vector[i]) # add charge to the corresponding neuron
                             #self.spike_fired += input_vector[i]
                             self.history.record_incoming(neuron, input_vector[i], "input")
             elif self.spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
@@ -154,26 +161,37 @@ class SNPSystem:
 
         # synapses tuning, enter only in the image classification mode
         if Config.MODE in ("binarized", "quantized") and len(self.layer_2_synapses) > 0:
-            if Config.QUANTIZATION and np.any(self.charge_map_l2):
-                #print("MATRICE LAYER 2: ", charge_map_l2)
-                label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step for start the computation
-                for idx in range(Config.NEURONS_LAYER2):
-                    self.layer_2_synapses[label][idx] = self.layer_2_synapses[label][idx] + (self.charge_map_l2[idx] * (Config.CLASSES - 1))
-                    for wrong_label in range(Config.CLASSES):
-                        if wrong_label != label:
-                            self.layer_2_synapses[wrong_label][idx] -= self.charge_map_l2[idx]
+            label_idx = self.t_step - 2
+            if 0 <= label_idx < len(self.labels):
+                l3_neurons_count = Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2
+                k_factor = int(l3_neurons_count / Config.CLASSES) #divides the neurons of layer 3 by the number of classes, to assign an even number of neurons to each class
+                label = self.labels[self.t_step-2]
+                target_l3_indices =  range(label * k_factor, (label + 1) * k_factor)
 
-            elif not Config.QUANTIZATION:
-                fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
-                fired_indices = np.where(fired_diff > 0)[0]  # index of firing neurons
-                if fired_indices.size > 0:
-                    label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step for start the computation
-                    for idx in fired_indices:
-                        self.layer_2_synapses[label][idx] += Config.POSITIVE_REINFORCE
-                        for wrong_label in range(Config.CLASSES):
-                            if wrong_label != label:
-                                self.layer_2_synapses[wrong_label][idx] -= Config.NEGATIVE_PENALIZATION
-                    self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
+                if Config.QUANTIZATION and np.any(self.charge_map_l2):
+                    for idx in range(Config.NEURONS_LAYER2):
+                        for l3_idx in range(l3_neurons_count):
+                            if l3_idx in target_l3_indices:
+                                # Rinforzo controllato dai parametri 
+                                self.layer_2_synapses[l3_idx][idx] += (self.charge_map_l2[idx] * Config.POSITIVE_REINFORCE)
+                            else:
+                                # Penalità controllata dai parametri 
+                                self.layer_2_synapses[l3_idx][idx] -= (self.charge_map_l2[idx] * Config.NEGATIVE_PENALIZATION)
+
+                elif not Config.QUANTIZATION:
+                    fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
+                    fired_indices = np.where(fired_diff > 0)[0]  # indici dei neuroni L2 che hanno sparato
+                    if fired_indices.size > 0:
+                        for idx in fired_indices:
+                            for l3_idx in range(l3_neurons_count):
+                                if l3_idx in target_l3_indices:
+                                    # Rinforzo
+                                    self.layer_2_synapses[l3_idx][idx] += Config.POSITIVE_REINFORCE
+                                else:
+                                    # Penalità
+                                    self.layer_2_synapses[l3_idx][idx] -= Config.NEGATIVE_PENALIZATION
+                        self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
+            
         # synapses tuning for layer 3
         if self.input_type == "images" and self.output_type == "prediction" and len(self.layer_3_synapses) > 0:
             current_label_idx = self.t_step - 2

@@ -14,9 +14,9 @@ class Config:
     # PARAMETER TUNING
     TRAIN_SIZE = 1000
     TEST_SIZE = 1000
-    PRUNING_PERC = 0.3 #0.2
-    INHIBIT_PERC = 0.4 #0.3
-    POSITIVE_REINFORCE = CLASSES - 1
+    PRUNING_PERC = 0.1 #0.2
+    INHIBIT_PERC = 0.2 #0.3
+    POSITIVE_REINFORCE = 4
     NEGATIVE_PENALIZATION = 1
 
     # ENERGY COSTS
@@ -49,13 +49,14 @@ def configure(mode):
         Config.TRAIN_SIZE = 100
         Config.TEST_SIZE = 100
 
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
-        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
-        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_LAYER3 =  Config.NEURONS_LAYER1_2 + Config.CLASSES # aggiungo un layer con 8 neuroni 833+8=841
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER3 + Config.CLASSES # 841
 
-        Config.COMPARISON_THRESHOLD = 3  # threshold for the comparison during the quantized images processing
+        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #64 
+        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #16
+        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #80
+        Config.NEURONS_LAYER3 =  Config.NEURONS_LAYER1_2 + 200 # aggiungo un layer con 200 neuroni
+        Config.NEURONS_TOTAL = Config.NEURONS_LAYER3 + Config.CLASSES # 114
+
+        Config.COMPARISON_THRESHOLD = 1  # threshold for the comparison during the quantized images processing
 
 
         Config.CSV_NAME = "SNPS_quantize.csv"
@@ -126,6 +127,7 @@ def configure(mode):
         Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
 
     if mode == "digit":
+        Config.BLOCK_SHAPE = 1
         Config.Q_RANGE = 8
         Config.MODE = "quantized"
         Config.TRAIN_SIZE = 2000
@@ -134,8 +136,15 @@ def configure(mode):
         Config.CLASSES = 10
         Config.INVERT = False
 
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2)
-        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
-        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_LAYER3 =  Config.NEURONS_LAYER1_2 + Config.CLASSES # aggiungo un layer con 8 neuroni 833+8=841
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER3 + Config.CLASSES # 841
+        #blocco per cnn
+        Config.KERNEL_SHAPE = 2  # finestra 2x2 pixel per cercare le forme
+        Config.KERNEL_NUMBER = 5 # 5 filtri (orizzontale, verticale, angoli, ecc.)
+        Config.SEGMENTED_SHAPE = Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1 
+
+        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) # 64 
+        # layer 2 ora ha 245 neuroni (5 feature map da 7x7)
+        Config.NEURONS_LAYER2 = int((Config.SEGMENTED_SHAPE ** 2) * Config.KERNEL_NUMBER) 
+        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) 
+        Config.NEURONS_LAYER3 =  Config.NEURONS_LAYER1_2 + 250 # 250 neuroni decisionali
+        Config.NEURONS_TOTAL = Config.NEURONS_LAYER3 + Config.CLASSES 
+        Config.COMPARISON_THRESHOLD = 2  # threshold for the comparison, very small images

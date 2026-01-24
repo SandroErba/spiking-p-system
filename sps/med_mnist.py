@@ -93,26 +93,30 @@ def syn_train_SNPS(spike_train, labels):
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = spike_train
-    snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_LAYER2), dtype=float) # matrix for train synapses
+    l3_neurons_count= Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2
+    snps.layer_2_synapses = np.zeros((l3_neurons_count, Config.NEURONS_LAYER2), dtype=float) # matrix for train synapses
     snps.labels = labels
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
-    # I initialize the matrices also for layer 3 (8x8 matrices, since layer 3 has 8 neurons, as layer 4)
-    l3_neurons_count= Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2
-    snps.layer_3_synapses =  np.zeros((Config.CLASSES, l3_neurons_count), dtype=float) # matrix for train synapses
-    snps.layer_3_firing_counts = np.zeros(l3_neurons_count, dtype=int)
     
     w, e = snps.start() # run the SNPS
     update_energy(w, e)
-
+    # 1. Pruning del Layer 2 (questo lo impara la rete)
     pruned_matrix_l2 = prune_matrix(snps.layer_2_synapses)
-    pruned_matrix_l3 = prune_matrix(snps.layer_3_synapses)
-    
-    #TODO print for analyze the pruned synapses - delete after
-    print("SYN VALUES SHAPE", snps.layer_2_synapses.shape)
-    for i in range(10):
-        print("PRUNED MATRIX ",i,  pruned_matrix_l2[i])
-        print("PRUNED MATRIX ",i,  pruned_matrix_l3[i])
 
+    # 2. Creazione strutturale del Layer 3 -> Layer 4 (Imbuto/Ensemble)
+    l3_neurons_count = Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2
+    k_factor = int(l3_neurons_count / Config.CLASSES) 
+    pruned_matrix_l3 = np.zeros((Config.CLASSES, l3_neurons_count), dtype=int)
+
+    for c in range(Config.CLASSES):
+        start_idx = c * k_factor
+        end_idx = (c + 1) * k_factor
+        # Impostiamo a 1 (connessione) solo i neuroni L3 assegnati a questa classe
+        pruned_matrix_l3[c, start_idx:end_idx] = 1 
+
+    #print(f"Shape Matrice L3 (Classi x Neuroni): {pruned_matrix_l3.shape}")
+
+    # Salvataggio nel file CSV _pruned
     prune_SNPS(pruned_matrix_l2, pruned_matrix_l3)
 
 def compute_SNPS(spike_train):

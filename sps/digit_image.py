@@ -39,9 +39,16 @@ def launch_gray_SNPS():
     """Manage grayscale quantized SN P system"""
     train_data, train_labels, test_data, test_labels = get_digit_data()
 
-    quantized_SNPS_csv()                       # prepare CSV for this color
+    from sps.handle_csv import cnn_SNPS_csv # Aggiungi questo import in alto al file o qui
+
+    print("CNN")
+    cnn_SNPS_csv()                             # USIAMO LA CNN INVECE DELLA RETE BASE
     syn_train_SNPS(train_data, train_labels)   # prune + inhibit
     predictions = compute_SNPS(test_data)      # test
+
+    #quantized_SNPS_csv()                       # prepare CSV for this color
+    #syn_train_SNPS(train_data, train_labels)   # prune + inhibit
+    #predictions = compute_SNPS(test_data)      # test
 
     #print("Predictions shape:", predictions.shape) #TODO one class, the 8 (ninth class) has high charge and get all the prob
     #TODO !print the predicted labels to check how the model is classifing!

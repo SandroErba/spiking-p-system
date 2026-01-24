@@ -52,10 +52,10 @@ def quantized_SNPS_csv():
             current_thresh = base_thresh
 
             # REGOLA 1: Alta Confidenza (Spara 3)
-            rule_high = f"[1, {base_thresh + 10}, 1, 3, 0]"
+            rule_high = f"[1, {base_thresh + 4}, 1, 3, 0]"
             
             # REGOLA 2: Media Confidenza (Spara 2)
-            rule_med = f"[1, {base_thresh + 5}, 1, 2, 0]"
+            rule_med = f"[1, {base_thresh + 2}, 1, 2, 0]"
             
             # REGOLA 3: Bassa Confidenza (Spara 1 - Default)
             rule_low = f"[1, {base_thresh}, 1, 1, 0]"
@@ -157,10 +157,11 @@ def prune_SNPS(pruned_matrix_l2, pruned_matrix_l3=None):
             if Config.NEURONS_LAYER1 <= neuron_id < Config.NEURONS_LAYER1_2:
                 neuron_index = neuron_id - Config.NEURONS_LAYER1
                 pruned_outputs = []
-                for class_idx in range(Config.CLASSES):
-                    val = pruned_matrix_l2[class_idx][neuron_index]
+                num_l3 = pruned_matrix_l2.shape[0] # Questo ora varrà 24
+                for l3_idx in range(num_l3):
+                    val = pruned_matrix_l2[l3_idx][neuron_index]
                     if val != 0:
-                        target_id = Config.NEURONS_LAYER1_2 + class_idx
+                        target_id = Config.NEURONS_LAYER1_2 + l3_idx
                         if val == -1:
                             target_id = -target_id  # inhibitory
                         pruned_outputs.append(str(target_id))
@@ -265,12 +266,19 @@ def kernel_SNPS_csv():
 
 def cnn_SNPS_csv():
     """Generate the SN P system to replicate the cnn"""
-    kernels = [
+    '''kernels = [
         [[-1, 0, -1], [0, 1, 0], [-1, 0, -1]],
         [[-1, 1, -1], [1, 1, 1], [-1, 1, -1]],
         [[-1, 0, 1], [1, 0, 0], [1, 1, -1]],
         [[-1, 1, -1], [0, -1, 1], [-1, 1, 1]],
         [[-1, 1, 1], [1, -1, -1], [1, -1, -1]]
+    ]'''
+    kernels = [
+        [[ 1, -1], [ 1, -1]], # Linea Verticale
+        [[-1,  1], [-1,  1]], # Linea Verticale opposta
+        [[ 1,  1], [-1, -1]], # Linea Orizzontale
+        [[-1, -1], [ 1,  1]], # Linea Orizzontale opposta
+        [[ 1, -1], [-1,  1]]  # Diagonale
     ]
     layer1_size = Config.IMG_SHAPE * Config.IMG_SHAPE
     layer2_size_per_kernel = Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE
@@ -315,7 +323,7 @@ def cnn_SNPS_csv():
                 "[0,1,1,1,0]"                   # firing rules
             ])
 
-        # Layer 2: Accumulate spikes from the kernels
+        '''# Layer 2: Accumulate spikes from the kernels
         for k_index in range(len(kernels)):
             layer2_offset = Config.NEURONS_LAYER1 + k_index * layer2_size_per_kernel
 
@@ -327,5 +335,54 @@ def cnn_SNPS_csv():
                     "[]",                    # output_targets
                     1,                       # neuron_type
                     "[1,1,1,0,0]"            # For now I only need to see the resulting images
+                ])'''
+        
+        # LAYER 2: Feature Maps (180 neuroni) 
+        layer3_targets = str(list(range(Config.NEURONS_LAYER1_2, Config.NEURONS_LAYER3)))
+        
+        for k_index in range(len(kernels)):
+            layer2_offset = Config.NEURONS_LAYER1 + k_index * layer2_size_per_kernel
+
+            for i in range(layer2_size_per_kernel):
+                writer.writerow([
+                    layer2_offset + i,       # id
+                    0,                       # initial_charge
+                    layer3_targets,          # ### MODIFICA: Invia i dati al Layer 3
+                    1,                       # neuron_type
+                    "[1,13,1,4,0]",          # ### MODIFICA: Regole di sparo base
+                    "[1,9,1,3,0]",
+                    "[1,5,1,2,0]",
+                    "[1,1,1,1,0]",
+                    "[1,1,1,0,0]"            # forgetting rule
                 ])
+
+        # LAYER 3: Decisione Fully-Connected (100 neuroni)
+        base_thresh = Config.COMPARISON_THRESHOLD 
+        layer4_targets = str(list(range(Config.NEURONS_LAYER3, Config.NEURONS_TOTAL))) 
+        for neuron_id in range(Config.NEURONS_LAYER1_2, Config.NEURONS_LAYER3):
+            # Regole di sparo basate sulla confidenza
+            rule_high = f"[1, {base_thresh + 4}, 1, 3, 0]"
+            rule_med = f"[1, {base_thresh + 2}, 1, 2, 0]"
+            rule_low = f"[1, {base_thresh}, 1, 1, 0]"
+    
+            writer.writerow([
+                neuron_id,            # id
+                0,                    # initial_charge
+                layer4_targets,       # output_targets
+                1,                    # neuron_type
+                rule_high,
+                rule_med,
+                rule_low,
+                "[1,1,1,0,0]"         # forgetting rule
+            ])  
+
+        # LAYER 4: Output Classi (10 neuroni)
+        for neuron_id in range(Config.NEURONS_LAYER3, Config.NEURONS_TOTAL):
+            writer.writerow([
+                neuron_id,            # id
+                0,                    # initial_charge
+                "[]",                 # output_targets
+                2,                    # neuron_type
+                "[1,1,1,0,0]"         # forgetting rule
+            ])
 
