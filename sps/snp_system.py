@@ -114,7 +114,7 @@ class SNPSystem:
                 for i, neuron in enumerate(self.neurons):
                     if neuron.neuron_type == 0:
                         if input_vector[i] > 0:
-                            neuron.charge +=  input_vector[i] # add charge to the corresponding neuron
+                            neuron.charge =  int(neuron.charge) + int(input_vector[i]) # add charge to the corresponding neuron
                             #self.spike_fired += input_vector[i]
                             self.history.record_incoming(neuron, input_vector[i], "input")
             elif self.spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons

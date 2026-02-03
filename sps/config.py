@@ -14,7 +14,7 @@ class Config:
     # PARAMETER TUNING
     TRAIN_SIZE = 1000
     TEST_SIZE = 1000
-    PRUNING_PERC = 0.3 #0.2
+    PRUNING_PERC = 0.2 #0.2
     INHIBIT_PERC = 0.4 #0.3
     POSITIVE_REINFORCE = CLASSES - 1
     NEGATIVE_PENALIZATION = 1
@@ -29,25 +29,23 @@ class Config:
     KERNEL_NUMBER = 6
     SEGMENTED_SHAPE = IMG_SHAPE - KERNEL_SHAPE + 1
 
-    #TODO !!!when i added the csv/ , the performance has increased but with different classes. see 11/17 commit
-
     # STRING
     CSV_NAME = "Null"
     CSV_NAME_PRUNED = "Null"
 
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
 
-# TODO use mode in all the code for handle different behaviour, maybe managing input and output type
+
 def configure(mode):
     Config.MODE = mode
     if mode == "quantized":
         Config.BLOCK_SHAPE = 2 #the size of the window block for the second layer
         Config.QUANTIZATION = True
-        Config.Q_RANGE = 4 #TODO generalize the code with it
+        Config.Q_RANGE = 4
         Config.INVERT = False
 
-        Config.TRAIN_SIZE = 100
-        Config.TEST_SIZE = 100
+        Config.TRAIN_SIZE = 1000
+        Config.TEST_SIZE = 1000
 
         Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
         Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
@@ -66,7 +64,6 @@ def configure(mode):
         Config.THRESHOLD = 128
         Config.QUANTIZATION = False
         Config.INVERT = True
-
 
         Config.TRAIN_SIZE = 1000
         Config.TEST_SIZE = 1000
@@ -99,16 +96,18 @@ def configure(mode):
 
 
     if mode == "cnn":
+        Config.IMG_SHAPE = 28
         Config.QUANTIZATION = True
-        Config.Q_RANGE = 4
+        Config.Q_RANGE = 6
         Config.TRAIN_SIZE = 5
+        Config.CLASSES = 8
         Config.INVERT = False
 
         Config.KERNEL_SHAPE = 3
         Config.KERNEL_NUMBER = 5
 
-        Config.SEGMENTED_SHAPE = Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1 # 26
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
+        Config.SEGMENTED_SHAPE = Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1 # 26 or 6
+        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784 or 64
 
         Config.CSV_NAME = "SNPS_cnn.csv"
 
@@ -120,17 +119,19 @@ def configure(mode):
         Config.DATABASE = 'flower102'
         Config.CLASSES = 102
 
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #TODO check new values
+        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2)
         Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
         Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
         Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
 
     if mode == "digit":
-        Config.Q_RANGE = 8
-        Config.MODE = "quantized"
-        Config.TRAIN_SIZE = 2000
-        Config.TEST_SIZE = 1000
-        Config.IMG_SHAPE = 8
+        Config.WHITE_HOLE= True
+        Config.Q_RANGE = 4
+        Config.MODE = "cnn"
+        Config.TRAIN_SIZE = 3
+        Config.TEST_SIZE = 5
+        Config.IMG_SHAPE = 28
+        Config.BLOCK_SHAPE = 2
         Config.CLASSES = 10
         Config.INVERT = False
 

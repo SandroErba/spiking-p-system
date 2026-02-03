@@ -262,15 +262,14 @@ def kernel_SNPS_csv():
                 "[1,1,0,0,0]"                # Forgetting rule
             ])
 
-
 def cnn_SNPS_csv():
     """Generate the SN P system to replicate the cnn"""
     kernels = [
         [[-1, 0, -1], [0, 1, 0], [-1, 0, -1]],
-        [[-1, 1, -1], [1, 1, 1], [-1, 1, -1]],
-        [[-1, 0, 1], [1, 0, 0], [1, 1, -1]],
-        [[-1, 1, -1], [0, -1, 1], [-1, 1, 1]],
-        [[-1, 1, 1], [1, -1, -1], [1, -1, -1]]
+        [[1, 1, 1], [1, 1, 1], [1, 1, 1]],
+        [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+        [[1, 0, -1], [0, 1, 0], [-1, 0, 1]],
+        [[-1, 0, 1], [0, 1, 0], [1, 0, -1]],
     ]
     layer1_size = Config.IMG_SHAPE * Config.IMG_SHAPE
     layer2_size_per_kernel = Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE
@@ -281,6 +280,11 @@ def cnn_SNPS_csv():
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
+
+        firing_rules = [
+            f"[0,{i},{i},{i},0]"
+            for i in range(Config.Q_RANGE, 0, -1)
+        ]
         # Layer 1: Input a 28x28 grayscale image
         for neuron_id in range(layer1_size):
             i_row = neuron_id // Config.IMG_SHAPE
@@ -304,15 +308,14 @@ def cnn_SNPS_csv():
                             elif weight == -1:
                                 output_targets.append(-target_id)
 
+
+
             writer.writerow([
                 neuron_id,                     # id
                 0,                             # initial_charge
                 str(output_targets),           # output_targets
                 0,                             # neuron_type
-                "[0,4,4,4,0]",
-                "[0,3,3,3,0]",
-                "[0,2,2,2,0]",
-                "[0,1,1,1,0]"                   # firing rules
+                *firing_rules                  # firing rules
             ])
 
         # Layer 2: Accumulate spikes from the kernels

@@ -47,7 +47,6 @@ def launch_binarized_SNPS():
 
 def launch_quantized_SNPS():
     """Manage all quantized SN P systems"""
-     #TODO something strange is happening, the number of steps (sometimes) change with different colors
     # Load and split database
     if Config.DATABASE == 'medmnist':
         (train_red, train_green, train_blue, train_labels), \
@@ -63,7 +62,6 @@ def launch_quantized_SNPS():
     predictions = []
 
     for train_data, test_data in zip(train_channels, test_channels):
-
         quantized_SNPS_csv()                       # prepare CSV for this color
         syn_train_SNPS(train_data, train_labels)   # prune + inhibit
         pred = compute_SNPS(test_data)             # test
@@ -89,7 +87,6 @@ def rules_train_SNPS(spike_train):
     normalize_rules(snps.layer_2_firing_counts.reshape((int(Config.IMG_SHAPE/Config.BLOCK_SHAPE), int(Config.IMG_SHAPE/Config.BLOCK_SHAPE))), Config.TRAIN_SIZE)
 
 def syn_train_SNPS(spike_train, labels):
-    # TODO i can try with dropout during training
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = spike_train
@@ -107,11 +104,11 @@ def syn_train_SNPS(spike_train, labels):
     pruned_matrix_l2 = prune_matrix(snps.layer_2_synapses)
     pruned_matrix_l3 = prune_matrix(snps.layer_3_synapses)
     
-    #TODO print for analyze the pruned synapses - delete after
-    print("SYN VALUES SHAPE", snps.layer_2_synapses.shape)
-    for i in range(10):
-        print("PRUNED MATRIX ",i,  pruned_matrix_l2[i])
-        print("PRUNED MATRIX ",i,  pruned_matrix_l3[i])
+    #print for analyze the pruned synapses - delete after
+    print("Synapses value shape", snps.layer_2_synapses.shape)
+    #for i in range(10):
+    #    print("PRUNED MATRIX ",i,  pruned_matrix_l2[i])
+    #    print("PRUNED MATRIX ",i,  pruned_matrix_l3[i])
 
     prune_SNPS(pruned_matrix_l2, pruned_matrix_l3)
 

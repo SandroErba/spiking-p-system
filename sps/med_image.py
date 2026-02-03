@@ -53,21 +53,18 @@ def binarize_rgb_image(img_rgb): # binarize for create the input array
     return downsampled  # List of 3 arrays of 784 bit
 
 def quantize_rgb_image(img_rgb):
-    # Divide into 5 ranges: 0, 1–63, 64–127, 128–191, 192–255 TODO can be done from 0-63 -> 1 or 0-63 -> 0 (max 3 spike)
-    quantized = np.ceil(img_rgb.astype(float) / 64).astype(int)
+    # Divide into 5 ranges: 0, 1–63, 64–127, 128–191, 192–255
+    quantized = np.ceil(img_rgb.astype(np.float32) / (256 / Config.Q_RANGE)).astype(int)
     quantized[img_rgb == 0] = 0
-    inverted = np.where(
-        quantized == 0,
-        0,
-        Config.Q_RANGE + 1 - quantized
-    )
-    channels = []
+
+    # Optional inversion
     if Config.INVERT:
-        for c in range(3):
-            channels.append(inverted[:, :, c])
-    else:
-        for c in range(3):
-            channels.append(quantized[:, :, c])
+        quantized = np.where(
+            quantized == 0,
+            0,
+            Config.Q_RANGE + 1 - quantized
+        )
+    channels = list(np.moveaxis(quantized, -1, 0))
     return channels
 
 
