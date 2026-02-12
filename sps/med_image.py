@@ -77,7 +77,7 @@ def show_images(output_array):
     plt.figure(figsize=(2.5 * cols, 2.5 * rows))
 
     for i in range(num_images):
-        img = images[:, i].reshape((Config.SEGMENTED_SHAPE, Config.SEGMENTED_SHAPE))
+        img = images[:, i].reshape((Config.SHAPE_FEATURE, Config.SHAPE_FEATURE))
         plt.subplot(rows, cols, i + 1)
         plt.imshow(img, cmap='gray', vmin=0, vmax=1)
         plt.title(f"Image {i}")

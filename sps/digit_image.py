@@ -18,6 +18,9 @@ def get_28_digit_data():
     test_label = test_label[:Config.TEST_SIZE]
     train_q = ((train_data.astype(np.float32) * Config.Q_RANGE) // 256).astype(np.uint8)
     test_q = ((test_data.astype(np.float32) * Config.Q_RANGE) // 256).astype(np.uint8)
+    if Config.INVERT:
+        train_q = Config.Q_RANGE - train_q
+        test_q = Config.Q_RANGE - test_q
     #print(train_q[0])
     #plt.imshow(train_q[0])
     #plt.show()

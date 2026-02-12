@@ -27,13 +27,14 @@ class Config:
     # SEGMENTATION
     KERNEL_SHAPE = 2
     KERNEL_NUMBER = 6
-    SEGMENTED_SHAPE = IMG_SHAPE - KERNEL_SHAPE + 1
+    SHAPE_FEATURE = IMG_SHAPE - KERNEL_SHAPE + 1
 
     # STRING
     CSV_NAME = "Null"
     CSV_NAME_PRUNED = "Null"
 
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
+    KERNELS = None
 
 
 def configure(mode):
@@ -47,11 +48,11 @@ def configure(mode):
         Config.TRAIN_SIZE = 1000
         Config.TEST_SIZE = 1000
 
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
-        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
-        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_LAYER3 =  Config.NEURONS_LAYER1_2 + Config.CLASSES # aggiungo un layer con 8 neuroni 833+8=841
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER3 + Config.CLASSES # 841
+        Config.NEURONS_L1 = int(Config.IMG_SHAPE ** 2) #784
+        Config.NEURONS_L2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
+        Config.NEURONS_L12 = int(Config.NEURONS_L1 + Config.NEURONS_L2) #833
+        Config.NEURONS_L3 = Config.NEURONS_L12 + Config.CLASSES # aggiungo un layer con 8 neuroni 833+8=841
+        Config.NEURONS_T = Config.NEURONS_L3 + Config.CLASSES # 841
 
         Config.COMPARISON_THRESHOLD = 3  # threshold for the comparison during the quantized images processing
 
@@ -71,10 +72,10 @@ def configure(mode):
         Config.POSITIVE_REINFORCE = Config.CLASSES - 1
         Config.NEGATIVE_PENALIZATION = 1
 
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
-        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
-        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
+        Config.NEURONS_L1 = int(Config.IMG_SHAPE ** 2) #784
+        Config.NEURONS_L2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
+        Config.NEURONS_L12 = int(Config.NEURONS_L1 + Config.NEURONS_L2) #833
+        Config.NEURONS_T = Config.NEURONS_L12 + Config.CLASSES # 841
 
         Config.CSV_NAME = "SNPS_binarize.csv"
         Config.CSV_NAME_PRUNED = "SNPS_binarize_pruned.csv"
@@ -87,56 +88,66 @@ def configure(mode):
         Config.CSV_NAME = "SNPS_kernel.csv"
         Config.KERNEL_SHAPE = 2
         Config.KERNEL_NUMBER = 6
-        Config.SEGMENTED_SHAPE = Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1 # 27
+        Config.SHAPE_FEATURE = Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1 # 27
 
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784
-        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
-        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
-
+        Config.NEURONS_L1 = int(Config.IMG_SHAPE ** 2) #784
+        Config.NEURONS_L2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
+        Config.NEURONS_L12 = int(Config.NEURONS_L1 + Config.NEURONS_L2) #833
+        Config.NEURONS_T = Config.NEURONS_L12 + Config.CLASSES # 841
 
     if mode == "cnn":
-        Config.IMG_SHAPE = 28
         Config.QUANTIZATION = True
-        Config.Q_RANGE = 6
         Config.TRAIN_SIZE = 5
-        Config.CLASSES = 8
-        Config.INVERT = False
-
-        Config.KERNEL_SHAPE = 3
-        Config.KERNEL_NUMBER = 5
-
-        Config.SEGMENTED_SHAPE = Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1 # 26 or 6
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2) #784 or 64
-
+        Config.TEST_SIZE = 5
+        Config.Q_RANGE = 16
         Config.CSV_NAME = "SNPS_cnn.csv"
 
-    if mode == "flower":
-        Config.MODE = "quantized"
-        Config.TRAIN_SIZE = 500
-        Config.TEST_SIZE = 500
-        Config.IMG_SHAPE = 224
-        Config.DATABASE = 'flower102'
-        Config.CLASSES = 102
+        Config.KERNELS = [
+            [[1, 1, 1], [0, 0, 0], [-1, -1, -1]],
+            [[0, 1, 1], [-1, 0, 1], [-1, -1, 0]],
+            [[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]],
+            [[-1, -1, 0], [-1, 0, 1], [0, 1, 1]],
+            [[-1, -1, -1], [0, 0, 0], [1, 1, 1]],
+            [[0, -1, -1], [1, 0, -1], [1, 1, 0]],
+            [[1, 0, -1], [1, 0, -1], [1, 0, -1]],
+            [[1, 1, 0], [1, 0, -1], [0, -1, -1]]
+        ]
 
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2)
-        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
-        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER1_2 + Config.CLASSES # 841
+        Config.KERNEL_NUMBER = len(Config.KERNELS) #number of kernels in layer 2
+        Config.KERNEL_SHAPE = len(Config.KERNELS[0]) #size of a single kernel
+        Config.K_RANGE = [
+            {
+                sum(v == -1 for row in kernel for v in row) * -Config.Q_RANGE,
+                sum(v == 1 for row in kernel for v in row) * Config.Q_RANGE
+            }
+            for kernel in Config.KERNELS
+        ] #range in which the values inside the kernels can be
 
-    if mode == "digit":
+        Config.NEURONS_L1 = int(Config.IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
+        Config.SHAPE_FEATURE = int(Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1) #size of a generated image in layer 2
+        Config.NEURONS_FEATURE = int((Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1) ** 2) #number of neurons for each image in layer 2
+        Config.NEURONS_L2 = Config.NEURONS_FEATURE * Config.KERNEL_NUMBER #number of neurons for layer 2
+        Config.NEURONS_L12 = int(Config.NEURONS_L1 + Config.NEURONS_L2) #delete this
+
+        #TODO NOW add an average pooling after layer 2 by simply /4 the actual charge. then show the resulting images
+
+        #Config.NEURONS_L3 = Config.NEURONS_L12 + Config.CLASSES # add FC after L2
+        Config.NEURONS_T = Config.NEURONS_L1 + Config.NEURONS_L2 #total number of neurons
+
+
+def database(database):
+    Config.DATABASE = database
+    if database == "flower":
         Config.WHITE_HOLE= True
-        Config.Q_RANGE = 4
-        Config.MODE = "cnn"
-        Config.TRAIN_SIZE = 3
-        Config.TEST_SIZE = 5
-        Config.IMG_SHAPE = 28
+        Config.IMG_SHAPE = 224
+        Config.CLASSES = 102
+        Config.INVERT = False
         Config.BLOCK_SHAPE = 2
+
+
+    if database == "digit":
+        Config.WHITE_HOLE= True
+        Config.IMG_SHAPE = 28
         Config.CLASSES = 10
         Config.INVERT = False
-
-        Config.NEURONS_LAYER1 = int(Config.IMG_SHAPE ** 2)
-        Config.NEURONS_LAYER2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
-        Config.NEURONS_LAYER1_2 = int(Config.NEURONS_LAYER1 + Config.NEURONS_LAYER2) #833
-        Config.NEURONS_LAYER3 =  Config.NEURONS_LAYER1_2 + Config.CLASSES # aggiungo un layer con 8 neuroni 833+8=841
-        Config.NEURONS_TOTAL = Config.NEURONS_LAYER3 + Config.CLASSES # 841
+        Config.BLOCK_SHAPE = 2

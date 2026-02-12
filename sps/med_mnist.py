@@ -51,7 +51,7 @@ def launch_quantized_SNPS():
     if Config.DATABASE == 'medmnist':
         (train_red, train_green, train_blue, train_labels), \
         (test_red, test_green, test_blue, test_labels) = get_mnist_data('bloodmnist')
-    elif Config.DATABASE == 'flower102':
+    elif Config.DATABASE == 'flower':
         (train_red, train_green, train_blue, train_labels), \
             (test_red, test_green, test_blue, test_labels) = get_flowers102_data()
 
@@ -80,7 +80,7 @@ def rules_train_SNPS(spike_train):
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = spike_train
-    snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
+    snps.layer_2_firing_counts = np.zeros(Config.NEURONS_L2, dtype=int)
     w, e = snps.start()
     update_energy(w, e)
 
@@ -90,11 +90,11 @@ def syn_train_SNPS(spike_train, labels):
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = spike_train
-    snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_LAYER2), dtype=float) # matrix for train synapses
+    snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_L2), dtype=float) # matrix for train synapses
     snps.labels = labels
-    snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
+    snps.layer_2_firing_counts = np.zeros(Config.NEURONS_L2, dtype=int)
     # I initialize the matrices also for layer 3 (8x8 matrices, since layer 3 has 8 neurons, as layer 4)
-    l3_neurons_count= Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2
+    l3_neurons_count= Config.NEURONS_L3 - Config.NEURONS_L12
     snps.layer_3_synapses =  np.zeros((Config.CLASSES, l3_neurons_count), dtype=float) # matrix for train synapses
     snps.layer_3_firing_counts = np.zeros(l3_neurons_count, dtype=int)
     
@@ -116,7 +116,7 @@ def compute_SNPS(spike_train):
     snps = SNPSystem(5, Config.TEST_SIZE + 10, "images", "prediction", True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME_PRUNED)
     snps.spike_train = spike_train
-    snps.layer_2_firing_counts = np.zeros(Config.NEURONS_LAYER2, dtype=int)
+    snps.layer_2_firing_counts = np.zeros(Config.NEURONS_L2, dtype=int)
     w, e = snps.start() # run the SNPS
     update_energy(w, e)
 

@@ -11,10 +11,10 @@ class SNPSystem:
 
     def __init__(self, max_delay, max_steps, input_type, output_type, deterministic):
         if Config.MODE in ("binarized", "quantized"):
-            self.charge_map_l1 = np.zeros(Config.NEURONS_LAYER1, dtype=float) # support array - for saving and showing the internal charge
-            self.charge_map_l2 = np.zeros(Config.NEURONS_LAYER1_2 - Config.NEURONS_LAYER1, dtype=float)
-            self.charge_map_l3 = np.zeros(Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2, dtype=float)
-            self.charge_map_l4 = np.zeros(Config.NEURONS_TOTAL - Config.NEURONS_LAYER3, dtype=float)
+            self.charge_map_l1 = np.zeros(Config.NEURONS_L1, dtype=float) # support array - for saving and showing the internal charge
+            self.charge_map_l2 = np.zeros(Config.NEURONS_L12 - Config.NEURONS_L1, dtype=float)
+            self.charge_map_l3 = np.zeros(Config.NEURONS_L3 - Config.NEURONS_L12, dtype=float)
+            self.charge_map_l4 = np.zeros(Config.NEURONS_T - Config.NEURONS_L3, dtype=float)
 
         # init time step, history
         PNeuron.reset_nid()
@@ -47,7 +47,7 @@ class SNPSystem:
             self.layer_2_firing_counts = 0
             self.layer_2_synapses = []
             # structure to memorize layer 3 synampses' weights for training
-            self.layer_3_firing_counts = np.zeros(Config.NEURONS_LAYER3 - Config.NEURONS_LAYER1_2, dtype=int)
+            self.layer_3_firing_counts = np.zeros(Config.NEURONS_L3 - Config.NEURONS_L12, dtype=int)
             self.old_layer_3_firing_counts = 0
             self.layer_3_synapses = []
 
@@ -58,9 +58,9 @@ class SNPSystem:
             self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int) # array of prediction
 
         if Config.MODE == "edge":
-            self.image_output = np.zeros((Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE, Config.TRAIN_SIZE), dtype=int)
+            self.image_output = np.zeros((Config.SHAPE_FEATURE * Config.SHAPE_FEATURE, Config.TRAIN_SIZE), dtype=int)
         if Config.MODE == "cnn":
-            self.image_output = np.zeros((Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE * Config.KERNEL_NUMBER, Config.TRAIN_SIZE), dtype=int)
+            self.image_output = np.zeros((Config.SHAPE_FEATURE * Config.SHAPE_FEATURE * Config.KERNEL_NUMBER, Config.TRAIN_SIZE), dtype=int)
 
     def init_history(self):
         """init tick history based on the system's neurons"""
@@ -128,6 +128,7 @@ class SNPSystem:
         for spike_event in self.spike_events[self.t_step % self.max_delay]:
             for idx in spike_event.targets:
                 if idx >= 0:
+                    #print("targets", spike_event.targets, "idx", idx)
                     self.neurons[idx].receive(spike_event.charge)
                 else:
                     self.neurons[-idx].inhibit(spike_event.charge)
@@ -135,13 +136,14 @@ class SNPSystem:
 
         # create the output images
         if Config.MODE == "edge":
-            for input_id in range(Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE):
-                offset = input_id + Config.NEURONS_LAYER1 + (Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE * Config.KERNEL_NUMBER)
+            for input_id in range(Config.SHAPE_FEATURE * Config.SHAPE_FEATURE):
+                offset = input_id + Config.NEURONS_L1 + (Config.SHAPE_FEATURE * Config.SHAPE_FEATURE * Config.KERNEL_NUMBER)
                 if self.neurons[offset].charge > 0:
                     self.image_output[input_id][self.t_step - 2] = 1
+
         if Config.MODE == "cnn" and 0 < self.t_step <= len(self.spike_train):
-            for input_id in range(Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE * Config.KERNEL_NUMBER):
-                offset = input_id + Config.NEURONS_LAYER1
+            for input_id in range(Config.NEURONS_L2):
+                offset = input_id + Config.NEURONS_L1
                 self.image_output[input_id][self.t_step-1] = self.neurons[offset].charge
 
         # clear current spiking events
@@ -157,7 +159,7 @@ class SNPSystem:
             if Config.QUANTIZATION and np.any(self.charge_map_l2):
                 #print("MATRICE LAYER 2: ", charge_map_l2)
                 label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step for start the computation
-                for idx in range(Config.NEURONS_LAYER2):
+                for idx in range(Config.NEURONS_L2):
                     self.layer_2_synapses[label][idx] = self.layer_2_synapses[label][idx] + (self.charge_map_l2[idx] * (Config.CLASSES - 1))
                     for wrong_label in range(Config.CLASSES):
                         if wrong_label != label:
@@ -248,19 +250,19 @@ class SNPSystem:
     @staticmethod
     def save_charge(self, neuron):
         nid = neuron.nid
-        if 0 <= nid < Config.NEURONS_LAYER1:
+        if 0 <= nid < Config.NEURONS_L1:
             self.charge_map_l1[nid] = neuron.charge
             return
-        l2_index = nid - Config.NEURONS_LAYER1
-        if 0 <= nid < Config.NEURONS_LAYER1_2:
+        l2_index = nid - Config.NEURONS_L1
+        if 0 <= nid < Config.NEURONS_L12:
             self.charge_map_l2[l2_index] = neuron.charge
             return
-        l3_index = nid - Config.NEURONS_LAYER1_2
-        if 0 <= nid < Config.NEURONS_LAYER3:
+        l3_index = nid - Config.NEURONS_L12
+        if 0 <= nid < Config.NEURONS_L3:
             self.charge_map_l3[l3_index] = neuron.charge
             return
-        l4_index = nid - Config.NEURONS_LAYER3
-        if 0 <= nid < Config.NEURONS_TOTAL:
+        l4_index = nid - Config.NEURONS_L3
+        if 0 <= nid < Config.NEURONS_T:
             self.charge_map_l4[l4_index] = neuron.charge
             return
 
