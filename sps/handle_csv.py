@@ -264,22 +264,16 @@ def kernel_SNPS_csv():
 
 def cnn_SNPS_csv():
     """Generate the SN P system to replicate the cnn"""
-
-
-    #layer2_size_per_kernel = Config.SHAPE_FEATURE * Config.SHAPE_FEATURE
-    #total_layer2_size = layer2_size_per_kernel * len(kernels)
-    #layer3_offset = Config.NEURONS_L1 + total_layer2_size
     os.makedirs("csv", exist_ok=True)
     with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
-
-        firing_rules = [
+        # Layer 1: Input a 28x28 grayscale image
+        l1_firing_rules = [
             f"[0,{i},{i},{i},0]"
             for i in range(Config.Q_RANGE, 0, -1)
         ]
-        # Layer 1: Input a 28x28 grayscale image
         for neuron_id in range(Config.NEURONS_L1):
             i_row = neuron_id // Config.IMG_SHAPE
             i_col = neuron_id % Config.IMG_SHAPE
@@ -302,27 +296,45 @@ def cnn_SNPS_csv():
                             elif weight == -1:
                                 output_targets.append(-target_id)
 
-
-
             writer.writerow([
                 neuron_id,                     # id
                 0,                             # initial_charge
                 str(output_targets),           # output_targets
                 0,                             # neuron_type
-                *firing_rules                  # firing rules
+                *l1_firing_rules                  # firing rules
             ])
 
-        # Layer 2: Accumulate spikes from the kernels
+        # Layer 2: Accumulate spikes from the kernels and extract features
         for k_index in range(len(Config.KERNELS)):
+            l2_firing_rules = [
+                f"[0,{i},{i},{i},0]"
+                for i in range(Config.K_RANGE[k_index][1], 0, -1) #TODO im ignoring the negative values?
+            ]
+
             layer2_offset = Config.NEURONS_L1 + k_index * Config.NEURONS_FEATURE
 
             for i in range(Config.NEURONS_FEATURE):
-                #output_target = layer3_offset + i + k_index * layer2_size_per_kernel  # i-th neuron in layer 3
+                output_targets = [] # Target definition
+                j = ((i // Config.SHAPE_FEATURE) // Config.POOLING_SIZE) * Config.SHAPE_POOL + ((i % Config.SHAPE_FEATURE) // Config.POOLING_SIZE) # position in next pooling layer
+                output_targets.append(Config.NEURONS_L1 + Config.NEURONS_L2 + (k_index * Config.NEURONS_POOL) + j)
                 writer.writerow([
                     layer2_offset + i,       # id
                     0,                       # initial_charge
+                    str(output_targets),     # output_targets
+                    1,                       # neuron_type
+                    *l2_firing_rules         # Send all the spikes
+                ])
+
+        # Layer 3: Apply an average pooling on previous layer
+        for k_index in range(Config.KERNEL_NUMBER):
+            layer3_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + k_index * Config.NEURONS_POOL
+            for i in range(Config.NEURONS_POOL):
+                writer.writerow([
+                    layer3_offset + i,       # id
+                    0,                       # initial_charge
                     "[]",                    # output_targets
                     1,                       # neuron_type
-                    "[1,1,1,0,0]"            # For now I only need to see the resulting images
+                    "[1,1,0,0,0]"            # Send all the spikes #TODO send 1/4 of spike.
                 ])
+
 

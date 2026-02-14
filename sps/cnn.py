@@ -24,9 +24,9 @@ from sps.snp_system import SNPSystem
 #dataset = 'medmnist' #can be digit, medmnist, flower
 
 def launch_28_CNN_SNPS():
-    train_final, _, _, _ = get_28_digit_data()
-    #cnn_SNPS_csv() #use only if the csv was changed
-    compute_cnn(train_final)
+    x_train, _, _, _ = get_28_digit_data()
+    cnn_SNPS_csv() #use only if the csv was changed
+    compute_cnn(x_train)
 
 
 def compute_cnn(train_data):
@@ -35,14 +35,18 @@ def compute_cnn(train_data):
     snps.spike_train = train_data
     snps.start()
 
-    #print(snps.image_output[0])
-    #print("image 0: ", snps.image_output[0])
-    #print("image shape: ", snps.image_output.shape)
+    #print(snps.feature_image[0])
+    #print("image 0: ", snps.feature_image[0])
+    #print("image shape: ", snps.feature_image.shape)
 
-    #show_feature(train_data, snps.image_output) #show output images
+    show_results(train_data, snps.feature_image, Config.SHAPE_FEATURE, Config.K_RANGE) #show output images for feature extraction layer
+    avg_pooling_image = snps.pooling_image // 4 #TODO this is the work that the firing rules in layer pool will do
+    #TODO the range is still the same because i sum 4 values, and the do an avg pooling, so /4
+    show_results(train_data, avg_pooling_image, Config.SHAPE_POOL, Config.K_RANGE) #show output images for average pooling layer
 
 
-def show_feature(train_data, output_array):
+def show_results(train_data, output_array, img_size, img_range):
+    print("range of values for current image:" , img_range)
     images = np.asarray(output_array)
     num_inputs = images.shape[1]
     kernels = Config.KERNEL_NUMBER
@@ -54,8 +58,6 @@ def show_feature(train_data, output_array):
     plt.figure(figsize=(3 * cols, 3 * rows * num_inputs))
 
     img_index = 0
-
-    print(Config.K_RANGE)
     for inp in range(num_inputs):
 
         plt.subplot(num_inputs * rows, cols, img_index + 1)
@@ -67,14 +69,14 @@ def show_feature(train_data, output_array):
         img_index += 1
 
         for k in range(kernels):
-            start = k * (Config.SHAPE_FEATURE ** 2)
-            end   = (k + 1) * (Config.SHAPE_FEATURE ** 2)
+            start = k * (img_size ** 2)
+            end   = (k + 1) * (img_size ** 2)
 
             feature = images[start:end, inp].reshape(
-                Config.SHAPE_FEATURE, Config.SHAPE_FEATURE
+                img_size, img_size
             )
 
-            vmin, vmax = Config.K_RANGE[k]
+            vmin, vmax = img_range[k]
             plt.subplot(num_inputs * rows, cols, img_index + 1)
             plt.imshow(feature, cmap="gray", vmin=vmin, vmax=vmax)
             plt.title(f"Input {inp} – Kernel {k}")

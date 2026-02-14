@@ -58,9 +58,10 @@ class SNPSystem:
             self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int) # array of prediction
 
         if Config.MODE == "edge":
-            self.image_output = np.zeros((Config.SHAPE_FEATURE * Config.SHAPE_FEATURE, Config.TRAIN_SIZE), dtype=int)
+            self.feature_image = np.zeros((Config.SHAPE_FEATURE * Config.SHAPE_FEATURE, Config.TRAIN_SIZE), dtype=int)
         if Config.MODE == "cnn":
-            self.image_output = np.zeros((Config.SHAPE_FEATURE * Config.SHAPE_FEATURE * Config.KERNEL_NUMBER, Config.TRAIN_SIZE), dtype=int)
+            self.feature_image = np.zeros((Config.NEURONS_FEATURE * Config.KERNEL_NUMBER, Config.TRAIN_SIZE), dtype=int)
+            self.pooling_image = np.zeros((Config.NEURONS_POOL * Config.KERNEL_NUMBER, Config.TRAIN_SIZE), dtype=int)
 
     def init_history(self):
         """init tick history based on the system's neurons"""
@@ -139,12 +140,15 @@ class SNPSystem:
             for input_id in range(Config.SHAPE_FEATURE * Config.SHAPE_FEATURE):
                 offset = input_id + Config.NEURONS_L1 + (Config.SHAPE_FEATURE * Config.SHAPE_FEATURE * Config.KERNEL_NUMBER)
                 if self.neurons[offset].charge > 0:
-                    self.image_output[input_id][self.t_step - 2] = 1
+                    self.feature_image[input_id][self.t_step - 2] = 1
 
         if Config.MODE == "cnn" and 0 < self.t_step <= len(self.spike_train):
-            for input_id in range(Config.NEURONS_L2):
+            for input_id in range(Config.NEURONS_L2): #generate faeture images
                 offset = input_id + Config.NEURONS_L1
-                self.image_output[input_id][self.t_step-1] = self.neurons[offset].charge
+                self.feature_image[input_id][self.t_step - 1] = self.neurons[offset].charge
+            for input_id in range(Config.NEURONS_LP): #generate pooling images
+                offset = input_id + Config.NEURONS_L1 + Config.NEURONS_L2
+                self.pooling_image[input_id][self.t_step - 2] = self.neurons[offset].charge
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()

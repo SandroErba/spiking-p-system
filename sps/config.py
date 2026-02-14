@@ -116,23 +116,32 @@ def configure(mode):
         Config.KERNEL_NUMBER = len(Config.KERNELS) #number of kernels in layer 2
         Config.KERNEL_SHAPE = len(Config.KERNELS[0]) #size of a single kernel
         Config.K_RANGE = [
-            {
+            (
                 sum(v == -1 for row in kernel for v in row) * -Config.Q_RANGE,
-                sum(v == 1 for row in kernel for v in row) * Config.Q_RANGE
-            }
+                sum(v == 1 for row in kernel for v in row) *  Config.Q_RANGE
+            )
             for kernel in Config.KERNELS
-        ] #range in which the values inside the kernels can be
+        ]
 
         Config.NEURONS_L1 = int(Config.IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
-        Config.SHAPE_FEATURE = int(Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1) #size of a generated image in layer 2
-        Config.NEURONS_FEATURE = int((Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1) ** 2) #number of neurons for each image in layer 2
-        Config.NEURONS_L2 = Config.NEURONS_FEATURE * Config.KERNEL_NUMBER #number of neurons for layer 2
+
+        # Feature extraction
+        Config.SHAPE_FEATURE = int(Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1) #size of a generated image in layer 2 (26)
+        Config.NEURONS_FEATURE = int(Config.SHAPE_FEATURE ** 2) #number of neurons for each image in layer 2 (676)
+        Config.NEURONS_L2 = Config.NEURONS_FEATURE * Config.KERNEL_NUMBER #number of neurons for layer 2 (5408)
         Config.NEURONS_L12 = int(Config.NEURONS_L1 + Config.NEURONS_L2) #delete this
+
+        # Average pooling
+        Config.POOLING_SIZE = 2 #size of the pooling window
+
+
+        Config.SHAPE_POOL = int(Config.SHAPE_FEATURE / Config.POOLING_SIZE) #size of the resulting image after the pooling (13)
+        Config.NEURONS_POOL = int(Config.SHAPE_POOL ** 2) #number of neurons for each image in layer 3 (169)
+        Config.NEURONS_LP = int(Config.KERNEL_NUMBER * Config.SHAPE_POOL ** 2) #number of neurons on the pooling layer (1352)
 
         #TODO NOW add an average pooling after layer 2 by simply /4 the actual charge. then show the resulting images
 
-        #Config.NEURONS_L3 = Config.NEURONS_L12 + Config.CLASSES # add FC after L2
-        Config.NEURONS_T = Config.NEURONS_L1 + Config.NEURONS_L2 #total number of neurons
+        Config.NEURONS_T = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_LP #total number of neurons
 
 
 def database(database):
