@@ -11,7 +11,6 @@ from sps.med_mnist import syn_train_SNPS, compute_SNPS, combined_ranking_score
 #from tensorflow.keras.datasets import mnist
 def get_28_digit_data():
     (train_data, train_label), (test_data, test_label) = mnist.load_data()
-    print(train_data.shape)
     train_data = train_data[:Config.TRAIN_SIZE]
     train_label = train_label[:Config.TRAIN_SIZE]
     test_data = test_data[:Config.TEST_SIZE]

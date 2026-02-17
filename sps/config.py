@@ -28,6 +28,7 @@ class Config:
     KERNEL_SHAPE = 2
     KERNEL_NUMBER = 6
     SHAPE_FEATURE = IMG_SHAPE - KERNEL_SHAPE + 1
+    NEURONS_LP = 0
 
     # STRING
     CSV_NAME = "Null"
