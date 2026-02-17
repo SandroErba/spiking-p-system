@@ -68,7 +68,7 @@ class PNeuron:
             else:
                 self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_L1] += 1 # for rules tuning
         #tuning layer 3
-        if Config.MODE != "cnn" and Config.NEURONS_L12 <= self.nid < Config.NEURONS_L3 and self.snp_system.output_type == "prediction":
+        if Config.MODE in ("binarized", "quantized") and Config.NEURONS_L12 <= self.nid < Config.NEURONS_L3 and self.snp_system.output_type == "prediction":
             idx = self.nid - Config.NEURONS_L12 # index in layer 3
             self.snp_system.layer_3_firing_counts[idx] += 1 # increment firing count for layer 3 neuron
 

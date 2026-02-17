@@ -8,12 +8,12 @@ from sps import edge_detection, med_mnist, other_networks, cnn, med_image, cnn, 
 from sps.config import Config, configure, database
 
 
-database("digit") #can be digit, flower
-configure("cnn") #can be binarized, quantized, edge, cnn
+#database("digit") #can be digit, flower
+#configure("cnn") #can be binarized, quantized, edge, cnn
 
-t=time.time()
-cnn.launch_28_CNN_SNPS()
-print("Elapsed time:", time.time()-t)
+#t=time.time()
+#cnn.launch_28_CNN_SNPS()
+#print("Elapsed time:", time.time()-t)
 
 
 #med_mnist.launch_quantized_SNPS()
@@ -21,5 +21,5 @@ print("Elapsed time:", time.time()-t)
 #med_mnist.launch_binarized_SNPS()
 #edge_detection.launch_gray_SNPS()
 #other_networks.compute_extended()
-#other_networks.compute_divisible_3()
+other_networks.compute_divisible_3()
 #other_networks.compute_gen_even()
