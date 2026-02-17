@@ -12,8 +12,16 @@ def quantized_SNPS_csv():
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
-        # Layer 1: Input RGB from 28x28 to 14x14 using 2x2 blocks
-        for neuron_id in range(Config.NEURONS_L1):
+        layer1_rules = []
+        for q in range(Config.Q_RANGE, 0, -1):
+            layer1_rules.append(f"[0,{q},{q},{q},0]")   #create firing rules for quantization in range Q_RANGE to 1
+
+        block_sq = Config.BLOCK_SHAPE ** 2
+        layer2_rules = [f"[1,{(q * block_sq) - int(block_sq - 2)},1,{q},0]" for q in range(Config.Q_RANGE, 0, -1)]
+        layer2_rules.append("[1,1,1,0,0]")
+
+
+        for neuron_id in range(Config.NEURONS_LAYER1):
             block_row = (neuron_id // Config.IMG_SHAPE) // Config.BLOCK_SHAPE
             block_col = (neuron_id % Config.IMG_SHAPE) // Config.BLOCK_SHAPE
             block_id = block_row * int(Config.IMG_SHAPE/Config.BLOCK_SHAPE) + block_col
@@ -24,10 +32,11 @@ def quantized_SNPS_csv():
                 0,                    # initial_charge
                 f"[{output_neuron}]", # output_targets
                 0,                    # neuron_type
-                "[0,4,4,4,0]",
-                "[0,3,3,3,0]",
-                "[0,2,2,2,0]",
-                "[0,1,1,1,0]"         # firing rules
+                # "[0,4,4,4,0]",
+                # "[0,3,3,3,0]",
+                # "[0,2,2,2,0]",
+                # "[0,1,1,1,0]"         # firing rules
+                *layer1_rules         # firing rules
             ])
 
         # Layer 2: Pooling (49 neurons)
@@ -38,11 +47,12 @@ def quantized_SNPS_csv():
                 0,                    # initial_charge
                 layer3_targets,       # output_targets
                 1,                    # neuron_type
-                "[1,13,1,4,0]",
-                "[1,9,1,3,0]",
-                "[1,5,1,2,0]",
-                "[1,1,1,1,0]",       # firing rules if c >= 1
-                "[1,1,1,0,0]"        # forgetting rule if didn't fire
+                # "[1,13,1,4,0]",
+                # "[1,9,1,3,0]",
+                # "[1,5,1,2,0]",
+                # "[1,1,1,1,0]",       # firing rules if c >= 1
+                # "[1,1,1,0,0]"        # forgetting rule if didn't fire
+                *layer2_rules        # forgetting rule if didn't fire
             ])
 
         # Layer 3: Comparison (8 neurons)
@@ -53,13 +63,13 @@ def quantized_SNPS_csv():
 
             # REGOLA 1: Alta Confidenza (Spara 3)
             rule_high = f"[1, {base_thresh + 10}, 1, 3, 0]"
-            
+
             # REGOLA 2: Media Confidenza (Spara 2)
             rule_med = f"[1, {base_thresh + 5}, 1, 2, 0]"
-            
+
             # REGOLA 3: Bassa Confidenza (Spara 1 - Default)
             rule_low = f"[1, {base_thresh}, 1, 1, 0]"
-    
+
             writer.writerow([
                 neuron_id,            # id
                 0,                    # initial_charge
@@ -69,7 +79,7 @@ def quantized_SNPS_csv():
                 rule_med,
                 rule_low,
                 "[1,1,1,0,0]"        # forgetting rule
-            ])  
+            ])
 
         # Layer 4: Output (8 neurons)
         for neuron_id in range(Config.NEURONS_L3, Config.NEURONS_T):
