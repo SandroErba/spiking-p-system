@@ -9,7 +9,7 @@ import csv
 class SNPSystem:
     """Spiking Neural P System"""
 
-    def __init__(self, max_delay, max_steps, input_type, output_type, deterministic):
+    def __init__(self, max_delay, max_steps, deterministic):
         if Config.MODE in ("binarized", "quantized"):
             self.charge_map_l1 = np.zeros(Config.NEURONS_L1, dtype=float) # support array - for saving and showing the internal charge
             self.charge_map_l2 = np.zeros(Config.NEURONS_L12 - Config.NEURONS_L1, dtype=float)
@@ -20,8 +20,6 @@ class SNPSystem:
         PNeuron.reset_nid()
         self.t_step = 0
         self.max_steps = max_steps
-        self.input_type = input_type # can be none, spike_train, images
-        self.output_type = output_type # can be halting, generative, prediction, images
         self.deterministic = deterministic # can be true or false
 
         self.history = None
@@ -52,7 +50,7 @@ class SNPSystem:
             self.layer_3_synapses = []
 
         # record output
-        if output_type == "generative": #TODO continue to delete output type
+        if Config.MODE == "generative":
             self.output = [] # time between two spikes in the output neuron
         elif Config.MODE in ("binarized", "quantized"):
             self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int) # array of prediction
@@ -82,7 +80,7 @@ class SNPSystem:
                 e_energy = int(self.spike_fired * Config.EXPECTED_SPIKE + (self.firing_applied + self.forgetting_applied) * Config.EXPECTED_REGEX)
 
 
-                if self.output_type == "generative":
+                if Config.MODE == "generative": #TODO work here
                     print("Spike fired at time step", self.output[0], "and time step", self.output[1], ". The output is", self.output[1] - self.output[0])
                 return w_energy, e_energy
 
@@ -101,7 +99,7 @@ class SNPSystem:
             if used_rule and used_rule.target > 0:
                 # Generate a firing event that will be received in the future, if it has delay
                 self.spike_events[(self.t_step + used_rule.delay) % self.max_delay].append(SpikeEvent(neuron.nid, used_rule.target, neuron.targets))
-                if neuron.neuron_type == 2 and self.output_type == "generative": # output neuron
+                if neuron.neuron_type == 2 and Config.MODE == "generative": # output neuron #TODO work here
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
@@ -181,7 +179,7 @@ class SNPSystem:
                                 self.layer_2_synapses[wrong_label][idx] -= Config.NEGATIVE_PENALIZATION
                     self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
         # synapses tuning for layer 3
-        if self.input_type == "images" and self.output_type == "prediction" and len(self.layer_3_synapses) > 0:
+        if Config.MODE in ("binarized", "quantized") and len(self.layer_3_synapses) > 0:
             current_label_idx = self.t_step - 2
             if 0 <= current_label_idx < len(self.labels): 
                 if Config.QUANTIZATION and np.any(self.charge_map_l3):
@@ -198,16 +196,16 @@ class SNPSystem:
         # check for halting computation
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
         any_spike_in_transit = any(self.spike_events[i] for i in range(self.max_delay))
-        if self.output_type == "generative" and len(self.output) == 2: # halt computation if output has fired 2 times
+        if Config.MODE == "generative" and len(self.output) == 2: # halt computation if output has fired 2 times #TODO workhere
             return False
         if not any_rule_applied and not any_in_delay and not any_spike_in_transit and not input_spike and self.t_step > 1:
-            if self.output_type == "halting":
+            if Config.MODE == "halting": #TODO workhere
                 print("The computation halts because no further rules can be applied; the input is accepted")
             return False # end computation
 
         self.t_step += 1 # advance time
         if self.t_step > self.max_steps:
-            if self.output_type == "halting":
+            if Config.MODE == "halting": #TODO workhere
                 print("The system did not halt naturally within the given step bound; the input is rejected")
             return False # end computation
         else:

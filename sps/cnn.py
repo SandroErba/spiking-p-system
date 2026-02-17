@@ -30,7 +30,7 @@ def launch_28_CNN_SNPS():
 
 
 def compute_cnn(train_data):
-    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "images", True)
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = train_data
     snps.start()
@@ -39,10 +39,10 @@ def compute_cnn(train_data):
     #print("image 0: ", snps.feature_image[0])
     #print("image shape: ", snps.feature_image.shape)
 
-    #show_results(train_data, snps.feature_image, Config.SHAPE_FEATURE, Config.K_RANGE) #show output images for feature extraction layer
-    #avg_pooling_image = snps.pooling_image // 4 #TODO this is the work that the firing rules in layer pool will do
+    show_results(train_data, snps.feature_image, Config.SHAPE_FEATURE, Config.K_RANGE) #show output images for feature extraction layer
+    avg_pooling_image = snps.pooling_image // 4 #TODO this is the work that the firing rules in layer pool will do
     #TODO the range is still the same because i sum 4 values, and the do an avg pooling, so /4
-    #show_results(train_data, avg_pooling_image, Config.SHAPE_POOL, Config.K_RANGE) #show output images for average pooling layer
+    show_results(train_data, avg_pooling_image, Config.SHAPE_POOL, Config.K_RANGE) #show output images for average pooling layer
 
 
 def show_results(train_data, output_array, img_size, img_range):

@@ -62,13 +62,13 @@ class PNeuron:
                     return self.consume(rule)
 
     def fire(self, rule):
-        if Config.MODE in ("binarized", "quantized") and Config.NEURONS_L1 <= self.nid < Config.NEURONS_L12 and self.snp_system.output_type == "prediction":
+        if Config.MODE in ("binarized", "quantized") and Config.NEURONS_L1 <= self.nid < Config.NEURONS_L12:
             if Config.QUANTIZATION:
                 self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_L1] += rule.target # for rules tuning
             else:
                 self.snp_system.layer_2_firing_counts[self.nid - Config.NEURONS_L1] += 1 # for rules tuning
         #tuning layer 3
-        if Config.MODE in ("binarized", "quantized") and Config.NEURONS_L12 <= self.nid < Config.NEURONS_L3 and self.snp_system.output_type == "prediction":
+        if Config.MODE in ("binarized", "quantized") and Config.NEURONS_L12 <= self.nid < Config.NEURONS_L3:
             idx = self.nid - Config.NEURONS_L12 # index in layer 3
             self.snp_system.layer_3_firing_counts[idx] += 1 # increment firing count for layer 3 neuron
 
@@ -81,7 +81,7 @@ class PNeuron:
         return rule
 
     def consume(self, rule):
-        if Config.MODE in ("binarized", "quantized") and Config.NEURONS_L3 <= self.nid < Config.NEURONS_T and self.snp_system.output_type == "prediction": # output array with predictions
+        if Config.MODE in ("binarized", "quantized") and Config.NEURONS_L3 <= self.nid < Config.NEURONS_T: # output array with predictions
             class_idx = self.nid - Config.NEURONS_L3
             self.snp_system.output_array[self.snp_system.t_step][class_idx] = self.charge
         self.charge = 0

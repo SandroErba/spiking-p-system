@@ -10,7 +10,7 @@ from sps.config import Config
 def launch_gray_SNPS():
     (train_red, train_green, train_blue, train_labels), (_) = med_mnist.get_mnist_data('bloodmnist')
     kernel_SNPS_csv()
-    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "images", True)
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = train_red
     snps.start()
