@@ -108,7 +108,7 @@ class SNPSystem:
         #self.show_charge() #debug only - for saving the internal charge
 
         input_spike = False # check if there are more input for halting condition
-        if self.spike_train.any() and self.t_step < len(self.spike_train):
+        if self.spike_train and self.t_step < len(self.spike_train):
             input_spike = True
             if Config.MODE in ("binarized", "quantized", "edge", "cnn"): # you have an array of images as input
                 input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
