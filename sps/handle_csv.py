@@ -1,6 +1,5 @@
 import csv
 import os
-
 from sps.config import Config
 
 
@@ -334,7 +333,73 @@ def cnn_SNPS_csv():
                     0,                       # initial_charge
                     "[]",                    # output_targets
                     1,                       # neuron_type
-                    "[1,1,0,0,0]"            # Send all the spikes #TODO send 1/4 of spike.
+                    "[1,1,0,0,0]"            # Send all the spikes
                 ])
+
+
+
+def extend_csv(file_path, q, q_name):
+
+    # separa nome ed estensione
+    base, ext = os.path.splitext(file_path)
+    new_file_path = f"{base}_{q_name}{ext}"
+
+    with open(file_path, newline='') as f:
+        rows = list(csv.reader(f))
+    #header = reader[0]
+    #rows = reader[1:]
+    output_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_LP
+    pool_offset = Config.NEURONS_L1 + Config.NEURONS_L2
+
+    # Aggiorna i 1352 neuroni feature
+    #start_idx = 784 + 5408  # cambia se il tuo CSV è diverso
+    #end_idx = start_idx + Config.NEURONS_LP
+    for i in range(Config.NEURONS_LP):
+        row = rows[i+pool_offset+1]
+        # Nuovi output_targets basati su q
+        new_targets = []
+        for j in range(Config.CLASSES):
+
+            weight = q[i, j]
+            j = j + output_offset - 1
+
+            if weight == 1:
+                new_targets.append(j)
+            elif weight == -1:
+                new_targets.append(-j)
+            if len(row) < 3:
+                print(f"Attenzione: riga {i} troppo corta:", row)
+                # Puoi decidere se aggiungere elementi vuoti
+                row += [''] * (3 - len(row))
+        row[2] = str(new_targets)
+
+        #Nuove regole firing
+        new_rules = []
+        for out_spikes in range(Config.K_RANGE[0][1], 0, -1):  # da 48 a 1
+            k = Config.POOLING_SIZE ** 2 * out_spikes  # 48*4, 47*4, ..., 1*4
+            new_rules.append(str([1, k, k, out_spikes, 0]))
+
+        row[:] = row[:4] + new_rules
+
+    #Aggiungi 10 neuroni finali
+    for j in range(Config.CLASSES-1):
+
+        new_row = [
+            output_offset + j,   # id
+            0,             # initial charge
+            "[]",          # nessun output
+            2,              # neuron type (accumulatore)
+            "[1,1,0,0,0]"  # send all spikes
+        ]
+
+        rows.append(new_row)
+
+    #Riscrivi file
+    with open(new_file_path, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
+    print("CSV aggiornato correttamente con path:", new_file_path)
+    return new_file_path
 
 

@@ -9,9 +9,10 @@ from sps.config import Config, configure, database
 
 
 database("digit") #can be digit, flower
-configure("cnn") #can be binarized, quantized, edge, cnn, generative, halting
+configure("cnn") #set the mode of the P system: can be binarized, quantized, edge, cnn, generative, halting
+
 t=time.time()
-#cnn.launch_28_CNN_SNPS()
+cnn.launch_28_CNN_SNPS()
 print("Elapsed time:", time.time()-t)
 
 #med_mnist.launch_quantized_SNPS()
@@ -19,6 +20,6 @@ print("Elapsed time:", time.time()-t)
 #med_mnist.launch_binarized_SNPS()
 #edge_detection.launch_gray_SNPS()
 
-other_networks.compute_extended() #require halting mode
+#other_networks.compute_extended() #require halting mode
 #other_networks.compute_divisible_3() #require halting mode
 #other_networks.compute_gen_even() #require generative mode

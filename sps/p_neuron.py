@@ -78,6 +78,7 @@ class PNeuron:
             self.charge = 0
         self.refractory = rule.delay
         self.snp_system.firing_applied += 1
+
         return rule
 
     def consume(self, rule):

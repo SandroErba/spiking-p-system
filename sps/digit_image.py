@@ -66,11 +66,9 @@ def launch_gray_SNPS():
     predictions = compute_SNPS(test_data)      # test
 
     #print("Predictions shape:", predictions.shape)
-    #TODO !print the predicted labels to check how the model is classifing!
-    # one class, the 8 (ninth class) has high charge and get all the prob
 
     #for i in range(10):
-    #    print("red Predictions :", i,  predictions[i]) #TODO NOW: charge is too similar for every class
+    #    print("red Predictions :", i,  predictions[i])
 
     combined_ranking_score(predictions, predictions, predictions, test_labels)
 

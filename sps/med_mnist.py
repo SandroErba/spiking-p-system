@@ -76,7 +76,6 @@ def launch_quantized_SNPS():
 
 
 def rules_train_SNPS(spike_train):
-    # TODO counting the number of activated rules and tune in this way can be  wrong
     snps = SNPSystem(5, Config.TRAIN_SIZE + 5,True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = spike_train
