@@ -76,8 +76,7 @@ def launch_quantized_SNPS():
 
 
 def rules_train_SNPS(spike_train):
-    # TODO counting the number of activated rules and tune in this way can be  wrong
-    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5,True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_L2, dtype=int)
@@ -87,7 +86,7 @@ def rules_train_SNPS(spike_train):
     normalize_rules(snps.layer_2_firing_counts.reshape((int(Config.IMG_SHAPE/Config.BLOCK_SHAPE), int(Config.IMG_SHAPE/Config.BLOCK_SHAPE))), Config.TRAIN_SIZE)
 
 def syn_train_SNPS(spike_train, labels):
-    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, "images", "prediction", True)
+    snps = SNPSystem(5, Config.TRAIN_SIZE + 5, True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = spike_train
     snps.layer_2_synapses = np.zeros((Config.CLASSES, Config.NEURONS_L2), dtype=float) # matrix for train synapses
@@ -113,7 +112,7 @@ def syn_train_SNPS(spike_train, labels):
     prune_SNPS(pruned_matrix_l2, pruned_matrix_l3)
 
 def compute_SNPS(spike_train):
-    snps = SNPSystem(5, Config.TEST_SIZE + 10, "images", "prediction", True)
+    snps = SNPSystem(5, Config.TEST_SIZE + 10, True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME_PRUNED)
     snps.spike_train = spike_train
     snps.layer_2_firing_counts = np.zeros(Config.NEURONS_L2, dtype=int)

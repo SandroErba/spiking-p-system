@@ -37,6 +37,8 @@ class Config:
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
     KERNELS = None
 
+    N_OF_LAYERS = 0 #number of layers of the P system
+
 
 def configure(mode):
     Config.MODE = mode
@@ -98,9 +100,9 @@ def configure(mode):
 
     if mode == "cnn":
         Config.QUANTIZATION = True
-        Config.TRAIN_SIZE = 5
-        Config.TEST_SIZE = 5
-        Config.Q_RANGE = 16
+        Config.TRAIN_SIZE = 1000
+        Config.TEST_SIZE = 1000
+        Config.Q_RANGE = 16 #TODO change when SNPS accuracy work, and see the consequence on the entire network
         Config.CSV_NAME = "SNPS_cnn.csv"
 
         Config.KERNELS = [
@@ -130,7 +132,7 @@ def configure(mode):
         Config.SHAPE_FEATURE = int(Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1) #size of a generated image in layer 2 (26)
         Config.NEURONS_FEATURE = int(Config.SHAPE_FEATURE ** 2) #number of neurons for each image in layer 2 (676)
         Config.NEURONS_L2 = Config.NEURONS_FEATURE * Config.KERNEL_NUMBER #number of neurons for layer 2 (5408)
-        Config.NEURONS_L12 = int(Config.NEURONS_L1 + Config.NEURONS_L2) #delete this
+        Config.NEURONS_L12 = int(Config.NEURONS_L1 + Config.NEURONS_L2) #TODO delete this
 
         # Average pooling
         Config.POOLING_SIZE = 2 #size of the pooling window
@@ -138,11 +140,10 @@ def configure(mode):
 
         Config.SHAPE_POOL = int(Config.SHAPE_FEATURE / Config.POOLING_SIZE) #size of the resulting image after the pooling (13)
         Config.NEURONS_POOL = int(Config.SHAPE_POOL ** 2) #number of neurons for each image in layer 3 (169)
-        Config.NEURONS_LP = int(Config.KERNEL_NUMBER * Config.SHAPE_POOL ** 2) #number of neurons on the pooling layer (1352)
+        Config.NEURONS_LP = int(Config.KERNEL_NUMBER * Config.NEURONS_POOL) #number of neurons on the pooling layer (1352)
 
-        #TODO NOW add an average pooling after layer 2 by simply /4 the actual charge. then show the resulting images
-
-        Config.NEURONS_T = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_LP #total number of neurons
+        Config.NEURONS_T = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_LP #total number of neurons TODO i really need this?
+        Config.N_OF_LAYERS = 3
 
 
 def database(database):

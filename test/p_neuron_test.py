@@ -10,7 +10,7 @@ class PNeuronTest(unittest.TestCase):
         Config.MODE = "test"
         Config.WHITE_HOLE = False
         fire_rule = TransformationRule(div=1, mod=0, source=5, target=1, delay=3)
-        snps = SNPSystem(5, 5, "test", "test", True)
+        snps = SNPSystem(5, 5, True)
         pn = PNeuron(snps, 0, targets=[], transf_rules=[fire_rule])
         pn.charge = 8
         pn.fire(pn.transf_rules[0])
@@ -28,7 +28,7 @@ class PNeuronTest(unittest.TestCase):
         Config.MODE = "test"
         Config.WHITE_HOLE = False
         fire_rule = TransformationRule(div=1, mod=0, source=5, target=1, delay=3)
-        snps = SNPSystem(5, 5, "test", "test", True)
+        snps = SNPSystem(5, 5,  True)
         pn = PNeuron(snps, 0, targets=[], transf_rules=[fire_rule])
         pn.charge = 8
         pn.fire(pn.transf_rules[0])
@@ -41,7 +41,7 @@ class PNeuronTest(unittest.TestCase):
         Config.MODE = "test"
         Config.WHITE_HOLE = True
         fire_rule = TransformationRule(div=1, mod=0, source=5, target=1, delay=3)
-        snps = SNPSystem(5, 5, "test", "test", True)
+        snps = SNPSystem(5, 5,  True)
         pn = PNeuron(snps, 0, targets=[], transf_rules=[fire_rule])
         pn.charge = 8
         pn.fire(pn.transf_rules[0])
