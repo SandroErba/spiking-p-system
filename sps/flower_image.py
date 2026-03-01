@@ -26,19 +26,20 @@ def get_flowers102_data():
     )
 
     return (
-        process_flowers102_dataset(train_dataset, Config.TRAIN_SIZE),
-        process_flowers102_dataset(test_dataset, Config.TEST_SIZE),
+        process_flowers102_dataset(train_dataset, Config.TRAIN_SIZE, "train"),
+        process_flowers102_dataset(test_dataset, Config.TEST_SIZE, "test"),
     )
 
 
-def process_flowers102_dataset(dataset, count):
-    imgs = []
+def process_flowers102_dataset(dataset, count, split_name="data"):
     red_channel = []
     green_channel = []
     blue_channel = []
     labels = []
 
-    for i in range(count):
+    limit = min(count, len(dataset))
+    print(f"Flower preprocessing ({split_name}): 0/{limit}")
+    for i in range(limit):
         img, label = dataset[i]     # PIL image + int label
         img = np.array(img)         # (H, W, 3), uint8
 
@@ -52,9 +53,11 @@ def process_flowers102_dataset(dataset, count):
         green_channel.append(ch_g)
         blue_channel.append(ch_b)
         labels.append(label)
-        imgs.append(img)
 
-    #show_quantized_image(imgs[0], red_channel[0], green_channel[0], blue_channel[0]) #Show first image
+        if (i + 1) % 20 == 0 or (i + 1) == limit:
+            print(f"Flower preprocessing ({split_name}): {i + 1}/{limit}")
+
+    #show_quantized_image(img, red_channel[0], green_channel[0], blue_channel[0]) #Show first image
     #show_quantized_image(img[1], red_channel[1], green_channel[1], blue_channel[1]) #Show second image
     #show_quantized_image(img[2], red_channel[2], green_channel[2], blue_channel[2]) #Show third image
 

@@ -48,8 +48,12 @@ def configure(mode):
         Config.Q_RANGE = 4
         Config.INVERT = False
 
-        Config.TRAIN_SIZE = 1000
-        Config.TEST_SIZE = 1000
+        if Config.DATABASE == "flower":
+            Config.TRAIN_SIZE = 120
+            Config.TEST_SIZE = 120
+        else:
+            Config.TRAIN_SIZE = 1000
+            Config.TEST_SIZE = 1000
 
         Config.NEURONS_L1 = int(Config.IMG_SHAPE ** 2) #784
         Config.NEURONS_L2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
@@ -69,8 +73,12 @@ def configure(mode):
         Config.QUANTIZATION = False
         Config.INVERT = True
 
-        Config.TRAIN_SIZE = 1000
-        Config.TEST_SIZE = 1000
+        if Config.DATABASE == "flower":
+            Config.TRAIN_SIZE = 120
+            Config.TEST_SIZE = 120
+        else:
+            Config.TRAIN_SIZE = 1000
+            Config.TEST_SIZE = 1000
 
         Config.POSITIVE_REINFORCE = Config.CLASSES - 1
         Config.NEGATIVE_PENALIZATION = 1
@@ -78,7 +86,8 @@ def configure(mode):
         Config.NEURONS_L1 = int(Config.IMG_SHAPE ** 2) #784
         Config.NEURONS_L2 = int((Config.IMG_SHAPE / Config.BLOCK_SHAPE) ** 2) #49
         Config.NEURONS_L12 = int(Config.NEURONS_L1 + Config.NEURONS_L2) #833
-        Config.NEURONS_T = Config.NEURONS_L12 + Config.CLASSES # 841
+        Config.NEURONS_L3 = Config.NEURONS_L12 + Config.CLASSES
+        Config.NEURONS_T = Config.NEURONS_L3 + Config.CLASSES
 
         Config.CSV_NAME = "SNPS_binarize.csv"
         Config.CSV_NAME_PRUNED = "SNPS_binarize_pruned.csv"
@@ -148,6 +157,13 @@ def configure(mode):
 
 def database(database):
     Config.DATABASE = database
+    if database == "medmnist":
+        Config.WHITE_HOLE = True
+        Config.IMG_SHAPE = 28
+        Config.CLASSES = 8
+        Config.INVERT = False
+        Config.BLOCK_SHAPE = 2
+
     if database == "flower":
         Config.WHITE_HOLE= True
         Config.IMG_SHAPE = 224

@@ -19,8 +19,14 @@ def launch_binarized_SNPS():
     """Manage all the binarized SN P systems"""
 
     # Load and split database
-    (train_red, train_green, train_blue, train_labels), \
-        (test_red, test_green, test_blue, test_labels) = get_mnist_data('bloodmnist')
+    if Config.DATABASE == 'medmnist':
+        (train_red, train_green, train_blue, train_labels), \
+            (test_red, test_green, test_blue, test_labels) = get_mnist_data('bloodmnist')
+    elif Config.DATABASE == 'flower':
+        (train_red, train_green, train_blue, train_labels), \
+            (test_red, test_green, test_blue, test_labels) = get_flowers102_data()
+    else:
+        raise ValueError(f"Unsupported database for binarized mode: {Config.DATABASE}")
 
     # Group color channels
     train_channels = [train_red, train_green, train_blue]
@@ -147,10 +153,7 @@ def prune_matrix(synapses):
 
 def combined_ranking_score(pred_red, pred_green, pred_blue, labels):
     """calculate the model's performance including per-channel and combined ranking"""
-    print("red pred", pred_red)
-    print("green pred", pred_green)
-    print("blue pred", pred_blue)
-    print("labels", labels)
+    print(f"Pred shapes -> R:{pred_red.shape} G:{pred_green.shape} B:{pred_blue.shape} labels:{labels.shape}")
 
     def evaluate_single_channel(predictions, s_labels):
         """Return top-1 and top-3 accuracy for one color channel."""

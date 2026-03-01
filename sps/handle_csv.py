@@ -20,7 +20,7 @@ def quantized_SNPS_csv():
         layer2_rules.append("[1,1,1,0,0]")
 
 
-        for neuron_id in range(Config.NEURONS_LAYER1):
+        for neuron_id in range(Config.NEURONS_L1):
             block_row = (neuron_id // Config.IMG_SHAPE) // Config.BLOCK_SHAPE
             block_col = (neuron_id % Config.IMG_SHAPE) // Config.BLOCK_SHAPE
             block_id = block_row * int(Config.IMG_SHAPE/Config.BLOCK_SHAPE) + block_col
