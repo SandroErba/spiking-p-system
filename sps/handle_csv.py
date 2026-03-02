@@ -1,195 +1,8 @@
 import csv
 import os
-
+from datetime import datetime
+import json
 from sps.config import Config
-
-
-
-
-def quantized_SNPS_csv():
-    """Generate the SN P system to analyze chosen images"""
-    with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
-        writer = csv.writer(csv_file)
-        writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
-
-        layer1_rules = []
-        for q in range(Config.Q_RANGE, 0, -1):
-            layer1_rules.append(f"[0,{q},{q},{q},0]")   #create firing rules for quantization in range Q_RANGE to 1
-
-        block_sq = Config.BLOCK_SHAPE ** 2
-        layer2_rules = [f"[1,{(q * block_sq) - int(block_sq - 2)},1,{q},0]" for q in range(Config.Q_RANGE, 0, -1)]
-        layer2_rules.append("[1,1,1,0,0]")
-
-
-        for neuron_id in range(Config.NEURONS_LAYER1):
-            block_row = (neuron_id // Config.IMG_SHAPE) // Config.BLOCK_SHAPE
-            block_col = (neuron_id % Config.IMG_SHAPE) // Config.BLOCK_SHAPE
-            block_id = block_row * int(Config.IMG_SHAPE/Config.BLOCK_SHAPE) + block_col
-            output_neuron = Config.NEURONS_L1 + block_id
-
-            writer.writerow([
-                neuron_id,            # id
-                0,                    # initial_charge
-                f"[{output_neuron}]", # output_targets
-                0,                    # neuron_type
-                # "[0,4,4,4,0]",
-                # "[0,3,3,3,0]",
-                # "[0,2,2,2,0]",
-                # "[0,1,1,1,0]"         # firing rules
-                *layer1_rules         # firing rules
-            ])
-
-        # Layer 2: Pooling (49 neurons)
-        layer3_targets = str(list(range(Config.NEURONS_L12, Config.NEURONS_T))) # for firing at the third layer neurons
-        for neuron_id in range(Config.NEURONS_L1, Config.NEURONS_L12):
-            writer.writerow([
-                neuron_id,            # id
-                0,                    # initial_charge
-                layer3_targets,       # output_targets
-                1,                    # neuron_type
-                # "[1,13,1,4,0]",
-                # "[1,9,1,3,0]",
-                # "[1,5,1,2,0]",
-                # "[1,1,1,1,0]",       # firing rules if c >= 1
-                # "[1,1,1,0,0]"        # forgetting rule if didn't fire
-                *layer2_rules        # forgetting rule if didn't fire
-            ])
-
-        # Layer 3: Comparison (8 neurons)
-        base_thresh = Config.COMPARISON_THRESHOLD #treshold to overcome for layer 3 neurons to fire to layer 4 neurons
-        layer4_targets = str(list(range(Config.NEURONS_L3, Config.NEURONS_T))) # for firing at the output neurons, now layers 3 and 4 are fully connected, this list contains all output layer neurons' indices
-        for neuron_id in range(Config.NEURONS_L12, Config.NEURONS_L3):
-            current_thresh = base_thresh
-
-            # REGOLA 1: Alta Confidenza (Spara 3)
-            rule_high = f"[1, {base_thresh + 10}, 1, 3, 0]"
-
-            # REGOLA 2: Media Confidenza (Spara 2)
-            rule_med = f"[1, {base_thresh + 5}, 1, 2, 0]"
-
-            # REGOLA 3: Bassa Confidenza (Spara 1 - Default)
-            rule_low = f"[1, {base_thresh}, 1, 1, 0]"
-
-            writer.writerow([
-                neuron_id,            # id
-                0,                    # initial_charge
-                layer4_targets,       # output_targets
-                1,                    # neuron_type
-                rule_high,
-                rule_med,
-                rule_low,
-                "[1,1,1,0,0]"        # forgetting rule
-            ])
-
-        # Layer 4: Output (8 neurons)
-        for neuron_id in range(Config.NEURONS_L3, Config.NEURONS_T):
-            #label = neuron_id - Config.NEURONS_L12
-            writer.writerow([
-                neuron_id,            # id
-                0,                    # initial_charge
-                "[]",                 # output_targets
-                2,                    # neuron_type
-                "[1,1,1,0,0]"         # forgetting rule
-            ])
-
-
-def binarized_SNPS_csv(threshold_matrix=None):
-    """Generate the SN P system to analyze chosen images
-    If a matrix is passed, update the existing P system"""
-    with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
-        writer = csv.writer(csv_file)
-        writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
-
-        # Layer 1: Input RGB (784 neurons) from 28x28 to 7x7 using 4x4 blocks
-        for neuron_id in range(Config.NEURONS_L1):
-            block_row = (neuron_id // Config.IMG_SHAPE) // Config.BLOCK_SHAPE
-            block_col = (neuron_id % Config.IMG_SHAPE) // Config.BLOCK_SHAPE
-            block_id = block_row * int(Config.IMG_SHAPE/Config.BLOCK_SHAPE) + block_col
-            output_neuron = Config.NEURONS_L1 + block_id
-
-            writer.writerow([
-                neuron_id,            # id
-                0,                    # initial_charge
-                f"[{output_neuron}]", # output_targets
-                0,                    # neuron_type
-                "[0,1,1,1,0]"         # firing rule
-            ])
-
-        # Layer 2: Pooling (49 neurons) - id 784–832
-        output_targets = str(list(range(Config.NEURONS_L12, Config.NEURONS_T))) # for firing at the output neurons
-        if threshold_matrix is None:
-            for neuron_id in range(Config.NEURONS_L1, Config.NEURONS_L12):
-                writer.writerow([
-                    neuron_id,            # id
-                    0,                    # initial_charge
-                    output_targets,       # output_targets
-                    1,                    # neuron_type
-                    "[1,1,0,1,0]",       # firing rule if c >= 1
-                    "[1,1,1,0,0]"        # forgetting rule if didn't fire
-                ])
-
-        else: # change the P system using the new charges for the firing rules
-            threshold_array = threshold_matrix.flatten()
-            for neuron_id in range(Config.NEURONS_L1, Config.NEURONS_L12):
-                firing_threshold = threshold_array[neuron_id - Config.NEURONS_L1]
-                firing_rule = f"[1,{firing_threshold},0,1,0]"
-                writer.writerow([
-                    neuron_id,            # id
-                    0,                    # initial_charge
-                    output_targets, # output_targets
-                    1,                    # neuron_type
-                    firing_rule,          # firing rule based on input matrix
-                    "[1,1,1,0,0]"        # forgetting rule if didn't fire
-                ])
-
-        # Layer 3: Output (8 neurons) - id 833–840
-        for neuron_id in range(Config.NEURONS_L12, Config.NEURONS_T):
-            #label = neuron_id - Config.NEURONS_L12
-            writer.writerow([
-                neuron_id,            # id
-                0,                    # initial_charge
-                "[]",                 # output_targets
-                2,                    # neuron_type
-                "[1,1,1,0,0]"         # forgetting rule
-            ])
-
-def prune_SNPS(pruned_matrix_l2, pruned_matrix_l3=None):
-    """change the synapses in the csv file, now takes two matrices instead of one, for synapse pruning between layer 2 and 3 and 3 and 4
-    prune_matrix_l2: weights between layer 2 and 3
-    prune_matrix_l3: weights between layer 3 and 4"""
-    with open("csv/" + Config.CSV_NAME, 'r') as f_in, open("csv/" + Config.CSV_NAME_PRUNED, 'w', newline='') as f_out:
-        reader = csv.reader(f_in)
-        writer = csv.writer(f_out)
-        header = next(reader)
-        writer.writerow(header)
-        for row in reader:
-            neuron_id = int(row[0])
-            if Config.NEURONS_L1 <= neuron_id < Config.NEURONS_L12:
-                neuron_index = neuron_id - Config.NEURONS_L1
-                pruned_outputs = []
-                for class_idx in range(Config.CLASSES):
-                    val = pruned_matrix_l2[class_idx][neuron_index]
-                    if val != 0:
-                        target_id = Config.NEURONS_L12 + class_idx
-                        if val == -1:
-                            target_id = -target_id  # inhibitory
-                        pruned_outputs.append(str(target_id))
-                row[2] = "[" + ", ".join(pruned_outputs) + "]"
-
-            elif Config.NEURONS_L12 <= neuron_id < Config.NEURONS_L3:
-                neuron_index = neuron_id - Config.NEURONS_L12
-                pruned_outputs = []
-                for class_idx in range(Config.CLASSES):
-                    val = pruned_matrix_l3[class_idx][neuron_index]
-                    if val != 0:
-                        target_id = Config.NEURONS_L3 + class_idx
-                        if val == -1:
-                            target_id = -target_id  # inhibitory
-                        pruned_outputs.append(str(target_id))
-                row[2] = "[" + ", ".join(pruned_outputs) + "]"
-
-            writer.writerow(row)
-
 
 def kernel_SNPS_csv():
     """
@@ -272,6 +85,8 @@ def kernel_SNPS_csv():
                 "[1,1,0,0,0]"                # Forgetting rule
             ])
 
+
+
 def cnn_SNPS_csv():
     """Generate the SN P system to replicate the cnn"""
     os.makedirs("csv", exist_ok=True)
@@ -344,7 +159,96 @@ def cnn_SNPS_csv():
                     0,                       # initial_charge
                     "[]",                    # output_targets
                     1,                       # neuron_type
-                    "[1,1,0,0,0]"            # Send all the spikes #TODO send 1/4 of spike.
+                    "[1,1,0,0,0]"            # Send all the spikes
                 ])
 
 
+
+def extend_csv(file_path, q, q_name):
+    # separa nome ed estensione
+    base, ext = os.path.splitext(file_path)
+    new_file_path = f"{base}_{q_name}{ext}"
+
+    with open(file_path, newline='') as f:
+        rows = list(csv.reader(f))
+    #header = reader[0]
+    #rows = reader[1:]
+    output_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3
+    pool_offset = Config.NEURONS_L1 + Config.NEURONS_L2
+
+    # Aggiorna i 1352 neuroni feature
+    #start_idx = 784 + 5408  # cambia se il tuo CSV è diverso
+    #end_idx = start_idx + Config.NEURONS_L3
+    for i in range(Config.NEURONS_L3):
+        row = rows[i+pool_offset+1]
+        # Nuovi output_targets basati su q
+        new_targets = []
+        for j in range(Config.CLASSES):
+
+            weight = q[i, j]
+            j = j + output_offset - 1
+
+            if weight == 1:
+                new_targets.append(j)
+            elif weight == -1:
+                new_targets.append(-j)
+            if len(row) < 3:
+                print(f"Attenzione: riga {i} troppo corta:", row)
+                # Puoi decidere se aggiungere elementi vuoti
+                row += [''] * (3 - len(row))
+        row[2] = str(new_targets)
+
+        #Nuove regole firing
+        new_rules = []
+        for out_spikes in range(Config.K_RANGE[0][1], 0, -1):  # da 48 a 1
+            k = Config.POOLING_SIZE ** 2 * out_spikes  # 48*4, 47*4, ..., 1*4
+            new_rules.append(str([1, k, k, out_spikes, 0]))
+
+        row[:] = row[:4] + new_rules
+
+    #Aggiungi 10 neuroni finali
+    for j in range(Config.CLASSES-1):
+
+        new_row = [
+            output_offset + j,   # id
+            0,             # initial charge
+            "[]",          # nessun output
+            2,              # neuron type (accumulatore)
+            "[1,1,0,0,0]"  # send all spikes
+        ]
+
+        rows.append(new_row)
+
+    #Riscrivi file
+    with open(new_file_path, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
+    print("CSV aggiornato correttamente con path:", new_file_path)
+    return new_file_path
+
+
+
+
+def log_experiment(csv_path="csv/results.csv", params=None, metrics=None):
+    """
+    Log esperimento con parametri variabili.
+    params e metrics vengono salvati come JSON.
+    """
+    file_exists = os.path.isfile(csv_path)
+
+    row = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "params": json.dumps(params or {}),
+        "metrics": json.dumps(metrics or {})
+    }
+
+    fieldnames = ["timestamp", "params", "metrics"]
+
+    with open(csv_path, mode="a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(row)

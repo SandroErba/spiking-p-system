@@ -13,7 +13,7 @@ class SNPSystemTest(unittest.TestCase):
 
     def test_tick_neurons_not_triggering_rules(self):
         Config.MODE = "test"
-        snps = SNPSystem(5, 100, "none", "halting", True)
+        snps = SNPSystem(5, 100,  True)
 
         pn1 = PNeuron(snps, 0, targets=[], transf_rules=[])
         pn2 = PNeuron(snps, 0, targets=[], transf_rules=[])
@@ -35,7 +35,7 @@ class SNPSystemTest(unittest.TestCase):
     def test_tick_output_neuron(self):
         Config.MODE = "test"
         """ the final system output should be [startTick, endTick] - the number of ticks passed between the first two firing of the output neuron"""
-        snps = SNPSystem(5, 100, "none", "generative", True)
+        snps = SNPSystem(5, 100, True)
         
         p1 = PNeuron(snps, 0, targets=[], transf_rules=[])
         p_output = PNeuron(snps, 0, targets=[], transf_rules=[], neuron_type=2)
