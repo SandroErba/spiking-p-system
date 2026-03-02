@@ -1,14 +1,18 @@
 import numpy as np
-from sps.config import Config
+
+#TODo use different and easy ML approach (SVM, decisional tree) and choose the best one
 
 
 class OnlineDiscretePerceptron:
-    def __init__(self, n_features=1352, n_classes=10, sparsity=0.5):
+    def __init__(self, n_features, n_classes, lr,  weight_decay=0.0):
         # sparsity   : percentage of weights that must be 0
         np.random.seed(35)
-        self.n_features = Config.NEURONS_LP #TODo those variables are not working, i cant hardcode the values in the declaration
-        self.n_classes = Config.CLASSES
-        self.sparsity = sparsity
+        self.n_features = n_features
+        self.n_classes = n_classes
+        self.lr = lr
+
+        #TODO defnire weight_decay se funziona
+        self.weight_decay = weight_decay
 
         # random initialization with -1,0, or 1
         self.W = np.random.choice([-1, 0, 1], size=(n_features, n_classes)).astype(np.float64)
@@ -40,14 +44,17 @@ class OnlineDiscretePerceptron:
         x: array shape (1352,)
         y_true: label corretta (0-9)
         """
-        #x_avg = x / 4.0
-        scores = self.forward(x)
-        pred = np.argmax(scores) #TODO replace this 2 lines with the "predict" function
 
-        lr = 0.01
+        scores = self.forward(x)
+        pred = np.argmax(scores)
+
+        # ---- weight decay (L2) ----
+        if self.weight_decay > 0:
+            self.W *= (1 - self.weight_decay)
+
         if pred != y_true:
-            self.W[:, y_true] += lr * x      # rinforza la classe corretta
-            self.W[:, pred] -= lr * x        # indebolisce la classe predetta erroneamente
+            self.W[:, y_true] += self.lr * x      # rinforza la classe corretta
+            self.W[:, pred] -= self.lr * x        # indebolisce la classe predetta erroneamente
 
     # ----------------------------
     # Metodo finale: matrice sinapsi
