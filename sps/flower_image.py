@@ -2,9 +2,9 @@ from torchvision import transforms
 from torchvision.datasets import Flowers102
 import numpy as np
 from sps.config import Config
-from sps.med_image import quantize_rgb_image, binarize_rgb_image, show_quantized_image
+from sps.med_image import quantize_rgb_image, binarize_rgb_image
 
-
+# TODO class: what i should do with this database?
 def get_flowers102_data():
     Config.INVERT = False
     transform = transforms.Compose([

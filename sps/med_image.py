@@ -4,7 +4,7 @@ import numpy as np
 from medmnist import INFO
 from sps.config import Config
 
-
+# TODO class: what i should do with this database?
 def get_mnist_data(data_name): # download the database
     info = INFO[data_name]
     data_class = getattr(medmnist, info['python_class'])
