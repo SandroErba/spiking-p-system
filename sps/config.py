@@ -17,7 +17,7 @@ class Config:
 
 
     TRAIN_SIZE = 2000
-    TEST_SIZE = TRAIN_SIZE
+    TEST_SIZE = 2000
 
 
 
@@ -84,6 +84,11 @@ class Config:
 
 def database(database):
     Config.DATABASE = database
+
+    if database == "medmnist":
+        Config.IMG_SHAPE = 28
+        Config.CLASSES = 8
+        Config.BLOCK_SHAPE = 2
 
     if database == "flower":
         Config.IMG_SHAPE = 224

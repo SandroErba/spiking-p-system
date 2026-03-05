@@ -17,6 +17,13 @@ def get_mnist_data(data_name): # download the database
     )
 
 
+def get_mnist_cnn_data(data_name='bloodmnist'):
+    (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_mnist_data(data_name)
+    train_gray = merge_rgb_channels_to_grayscale(train_red, train_green, train_blue)
+    test_gray = merge_rgb_channels_to_grayscale(test_red, test_green, test_blue)
+    return train_gray, train_labels, test_gray, test_labels
+
+
 def process_dataset(dataset, count): # flatten and split among color channels
     imgs = dataset.imgs[:count]
     labels = dataset.labels[:count].flatten()
@@ -43,6 +50,45 @@ def process_dataset(dataset, count): # flatten and split among color channels
         np.array(blue_channel),
         labels
     )
+
+
+def merge_rgb_channels_to_grayscale(red_channel, green_channel, blue_channel):
+    red = np.asarray(red_channel)
+    green = np.asarray(green_channel)
+    blue = np.asarray(blue_channel)
+
+    if red.shape != green.shape or red.shape != blue.shape:
+        raise ValueError("R, G, B channels must have the same shape.")
+
+    rgb = np.stack([red.astype(np.float32), green.astype(np.float32), blue.astype(np.float32)], axis=-1)
+    flat = rgb.reshape(-1, 3)
+
+    mean = flat.mean(axis=0, keepdims=True)
+    centered = flat - mean
+
+    cov = (centered.T @ centered) / max(centered.shape[0] - 1, 1)
+    eigvals, eigvecs = np.linalg.eigh(cov)
+    principal_vec = eigvecs[:, np.argmax(eigvals)]
+
+    if principal_vec.sum() < 0:
+        principal_vec = -principal_vec
+
+    pca_values = centered @ principal_vec
+    pca_gray = pca_values.reshape(red.shape)
+
+    min_val = float(np.min(pca_gray))
+    max_val = float(np.max(pca_gray))
+    if max_val > min_val:
+        gray = (pca_gray - min_val) / (max_val - min_val)
+    else:
+        gray = np.zeros_like(pca_gray, dtype=np.float32)
+
+    if np.issubdtype(red.dtype, np.integer):
+        info = np.iinfo(red.dtype)
+        scaled = gray * info.max
+        return np.clip(np.rint(scaled), info.min, info.max).astype(red.dtype)
+
+    return gray.astype(np.float32)
 
 def binarize_rgb_image(img_rgb): # binarize for create the input array
     binary_channels = 1 - (img_rgb > int(Config.THRESHOLD)).astype(int) # From [0,255] to [0,1]
