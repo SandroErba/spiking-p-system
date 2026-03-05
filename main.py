@@ -3,7 +3,7 @@ import os
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-from sps import  other_networks, cnn, cnn, flower_image, digit_image, handle_csv
+from sps import  other_networks, cnn, flower_image, digit_image, handle_csv
 from sps.config import Config, database
 
 
@@ -11,26 +11,12 @@ database("digit") #can be digit, flower
 #Config.MODE = "generative" #set the mode of the P system: can be cnn (default), generative, halting
 Config.compute_k_range()
 
+cnn.launch_mnist_cnn()
 
-t=time.time()
-accuracy = cnn.launch_28_CNN_SNPS()
+Config.SVM_C = 3.0
+cnn.launch_mnist_cnn()
 
-"""handle_csv.log_experiment(
-    params={
-        "train size": Config.TRAIN_SIZE,
-        "test size": Config.TEST_SIZE,
-        "q range": Config.Q_RANGE,
-        "perceptron sparsity": Config.SPARSITY,
-        "perceptron positive": Config.POSITIVE,
-        "perceptron lr": Config.LR,
-        "database": Config.DATABASE,
-        "kernel number": Config.KERNEL_NUMBER
-    },
-    metrics={
-        "accuracy": accuracy,
-        "time": time.time()-t
-    }
-)"""
+cnn.launch_mnist_cnn()
 
 
 

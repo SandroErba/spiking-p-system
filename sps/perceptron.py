@@ -1,8 +1,5 @@
 import numpy as np
 
-#TODo use different and easy ML approach (SVM, decisional tree) and choose the best one
-
-
 class OnlineDiscretePerceptron:
     def __init__(self, n_features, n_classes, lr,  weight_decay=0.0):
         # sparsity   : percentage of weights that must be 0
@@ -11,7 +8,6 @@ class OnlineDiscretePerceptron:
         self.n_classes = n_classes
         self.lr = lr
 
-        #TODO defnire weight_decay se funziona
         self.weight_decay = weight_decay
 
         # random initialization with -1,0, or 1

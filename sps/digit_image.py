@@ -5,7 +5,7 @@ from sps.config import Config
 
 
 #from tensorflow.keras.datasets import mnist
-def get_28_digit_data():
+def get_mnist_data():
     (train_data, train_label), (test_data, test_label) = mnist.load_data()
     train_data = train_data[:Config.TRAIN_SIZE]
     train_label = train_label[:Config.TRAIN_SIZE]

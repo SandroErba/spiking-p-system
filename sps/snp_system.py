@@ -2,7 +2,6 @@ import numpy as np
 from sps.config import Config
 
 from .p_neuron import PNeuron
-from .perceptron import OnlineDiscretePerceptron
 from .spike_utils import SpikeEvent, TransformationRule, History
 import csv
 
@@ -10,9 +9,10 @@ import csv
 class SNPSystem:
     """Spiking Neural P System"""
 
-    def __init__(self, max_delay, max_steps, deterministic):
+    def __init__(self, input_len, max_steps, deterministic):
 
         PNeuron.reset_nid()
+        self.input_len = input_len
         self.t_step = 0
         self.max_steps = max_steps
         self.deterministic = deterministic # can be true or false
@@ -20,7 +20,7 @@ class SNPSystem:
         self.history = None
 
 
-        self.max_delay = max_delay # init circular future spiking events based on max_delay
+        self.max_delay = 5 # init circular future spiking events based on max_delay
         self.spike_events = [[] for _ in range(self.max_delay)]
 
         self.neurons = []
@@ -29,16 +29,12 @@ class SNPSystem:
         # record output
         if Config.MODE == "generative":
             self.output = [] # time between two spikes in the output neuron
-        elif Config.MODE == "edge":
-            self.feature_image = np.zeros((Config.SHAPE_FEATURE * Config.SHAPE_FEATURE, Config.TRAIN_SIZE), dtype=int)
         elif Config.MODE == "cnn":
-            self.feature_image = np.zeros((Config.NEURONS_FEATURE * Config.KERNEL_NUMBER, Config.TRAIN_SIZE), dtype=int)
-            self.pooling_image = np.zeros((Config.NEURONS_L3, Config.TRAIN_SIZE), dtype=int)
-            self.charge_map_pool = np.zeros(Config.NEURONS_L3, dtype=int) #values for the third layer of the cnn #TODO substitute with charge_pooling_image[t_step]
-            self.model = OnlineDiscretePerceptron(Config.NEURONS_L3, Config.CLASSES, Config.LR, 1e-5) #sparsity = % of pruned synapses
+            self.feature_image = np.zeros((Config.NEURONS_FEATURE * Config.KERNEL_NUMBER, input_len), dtype=int)
+            self.pooling_image = np.zeros((Config.NEURONS_L3, input_len), dtype=int)
             self.labels = []
             self.correct = 0
-            self.charge_map_prediction = np.zeros((Config.CLASSES, Config.TEST_SIZE), dtype=int) #values for the last layer of the cnn
+            self.charge_map_prediction = np.zeros((Config.CLASSES, input_len), dtype=int) #values for the last layer of the cnn
 
 
         self.firing_applied = 0 # record energy used
@@ -74,11 +70,6 @@ class SNPSystem:
         any_rule_applied = False
         # evolve each neuron
         for neuron in self.neurons:
-            if Config.MODE == "cnn": # perceptron tuning for cnn
-                pool_offset = Config.NEURONS_L1 + Config.NEURONS_L2
-                if pool_offset <= neuron.nid < (pool_offset + Config.NEURONS_L3):
-                    self.charge_map_pool[neuron.nid - pool_offset] = neuron.charge
-
             used_rule = neuron.tick()
             if used_rule:
                 any_rule_applied = True
@@ -90,13 +81,8 @@ class SNPSystem:
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
-        # perceptron tuning for cnn
-        if Config.MODE == "cnn":
-            if self.t_step >= 3 and self.t_step - 3 < len(self.labels): #3 is the number of layer where the perceptron is applied
-                self.model.update(self.charge_map_pool, self.labels[self.t_step - 3])
-
         input_spike = False # check if there are more input for halting condition
-        if Config.MODE in ("edge", "cnn"): # you have an array of images as input
+        if Config.MODE == "cnn": # you have an array of images as input
             if self.spike_train.any() and self.t_step < len(self.spike_train):
                 input_spike = True
                 input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
@@ -124,13 +110,6 @@ class SNPSystem:
                     self.neurons[-idx].inhibit(spike_event.charge)
                 self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
 
-        # create the output images
-        if Config.MODE == "edge":
-            for input_id in range(Config.SHAPE_FEATURE * Config.SHAPE_FEATURE):
-                offset = input_id + Config.NEURONS_L1 + (Config.SHAPE_FEATURE * Config.SHAPE_FEATURE * Config.KERNEL_NUMBER)
-                if self.neurons[offset].charge > 0:
-                    self.feature_image[input_id][self.t_step - 2] = 1
-
         # fill charge maps
         if Config.MODE == "cnn":
             if 0 < self.t_step <= len(self.spike_train):
@@ -152,7 +131,7 @@ class SNPSystem:
 
         # set negative charge to 0 for the inhibitor spike
         for neuron in self.neurons:
-            if neuron.charge < 0: #TODO implicit RELU function
+            if neuron.charge < 0:
                 neuron.charge = 0
 
         # check for halting computation
