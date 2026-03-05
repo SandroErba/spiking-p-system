@@ -50,11 +50,26 @@ class SimulatorGUI(ctk.CTk):
         self.status = tk.StringVar(value="Ready")
         self.net_var = tk.StringVar(value="Divisible by 3")
         self.dataset_var = tk.StringVar(value="digit")
-        self.method_var = tk.StringVar(value="quantize_percentile")
+        self.quantize_methods = {
+            "quantize_percentile": 1,
+            "quantize_threshold": 2,
+            "quantize_twn": 3,
+        }
+        default_method = next(
+            (
+                name
+                for name, value in self.quantize_methods.items()
+                if value == Config.QUANTIZE_METHOD
+            ),
+            "quantize_percentile",
+        )
+        self.method_var = tk.StringVar(value=default_method)
         self.train_size_var = tk.StringVar(value=str(Config.TRAIN_SIZE))
         self.test_size_var = tk.StringVar(value=str(Config.TEST_SIZE))
         self.q_range_var = tk.StringVar(value=str(Config.Q_RANGE))
         self._positive_int_vcmd = (self.register(self._validate_positive_int), "%P")
+        self.log_textboxes = []
+        self.txt = None
 
         self._build_ui()
         self.after(100, self._update_logs)
@@ -81,7 +96,7 @@ class SimulatorGUI(ctk.CTk):
             text_color="gray",
         ).pack(anchor="w")
 
-        tabs = ctk.CTkTabview(self)
+        tabs = ctk.CTkTabview(self, width=960, height=620)
         tabs.pack(fill="x", padx=20)
         tabs.add("Small Networks")
         pipeline_tab_name = "CNN ➜ SNPS \rPipeline"
@@ -90,30 +105,6 @@ class SimulatorGUI(ctk.CTk):
 
         self._build_small_tab(tabs.tab("Small Networks"), ui_font)
         self._build_pipeline_tab(tabs.tab(pipeline_tab_name), ui_font)
-
-        controls = ctk.CTkFrame(self, fg_color="transparent")
-        controls.pack(fill="x", padx=20, pady=(6, 4))
-        ctk.CTkLabel(controls, textvariable=self.status, font=("Arial", 12, "bold")).pack(side="left")
-        ctk.CTkButton(
-            controls,
-            text="Clear Output",
-            font=("Arial", 16, "bold"),
-            width=120,
-            height=30,
-            command=lambda: self.txt.delete("1.0", "end"),
-        ).pack(side="right")
-
-        out_frame = ctk.CTkFrame(self, fg_color="transparent")
-        out_frame.pack(fill="both", expand=True, padx=20, pady=(0, 8))
-        out_frame.grid_rowconfigure(0, weight=1)
-        out_frame.grid_columnconfigure(0, weight=1)
-
-        self.txt = ctk.CTkTextbox(out_frame, font=("Consolas", 11), wrap="none")
-        self.txt.grid(row=0, column=0, sticky="nsew")
-
-        x_scroll = ctk.CTkScrollbar(out_frame, orientation="horizontal", command=self.txt.xview)
-        x_scroll.grid(row=1, column=0, sticky="ew", pady=(4, 0))
-        self.txt.configure(xscrollcommand=x_scroll.set)
 
     @staticmethod
     def _style_tab_selector(tabview):
@@ -133,6 +124,54 @@ class SimulatorGUI(ctk.CTk):
             height=44,
         ).pack(anchor="w", pady=pady)
 
+    @staticmethod
+    def _place_widget(widget, manager, options):
+        if manager == "grid":
+            widget.grid(**options)
+        elif manager == "pack":
+            widget.pack(**options)
+        else:
+            raise ValueError(f"Unsupported manager '{manager}'. Use 'grid' or 'pack'.")
+
+    def _build_output_section(
+        self,
+        parent,
+        controls_manager="pack",
+        controls_options=None,
+        output_manager="pack",
+        output_options=None,
+    ):
+        """Create status + clear button + output textbox, with configurable placement."""
+        controls_options = controls_options or {"fill": "x", "padx": 20, "pady": (6, 4)}
+        output_options = output_options or {"fill": "both", "expand": True, "padx": 20, "pady": (0, 8)}
+
+        controls = ctk.CTkFrame(parent, fg_color="transparent")
+        self._place_widget(controls, controls_manager, controls_options)
+        ctk.CTkLabel(controls, textvariable=self.status, font=("Arial", 12, "bold")).pack(side="left")
+
+        textbox_container = ctk.CTkFrame(parent, fg_color="transparent")
+        self._place_widget(textbox_container, output_manager, output_options)
+        textbox_container.grid_rowconfigure(0, weight=1)
+        textbox_container.grid_columnconfigure(0, weight=1)
+
+        txt = ctk.CTkTextbox(textbox_container, font=("Consolas", 11), wrap="none")
+        txt.grid(row=0, column=0, sticky="nsew")
+
+        ctk.CTkButton(
+            controls,
+            text="Clear Output",
+            font=("Arial", 16, "bold"),
+            width=120,
+            height=30,
+            command=lambda: txt.delete("1.0", "end"),
+        ).pack(side="right")
+
+        self.log_textboxes.append(txt)
+        if self.txt is None:
+            self.txt = txt
+
+        return controls, textbox_container, txt
+
     def _build_small_tab(self, tab, ui_font):
         # Basic layout for the small tab.
         tab.grid_columnconfigure(0, weight=1)
@@ -140,9 +179,13 @@ class SimulatorGUI(ctk.CTk):
         tab.grid_rowconfigure(0, weight=1)
         tab.grid_rowconfigure(1, weight=0)
         tab.grid_rowconfigure(2, weight=1)
+        tab.grid_rowconfigure(3, weight=1)
+        tab.grid_rowconfigure(4, weight=1)
 
         left = ctk.CTkFrame(tab, fg_color="transparent")
         left.grid(row=1, column=0, sticky="w", padx=20)
+
+
 
         ctk.CTkLabel(left, text="Choose a network example:", font=ui_font).pack(anchor="w", pady=(0, 10))
         self._menu(left, self.net_var, ["Divisible by 3", "Generate even", "Extended rules"], ui_font, pady=0)
@@ -150,47 +193,59 @@ class SimulatorGUI(ctk.CTk):
             row=1, column=1, sticky="e", padx=(10, 20)
         )
 
+        self._build_output_section(
+            tab,
+            controls_manager="grid",
+            controls_options={"row": 3, "column": 0, "columnspan": 2, "sticky": "ew", "padx": 20, "pady": (6, 4)},
+            output_manager="grid",
+            output_options={"row": 4, "column": 0, "columnspan": 2, "sticky": "nsew", "padx": 20, "pady": (0, 8)},
+        )
+
     def _build_pipeline_tab(self, tab, ui_font):
-        # 4 columns: left controls, middle parameters, spacer, right run button.
-        tab.grid_columnconfigure(0, weight=3, minsize=420)
-        tab.grid_columnconfigure(1, weight=3, minsize=320)
-        tab.grid_columnconfigure(2, weight=1, minsize=40)
-        tab.grid_columnconfigure(3, weight=0, minsize=220)
+        # Two-column layout:
+        # - left: all configurable parameters (ready for future additions)
+        # - right: run button + output panel
+        tab.grid_columnconfigure(0, weight=3, minsize=620)
+        tab.grid_columnconfigure(1, weight=2, minsize=340)
         tab.grid_rowconfigure(0, weight=1)
-        tab.grid_rowconfigure(1, weight=0)
-        tab.grid_rowconfigure(2, weight=1)
 
         left = ctk.CTkFrame(tab, fg_color="transparent")
-        left.grid(row=1, column=0, sticky="nw", padx=(20, 20))
+        left.grid(row=0, column=0, sticky="nsew", padx=(20, 10), pady=(10, 10))
 
-        middle = ctk.CTkFrame(tab, fg_color="transparent")
-        middle.grid(row=1, column=1, sticky="nw", padx=(20, 20))
-
-        spacer = ctk.CTkFrame(tab, fg_color="transparent")
-        spacer.grid(row=1, column=2, sticky="nsew")
+        # Internal frame for parameters to keep layout clean and expandable.
+        left_form = ctk.CTkFrame(left, fg_color="transparent")
+        left_form.pack(fill="both", expand=True, anchor="nw")
 
         right = ctk.CTkFrame(tab, fg_color="transparent")
-        right.grid(row=1, column=3, sticky="nsew", padx=(20, 20))
+        right.grid(row=0, column=1, sticky="nsew", padx=(10, 20), pady=(10, 10))
         right.grid_columnconfigure(0, weight=1)
-        right.grid_rowconfigure(0, weight=1)
-        right.grid_rowconfigure(1, weight=0)
-        right.grid_rowconfigure(2, weight=1)
+        right.grid_rowconfigure(0, weight=0)
+        right.grid_rowconfigure(1, weight=1)
+        right.grid_rowconfigure(2, weight=0)
 
-        ctk.CTkLabel(left, text="Dataset:", font=ui_font).pack(anchor="w", pady=(0, 10))
-        self._menu(left, self.dataset_var, ["digit", "flower"], ui_font, pady=(0, 16))
+        self._build_output_section(
+            right,
+            controls_manager="grid",
+            controls_options={"row": 2, "column": 0, "sticky": "ew", "padx": 0, "pady": (6, 0)},
+            output_manager="grid",
+            output_options={"row": 1, "column": 0, "sticky": "nsew", "padx": 0, "pady": (10, 8)},
+        )
 
-        ctk.CTkLabel(left, text="Quantization Method TODO:", font=ui_font).pack(anchor="w", pady=(0, 10))
+        ctk.CTkLabel(left_form, text="Dataset:", font=ui_font).pack(anchor="w", pady=(0, 10))
+        self._menu(left_form, self.dataset_var, ["digit", "flower"], ui_font, pady=(0, 16))
+
+        ctk.CTkLabel(left_form, text="Quantization Method:", font=ui_font).pack(anchor="w", pady=(0, 10))
         self._menu(
-            left,
+            left_form,
             self.method_var,
             ["quantize_percentile", "quantize_threshold", "quantize_twn"],
             ui_font,
             pady=0,
         )
 
-        ctk.CTkLabel(middle, text="Train Size:", font=ui_font).pack(anchor="w", pady=(0, 6))
+        ctk.CTkLabel(left_form, text="Train Size:", font=ui_font).pack(anchor="w", pady=(12, 6))
         ctk.CTkEntry(
-            middle,
+            left_form,
             textvariable=self.train_size_var,
             width=180,
             height=30,
@@ -198,9 +253,9 @@ class SimulatorGUI(ctk.CTk):
             validatecommand=self._positive_int_vcmd,
         ).pack(anchor="w", pady=(0, 10))
 
-        ctk.CTkLabel(middle, text="Test Size:", font=ui_font).pack(anchor="w", pady=(0, 6))
+        ctk.CTkLabel(left_form, text="Test Size:", font=ui_font).pack(anchor="w", pady=(0, 6))
         ctk.CTkEntry(
-            middle,
+            left_form,
             textvariable=self.test_size_var,
             width=180,
             height=30,
@@ -208,9 +263,9 @@ class SimulatorGUI(ctk.CTk):
             validatecommand=self._positive_int_vcmd,
         ).pack(anchor="w", pady=(0, 10))
 
-        ctk.CTkLabel(middle, text="Q Range:", font=ui_font).pack(anchor="w", pady=(0, 6))
+        ctk.CTkLabel(left_form, text="Q Range:", font=ui_font).pack(anchor="w", pady=(0, 6))
         ctk.CTkEntry(
-            middle,
+            left_form,
             textvariable=self.q_range_var,
             width=180,
             height=30,
@@ -219,7 +274,7 @@ class SimulatorGUI(ctk.CTk):
         ).pack(anchor="w", pady=0)
 
         ctk.CTkButton(right, text="Run", font=ui_font, width=180, height=48, command=self._run_pipeline).grid(
-            row=1, column=0, sticky="e"
+            row=0, column=0, sticky="e"
         )
 
     @staticmethod
@@ -279,8 +334,9 @@ class SimulatorGUI(ctk.CTk):
             Config.TRAIN_SIZE = train_size
             Config.TEST_SIZE = test_size
             Config.Q_RANGE = q_range
+            Config.QUANTIZE_METHOD = self.quantize_methods[self.method_var.get()]
             Config.compute_k_range()
-            cnn.launch_28_CNN_SNPS()
+            cnn.launch_mnist_cnn()
 
         self._start_thread(task, f"Pipeline: {dataset_name}")
 
@@ -315,8 +371,10 @@ class SimulatorGUI(ctk.CTk):
                 chunks.append(msg)
 
         if chunks:
-            self.txt.insert("end", "".join(chunks))
-            self.txt.see("end")
+            text = "".join(chunks)
+            for txt in self.log_textboxes:
+                txt.insert("end", text)
+                txt.see("end")
 
         self.after(100, self._update_logs)
 
