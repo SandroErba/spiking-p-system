@@ -23,22 +23,17 @@ from sklearn.metrics import roc_auc_score
 
 
 def launch_mnist_cnn():
-    t=time.time()
+    t=time.time() #TODO fare test con C maggiore e minore
     x_train, y_train, x_test, y_test = get_mnist_data()
     cnn_SNPS_csv() #use only if the csv was changed
     svm, logreg = train_cnn(x_train, y_train)
     train_time = time.time() - t
 
+    #test phase
     t=time.time()
     svm_accuracy, lr_accuracy = test_cnn(x_test, y_test, svm, logreg)
     handle_csv.save_results(svm_accuracy, lr_accuracy, time.time()-t+train_time)
 
-
-
-
-
-
-    return -1, -1
 
 
 def train_cnn(x_train, y_train):
@@ -48,8 +43,7 @@ def train_cnn(x_train, y_train):
     snps.labels = y_train
     snps.start()
 
-
-    #SVM
+    #Support Vector Machine
     svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
     svm.fit(snps.pooling_image.T, y_train)
 
@@ -71,23 +65,23 @@ def print_results(y_test, pred, scores):
         average="macro"
     )
     print("ROC AUC:", roc_auc)
-    #print("F1 macro:", f1_score(y_test, pred, average="macro"))
-    #print("F1 weighted:", f1_score(y_test, pred, average="weighted"))
-    #print(classification_report(y_test, pred))
+    print("F1 macro:", f1_score(y_test, pred, average="macro"))
+    print("F1 weighted:", f1_score(y_test, pred, average="weighted"))
+    print(classification_report(y_test, pred))
 
 def test_cnn(x_test, y_test, svm, logreg):
 
     #-------------------------Testing the svm on SNPS-------------------------
-    #snps_svm_pred, features = extend_and_test(x_test,"svm", svm.coef_, None)
-    #snps_svm_accuracy = np.mean(snps_svm_pred == y_test)
-    #print("------SNPS svm accuracy:", snps_svm_accuracy)
-    #print_results(y_test, snps_svm_pred)
+    snps_svm_pred, _, svm_scores = extend_and_test(x_test,"svm", svm.coef_, None)
+    snps_svm_accuracy = np.mean(snps_svm_pred == y_test)
+    print("SNPS svm not_imp accuracy:", snps_svm_accuracy)
+    #print_results(y_test, svm_scores)
 
 
-    snps_imp_svm_pred, features, svm_scores = extend_and_test(x_test,"svm", svm.coef_, get_importance(svm.coef_))
+    snps_imp_svm_pred, features, svm_imp_scores = extend_and_test(x_test,"svm_imp", svm.coef_, get_importance(svm.coef_))
     snps_imp_svm_accuracy = np.mean(snps_imp_svm_pred == y_test)
     print("SNPS svm accuracy:", snps_imp_svm_accuracy)
-    #print_results(y_test, snps_imp_svm_pred, svm_scores)
+    #print_results(y_test, snps_imp_svm_pred, svm_imp_scores)
 
 
     features_int_pos = np.maximum(features // 4, 0)
@@ -99,13 +93,13 @@ def test_cnn(x_test, y_test, svm, logreg):
 
 
     #-------------------------Testing the logreg on SNPS-------------------------
-    #snps_lr_pred, _ = extend_and_test(x_test,"lr", logreg.coef_, None)
-    #lr_accuracy = np.mean(snps_lr_pred == y_test)
-    #print("------SNPS logreg accuracy:", lr_accuracy)
+    snps_lr_pred, _, _ = extend_and_test(x_test,"lr", logreg.coef_, None)
+    lr_accuracy = np.mean(snps_lr_pred == y_test)
+    print("SNPS logreg not_imp accuracy:", lr_accuracy)
     #print_results(y_test, snps_lr_pred)
 
 
-    snps_imp_lr_pred, _, lr_scores = extend_and_test(x_test,"lr", logreg.coef_, get_importance(logreg.coef_))
+    snps_imp_lr_pred, _, lr_scores = extend_and_test(x_test,"lr_imp", logreg.coef_, get_importance(logreg.coef_))
     snps_imp_lr_accuracy = np.mean(snps_imp_lr_pred == y_test)
     print("SNPS logreg accuracy:", snps_imp_lr_accuracy)
     #print_results(y_test, snps_imp_lr_pred, lr_scores)
@@ -139,25 +133,27 @@ def get_importance(w):
     return multipliers
 
 def compute_neuron_importance(w):
-    if Config.ALPHA_METHOD == 1: alpha = np.linalg.norm(w, axis=0) #alpha 1 - magnitude
-    else: alpha = np.max(w, axis=0) - np.min(w, axis=0) #Config.ALPHA == 2
-    alpha = alpha / (alpha.max() + 1e-8)
+    #Magnitude: neurons with larger overall weights across classes are considered more influential
+    if Config.ALPHA_METHOD == 1: alpha = np.linalg.norm(w, axis=0) #alpha 1
+    # Weight range: neurons whose weights vary more between classes are considered more discriminative
+    else: alpha = np.max(w, axis=0) - np.min(w, axis=0) #Config.ALPHA_METHOD == 2
+    alpha = alpha / max(alpha.max(), 1e-8) #Normalize in range [0:1]
     return alpha
 
 
-# layers discretization for rules tuning
-def discretize_percentile(alpha): #method 1 - percentile
-    p25 = np.percentile(alpha, 25)
-    p75 = np.percentile(alpha, 75)
-    multipliers = np.ones_like(alpha)
-    multipliers[alpha > p75] = 3
-    multipliers[(alpha > p25) & (alpha <= p75)] = 2
-    multipliers[alpha <= p25] = 1
-    return multipliers.astype(int)
+def discretize_percentile(alpha): #method 1 - percentile based importance
+    p25 = np.percentile(alpha, 25)   # first quartile
+    p75 = np.percentile(alpha, 75)   # third quartile
+    multipliers = np.ones_like(alpha)  # default multiplier = 1 (low importance)
 
-def discretize_proportional(alpha): #method 2 - proporzionale
-    multipliers = 1 + np.round(alpha * 3)
-    return int(multipliers)
+    multipliers[alpha > p75] = 3       # top 25% most important neurons
+    multipliers[(alpha > p25) & (alpha <= p75)] = 2  # middle 50%
+    multipliers[alpha <= p25] = 1      # bottom 25%
+    return multipliers.astype(int) # convert to integer
+
+def discretize_proportional(alpha): #method 2 - proportional based importance
+    multipliers = 1 + np.round(alpha * Config.DISC_RANGE)
+    return int(multipliers) # convert to integer
 
 
 
@@ -167,6 +163,7 @@ def quantize_matrix(w):
     elif Config.QUANTIZE_METHOD == 2: q = quantize_threshold(w, Config.M_THRESHOLD) # Threshold-based
     else: _, q, _ = quantize_twn(w) #Config.QUANTIZE_METHOD == 3
     return q
+
 
 #https://www.emergentmind.com/topics/ternary-weight-networks-twns
 #il link contiene info sulle reti ternarie TWN con pesi {-1,0,1}

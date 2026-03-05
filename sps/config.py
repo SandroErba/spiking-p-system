@@ -11,8 +11,8 @@ class Config:
     QUANTIZATION = True
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
 
-    TRAIN_SIZE = 5000
-    TEST_SIZE = 1000
+    TRAIN_SIZE = 1000
+    TEST_SIZE = 500
 
     #L1 - INPUT IMAGE
     NEURONS_L1 = int(IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
@@ -57,7 +57,7 @@ class Config:
     SVM_C = 1.0 #TODO ___tunable___
 
     #MATRIX QUANTIZE #TODO ___tunable___
-    QUANTIZE_METHOD = 1 #TODO add in GUI
+    QUANTIZE_METHOD = 3 #TODO add in GUI
     M_SPARSITY = 0.5 #percentage of 0 values in the quantized matrix, used if QUANTIZE_METHOD == 1
     M_POSITIVE = 0.25 #percentage of 1 values in the quantized matrix, used if QUANTIZE_METHOD == 1
     M_THRESHOLD = 0.5 #multiplied factor for column values, used if QUANTIZE_METHOD == 2
@@ -65,6 +65,7 @@ class Config:
     #IMPORTANCE #TODO ___tunable___
     ALPHA_METHOD = 2 #how the model calculate the magnitude of the weights #TODO add in GUI
     DISCRETIZE_METHOD = 1 #how the model apply the *3 to rules #TODO add in GUI
+    DISC_RANGE = 2
 
     # ENERGY COSTS
     WORST_REGEX = 100

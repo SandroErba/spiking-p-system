@@ -11,12 +11,12 @@ database("digit") #can be digit, flower
 #Config.MODE = "generative" #set the mode of the P system: can be cnn (default), generative, halting
 Config.compute_k_range()
 
+cnn.launch_mnist_cnn()
 
-#t=time.time()
-svm_accuracy, lr_accuracy = cnn.launch_mnist_cnn()
+Config.SVM_C = 3.0
+cnn.launch_mnist_cnn()
 
-#handle_csv.save_results(svm_accuracy, lr_accuracy, time.time()-t) #save the results in the results.csv file as JSON
-
+cnn.launch_mnist_cnn()
 
 
 
