@@ -133,7 +133,7 @@ def cnn_SNPS_csv():
         for k_index in range(len(Config.KERNELS)):
             l2_firing_rules = [
                 f"[0,{i},{i},{i},0]"
-                for i in range(Config.K_RANGE[k_index][1], 0, -1) #TODO im ignoring the negative values?
+                for i in range(Config.K_RANGE[k_index][1], 0, -1)
             ]
 
             layer2_offset = Config.NEURONS_L1 + k_index * Config.NEURONS_FEATURE
@@ -164,7 +164,7 @@ def cnn_SNPS_csv():
 
 
 
-def extend_csv(file_path, q, q_name):
+def extend_csv(file_path, q, q_name, multipliers):
     # separa nome ed estensione
     base, ext = os.path.splitext(file_path)
     new_file_path = f"{base}_{q_name}{ext}"
@@ -176,9 +176,6 @@ def extend_csv(file_path, q, q_name):
     output_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3
     pool_offset = Config.NEURONS_L1 + Config.NEURONS_L2
 
-    # Aggiorna i 1352 neuroni feature
-    #start_idx = 784 + 5408  # cambia se il tuo CSV è diverso
-    #end_idx = start_idx + Config.NEURONS_L3
     for i in range(Config.NEURONS_L3):
         row = rows[i+pool_offset+1]
         # Nuovi output_targets basati su q
@@ -194,7 +191,6 @@ def extend_csv(file_path, q, q_name):
                 new_targets.append(-j)
             if len(row) < 3:
                 print(f"Attenzione: riga {i} troppo corta:", row)
-                # Puoi decidere se aggiungere elementi vuoti
                 row += [''] * (3 - len(row))
         row[2] = str(new_targets)
 
@@ -202,7 +198,8 @@ def extend_csv(file_path, q, q_name):
         new_rules = []
         for out_spikes in range(Config.K_RANGE[0][1], 0, -1):  # da 48 a 1
             k = Config.POOLING_SIZE ** 2 * out_spikes  # 48*4, 47*4, ..., 1*4
-            new_rules.append(str([1, k, k, out_spikes, 0]))
+            multiplied = int(out_spikes * multipliers[i]) if multipliers is not None else out_spikes #TODO rules tuning
+            new_rules.append(str([1, k, k, multiplied, 0]))
 
         row[:] = row[:4] + new_rules
 
@@ -224,10 +221,31 @@ def extend_csv(file_path, q, q_name):
         writer = csv.writer(f)
         writer.writerows(rows)
 
-    print("CSV aggiornato correttamente con path:", new_file_path)
     return new_file_path
 
 
+def save_results(svm_accuracy, lr_accuracy, time):
+    log_experiment(
+        params={
+            "train size": Config.TRAIN_SIZE,
+            "test size": Config.TEST_SIZE,
+            "q range": Config.Q_RANGE,
+            "svm c": Config.SVM_C,
+            "quantize method": Config.QUANTIZE_METHOD,
+            "alpha method": Config.ALPHA_METHOD,
+            "discretize method": Config.DISCRETIZE_METHOD,
+            "matrix sparsity": Config.M_SPARSITY,
+            "matrix positive": Config.M_POSITIVE,
+            "matrix threshold": Config.M_THRESHOLD,
+            "database": Config.DATABASE,
+            "kernel number": Config.KERNEL_NUMBER
+        },
+        metrics={
+            "SVM accuracy": svm_accuracy,
+            "LR accuracy": lr_accuracy,
+            "time": time
+        }
+    )
 
 
 def log_experiment(csv_path="csv/results.csv", params=None, metrics=None):
