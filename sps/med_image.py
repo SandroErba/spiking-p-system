@@ -4,7 +4,13 @@ import numpy as np
 from medmnist import INFO
 from sps.config import Config
 
-# TODO class: what i should do with this database?
+# TODO Matteo
+#https://medmnist.com/
+#togliere italiano dalle classi eccetto cnn.py
+#testare effetto della variabile DISC_RANGE (DISCRETIZE_METHOD = 2)
+#aggiungi BreastMNIST e altri, testali
+#risolvere i TODO add in GUI
+
 def get_mnist_data(data_name): # download the database
     info = INFO[data_name]
     data_class = getattr(medmnist, info['python_class'])

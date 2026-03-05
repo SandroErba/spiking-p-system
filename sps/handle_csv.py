@@ -234,6 +234,7 @@ def save_results(svm_accuracy, lr_accuracy, time):
             "quantize method": Config.QUANTIZE_METHOD,
             "alpha method": Config.ALPHA_METHOD,
             "discretize method": Config.DISCRETIZE_METHOD,
+            "discretization range": Config.DISC_RANGE,
             "matrix sparsity": Config.M_SPARSITY,
             "matrix positive": Config.M_POSITIVE,
             "matrix threshold": Config.M_THRESHOLD,
