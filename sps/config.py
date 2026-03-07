@@ -55,7 +55,7 @@ def configure(mode):
         Config.NEURONS_L3 = Config.NEURONS_L12 + Config.CLASSES # aggiungo un layer con 8 neuroni 833+8=841
         Config.NEURONS_T = Config.NEURONS_L3 + Config.CLASSES # 841
 
-        Config.COMPARISON_THRESHOLD = 1  # threshold for the comparison during the quantized images processing
+        Config.COMPARISON_THRESHOLD = 3  # threshold for the comparison during the quantized images processing
 
 
         Config.CSV_NAME = "SNPS_quantize.csv"
