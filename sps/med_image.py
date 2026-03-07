@@ -54,8 +54,9 @@ def binarize_rgb_image(img_rgb): # binarize for create the input array
 
 def quantize_rgb_image(img_rgb):
     # Divide into 5 ranges: 0, 1–63, 64–127, 128–191, 192–255 TODO can be done from 0-63 -> 1 or 0-63 -> 0 (max 3 spike)
-    quantized = np.ceil(img_rgb.astype(float) / 64).astype(int)
-    quantized[img_rgb == 0] = 0
+    thereshold_fac = 256 / Config.Q_RANGE
+    quantized = np.round(img_rgb.astype(float) / thereshold_fac).astype(int)
+    #quantized[img_rgb == 0] = 0
     inverted = np.where(
         quantized == 0,
         0,
@@ -80,7 +81,7 @@ def show_images(output_array):
     plt.figure(figsize=(2.5 * cols, 2.5 * rows))
 
     for i in range(num_images):
-        img = images[:, i].reshape((Config.SEGMENTED_SHAPE, Config.SEGMENTED_SHAPE))
+        img = images[:, i].reshape((Config.SHAPE_FEATURE, Config.SHAPE_FEATURE))
         plt.subplot(rows, cols, i + 1)
         plt.imshow(img, cmap='gray', vmin=0, vmax=1)
         plt.title(f"Image {i}")

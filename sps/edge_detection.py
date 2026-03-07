@@ -15,7 +15,7 @@ def launch_gray_SNPS():
     snps.spike_train = train_red
     snps.start()
 
-    show_images(snps.image_output)
+    show_images(snps.feature_image)
 
 
 

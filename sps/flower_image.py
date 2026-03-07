@@ -1,4 +1,3 @@
-#TODO try to test quantized SNPS with this
 from torchvision import transforms
 from torchvision.datasets import Flowers102
 import numpy as np

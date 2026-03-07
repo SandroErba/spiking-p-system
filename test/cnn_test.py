@@ -21,7 +21,7 @@ class TestCNNSNPSCSV(unittest.TestCase):
 
         expected_kernels = Config.KERNEL_NUMBER
         expected_layer1 = Config.IMG_SHAPE * Config.IMG_SHAPE
-        expected_layer2_per_kernel = Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE
+        expected_layer2_per_kernel = Config.SHAPE_FEATURE * Config.SHAPE_FEATURE
         expected_layer2 = expected_kernels * expected_layer2_per_kernel
         expected_total_neurons = expected_layer1 + expected_layer2
 

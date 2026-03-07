@@ -12,54 +12,64 @@ def quantized_SNPS_csv():
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
-        # Layer 1: Input RGB from 28x28 to 14x14 using 2x2 blocks
+        layer1_rules = []
+        for q in range(Config.Q_RANGE, 0, -1):
+            layer1_rules.append(f"[0,{q},{q},{q},0]")   #create firing rules for quantization in range Q_RANGE to 1
+
+        block_sq = Config.BLOCK_SHAPE ** 2
+        layer2_rules = [f"[1,{(q * block_sq) - int(block_sq - 2)},1,{q},0]" for q in range(Config.Q_RANGE, 0, -1)]
+        layer2_rules.append("[1,1,1,0,0]")
+
+
         for neuron_id in range(Config.NEURONS_LAYER1):
             block_row = (neuron_id // Config.IMG_SHAPE) // Config.BLOCK_SHAPE
             block_col = (neuron_id % Config.IMG_SHAPE) // Config.BLOCK_SHAPE
             block_id = block_row * int(Config.IMG_SHAPE/Config.BLOCK_SHAPE) + block_col
-            output_neuron = Config.NEURONS_LAYER1 + block_id
+            output_neuron = Config.NEURONS_L1 + block_id
 
             writer.writerow([
                 neuron_id,            # id
                 0,                    # initial_charge
                 f"[{output_neuron}]", # output_targets
                 0,                    # neuron_type
-                "[0,4,4,4,0]",
-                "[0,3,3,3,0]",
-                "[0,2,2,2,0]",
-                "[0,1,1,1,0]"         # firing rules
+                # "[0,4,4,4,0]",
+                # "[0,3,3,3,0]",
+                # "[0,2,2,2,0]",
+                # "[0,1,1,1,0]"         # firing rules
+                *layer1_rules         # firing rules
             ])
 
         # Layer 2: Pooling (49 neurons)
-        layer3_targets = str(list(range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL))) # for firing at the third layer neurons
-        for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
+        layer3_targets = str(list(range(Config.NEURONS_L12, Config.NEURONS_T))) # for firing at the third layer neurons
+        for neuron_id in range(Config.NEURONS_L1, Config.NEURONS_L12):
             writer.writerow([
                 neuron_id,            # id
                 0,                    # initial_charge
                 layer3_targets,       # output_targets
                 1,                    # neuron_type
-                "[1,13,1,4,0]",
-                "[1,9,1,3,0]",
-                "[1,5,1,2,0]",
-                "[1,1,1,1,0]",       # firing rules if c >= 1
-                "[1,1,1,0,0]"        # forgetting rule if didn't fire
+                # "[1,13,1,4,0]",
+                # "[1,9,1,3,0]",
+                # "[1,5,1,2,0]",
+                # "[1,1,1,1,0]",       # firing rules if c >= 1
+                # "[1,1,1,0,0]"        # forgetting rule if didn't fire
+                *layer2_rules        # forgetting rule if didn't fire
             ])
 
         # Layer 3: Comparison (8 neurons)
         base_thresh = Config.COMPARISON_THRESHOLD #treshold to overcome for layer 3 neurons to fire to layer 4 neurons
-        layer4_targets = str(list(range(Config.NEURONS_LAYER3, Config.NEURONS_TOTAL))) # for firing at the output neurons, now layers 3 and 4 are fully connected, this list contains all output layer neurons' indices 
-        for neuron_id in range(Config.NEURONS_LAYER1_2, Config.NEURONS_LAYER3):
+        layer4_targets = str(list(range(Config.NEURONS_L3, Config.NEURONS_T))) # for firing at the output neurons, now layers 3 and 4 are fully connected, this list contains all output layer neurons' indices
+        for neuron_id in range(Config.NEURONS_L12, Config.NEURONS_L3):
             current_thresh = base_thresh
 
             # REGOLA 1: Alta Confidenza (Spara 3)
-            rule_high = f"[1, {base_thresh + 4}, 1, 3, 0]"
-            
+            rule_high = f"[1, {base_thresh + 10}, 1, 3, 0]"
+
             # REGOLA 2: Media Confidenza (Spara 2)
-            rule_med = f"[1, {base_thresh + 2}, 1, 2, 0]"
-            
+            rule_med = f"[1, {base_thresh + 5}, 1, 2, 0]"
+
             # REGOLA 3: Bassa Confidenza (Spara 1 - Default)
             rule_low = f"[1, {base_thresh}, 1, 1, 0]"
-    
+
             writer.writerow([
                 neuron_id,            # id
                 0,                    # initial_charge
@@ -69,11 +79,11 @@ def quantized_SNPS_csv():
                 rule_med,
                 rule_low,
                 "[1,1,1,0,0]"        # forgetting rule
-            ])  
+            ])
 
         # Layer 4: Output (8 neurons)
-        for neuron_id in range(Config.NEURONS_LAYER3, Config.NEURONS_TOTAL):
-            #label = neuron_id - Config.NEURONS_LAYER1_2
+        for neuron_id in range(Config.NEURONS_L3, Config.NEURONS_T):
+            #label = neuron_id - Config.NEURONS_L12
             writer.writerow([
                 neuron_id,            # id
                 0,                    # initial_charge
@@ -91,11 +101,11 @@ def binarized_SNPS_csv(threshold_matrix=None):
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
         # Layer 1: Input RGB (784 neurons) from 28x28 to 7x7 using 4x4 blocks
-        for neuron_id in range(Config.NEURONS_LAYER1):
+        for neuron_id in range(Config.NEURONS_L1):
             block_row = (neuron_id // Config.IMG_SHAPE) // Config.BLOCK_SHAPE
             block_col = (neuron_id % Config.IMG_SHAPE) // Config.BLOCK_SHAPE
             block_id = block_row * int(Config.IMG_SHAPE/Config.BLOCK_SHAPE) + block_col
-            output_neuron = Config.NEURONS_LAYER1 + block_id
+            output_neuron = Config.NEURONS_L1 + block_id
 
             writer.writerow([
                 neuron_id,            # id
@@ -106,9 +116,9 @@ def binarized_SNPS_csv(threshold_matrix=None):
             ])
 
         # Layer 2: Pooling (49 neurons) - id 784–832
-        output_targets = str(list(range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL))) # for firing at the output neurons
+        output_targets = str(list(range(Config.NEURONS_L12, Config.NEURONS_T))) # for firing at the output neurons
         if threshold_matrix is None:
-            for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
+            for neuron_id in range(Config.NEURONS_L1, Config.NEURONS_L12):
                 writer.writerow([
                     neuron_id,            # id
                     0,                    # initial_charge
@@ -120,8 +130,8 @@ def binarized_SNPS_csv(threshold_matrix=None):
 
         else: # change the P system using the new charges for the firing rules
             threshold_array = threshold_matrix.flatten()
-            for neuron_id in range(Config.NEURONS_LAYER1, Config.NEURONS_LAYER1_2):
-                firing_threshold = threshold_array[neuron_id - Config.NEURONS_LAYER1]
+            for neuron_id in range(Config.NEURONS_L1, Config.NEURONS_L12):
+                firing_threshold = threshold_array[neuron_id - Config.NEURONS_L1]
                 firing_rule = f"[1,{firing_threshold},0,1,0]"
                 writer.writerow([
                     neuron_id,            # id
@@ -133,8 +143,8 @@ def binarized_SNPS_csv(threshold_matrix=None):
                 ])
 
         # Layer 3: Output (8 neurons) - id 833–840
-        for neuron_id in range(Config.NEURONS_LAYER1_2, Config.NEURONS_TOTAL):
-            #label = neuron_id - Config.NEURONS_LAYER1_2
+        for neuron_id in range(Config.NEURONS_L12, Config.NEURONS_T):
+            #label = neuron_id - Config.NEURONS_L12
             writer.writerow([
                 neuron_id,            # id
                 0,                    # initial_charge
@@ -154,26 +164,26 @@ def prune_SNPS(pruned_matrix_l2, pruned_matrix_l3=None):
         writer.writerow(header)
         for row in reader:
             neuron_id = int(row[0])
-            if Config.NEURONS_LAYER1 <= neuron_id < Config.NEURONS_LAYER1_2:
-                neuron_index = neuron_id - Config.NEURONS_LAYER1
+            if Config.NEURONS_L1 <= neuron_id < Config.NEURONS_L12:
+                neuron_index = neuron_id - Config.NEURONS_L1
                 pruned_outputs = []
                 num_l3 = pruned_matrix_l2.shape[0] # Questo ora varrà 24
                 for l3_idx in range(num_l3):
                     val = pruned_matrix_l2[l3_idx][neuron_index]
                     if val != 0:
-                        target_id = Config.NEURONS_LAYER1_2 + l3_idx
+                        target_id = Config.NEURONS_L12 + class_idx
                         if val == -1:
                             target_id = -target_id  # inhibitory
                         pruned_outputs.append(str(target_id))
                 row[2] = "[" + ", ".join(pruned_outputs) + "]"
 
-            elif Config.NEURONS_LAYER1_2 <= neuron_id < Config.NEURONS_LAYER3:
-                neuron_index = neuron_id - Config.NEURONS_LAYER1_2
+            elif Config.NEURONS_L12 <= neuron_id < Config.NEURONS_L3:
+                neuron_index = neuron_id - Config.NEURONS_L12
                 pruned_outputs = []
                 for class_idx in range(Config.CLASSES):
                     val = pruned_matrix_l3[class_idx][neuron_index]
                     if val != 0:
-                        target_id = Config.NEURONS_LAYER3 + class_idx
+                        target_id = Config.NEURONS_L3 + class_idx
                         if val == -1:
                             target_id = -target_id  # inhibitory
                         pruned_outputs.append(str(target_id))
@@ -200,9 +210,9 @@ def kernel_SNPS_csv():
         [[1, -1], [-1, 1]]  # Diagonal 2
     ]
     layer1_size = Config.IMG_SHAPE * Config.IMG_SHAPE
-    layer2_size_per_kernel = Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE
+    layer2_size_per_kernel = Config.SHAPE_FEATURE * Config.SHAPE_FEATURE
     total_layer2_size = layer2_size_per_kernel * len(kernels)
-    layer3_offset = Config.NEURONS_LAYER1 + total_layer2_size
+    layer3_offset = Config.NEURONS_L1 + total_layer2_size
 
     with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
@@ -215,15 +225,15 @@ def kernel_SNPS_csv():
             output_targets = []
 
             for k_index, kernel in enumerate(kernels):
-                layer2_offset = Config.NEURONS_LAYER1 + k_index * layer2_size_per_kernel
+                layer2_offset = Config.NEURONS_L1 + k_index * layer2_size_per_kernel
 
                 for ki in range(Config.KERNEL_SHAPE):
                     for kj in range(Config.KERNEL_SHAPE):
                         o_row = i_row - ki
                         o_col = i_col - kj
 
-                        if 0 <= o_row < Config.SEGMENTED_SHAPE and 0 <= o_col < Config.SEGMENTED_SHAPE:
-                            output_idx = o_row * Config.SEGMENTED_SHAPE + o_col
+                        if 0 <= o_row < Config.SHAPE_FEATURE and 0 <= o_col < Config.SHAPE_FEATURE:
+                            output_idx = o_row * Config.SHAPE_FEATURE + o_col
                             target_id = layer2_offset + output_idx
                             weight = kernel[ki][kj]
                             if weight == 1:
@@ -241,7 +251,7 @@ def kernel_SNPS_csv():
 
         # Layer 2: Accumulate spikes from the kernels
         for k_index in range(len(kernels)):
-            layer2_offset = Config.NEURONS_LAYER1 + k_index * layer2_size_per_kernel
+            layer2_offset = Config.NEURONS_L1 + k_index * layer2_size_per_kernel
 
             for i in range(layer2_size_per_kernel):
                 output_target = layer3_offset + i  # Same i-th neuron in layer 3
@@ -263,48 +273,33 @@ def kernel_SNPS_csv():
                 "[1,1,0,0,0]"                # Forgetting rule
             ])
 
-
 def cnn_SNPS_csv():
     """Generate the SN P system to replicate the cnn"""
-    '''kernels = [
-        [[-1, 0, -1], [0, 1, 0], [-1, 0, -1]],
-        [[-1, 1, -1], [1, 1, 1], [-1, 1, -1]],
-        [[-1, 0, 1], [1, 0, 0], [1, 1, -1]],
-        [[-1, 1, -1], [0, -1, 1], [-1, 1, 1]],
-        [[-1, 1, 1], [1, -1, -1], [1, -1, -1]]
-    ]'''
-    kernels = [
-        [[ 1, -1], [ 1, -1]], # Linea Verticale
-        [[-1,  1], [-1,  1]], # Linea Verticale opposta
-        [[ 1,  1], [-1, -1]], # Linea Orizzontale
-        [[-1, -1], [ 1,  1]], # Linea Orizzontale opposta
-        [[ 1, -1], [-1,  1]]  # Diagonale
-    ]
-    layer1_size = Config.IMG_SHAPE * Config.IMG_SHAPE
-    layer2_size_per_kernel = Config.SEGMENTED_SHAPE * Config.SEGMENTED_SHAPE
-    #total_layer2_size = layer2_size_per_kernel * len(kernels)
-    #layer3_offset = Config.NEURONS_LAYER1 + total_layer2_size
     os.makedirs("csv", exist_ok=True)
     with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
         # Layer 1: Input a 28x28 grayscale image
-        for neuron_id in range(layer1_size):
+        l1_firing_rules = [
+            f"[0,{i},{i},{i},0]"
+            for i in range(Config.Q_RANGE, 0, -1)
+        ]
+        for neuron_id in range(Config.NEURONS_L1):
             i_row = neuron_id // Config.IMG_SHAPE
             i_col = neuron_id % Config.IMG_SHAPE
             output_targets = []
 
-            for k_index, kernel in enumerate(kernels):
-                layer2_offset = Config.NEURONS_LAYER1 + k_index * layer2_size_per_kernel
+            for k_index, kernel in enumerate(Config.KERNELS):
+                layer2_offset = Config.NEURONS_L1 + k_index * Config.NEURONS_FEATURE
 
                 for ki in range(Config.KERNEL_SHAPE):
                     for kj in range(Config.KERNEL_SHAPE):
                         o_row = i_row - ki
                         o_col = i_col - kj
 
-                        if 0 <= o_row < Config.SEGMENTED_SHAPE and 0 <= o_col < Config.SEGMENTED_SHAPE:
-                            output_idx = o_row * Config.SEGMENTED_SHAPE + o_col
+                        if 0 <= o_row < Config.SHAPE_FEATURE and 0 <= o_col < Config.SHAPE_FEATURE:
+                            output_idx = o_row * Config.SHAPE_FEATURE + o_col
                             target_id = layer2_offset + output_idx
                             weight = kernel[ki][kj]
                             if weight == 1:
@@ -317,72 +312,40 @@ def cnn_SNPS_csv():
                 0,                             # initial_charge
                 str(output_targets),           # output_targets
                 0,                             # neuron_type
-                "[0,4,4,4,0]",
-                "[0,3,3,3,0]",
-                "[0,2,2,2,0]",
-                "[0,1,1,1,0]"                   # firing rules
+                *l1_firing_rules                  # firing rules
             ])
 
-        '''# Layer 2: Accumulate spikes from the kernels
-        for k_index in range(len(kernels)):
-            layer2_offset = Config.NEURONS_LAYER1 + k_index * layer2_size_per_kernel
+        # Layer 2: Accumulate spikes from the kernels and extract features
+        for k_index in range(len(Config.KERNELS)):
+            l2_firing_rules = [
+                f"[0,{i},{i},{i},0]"
+                for i in range(Config.K_RANGE[k_index][1], 0, -1) #TODO im ignoring the negative values?
+            ]
 
-            for i in range(layer2_size_per_kernel):
-                #output_target = layer3_offset + i + k_index * layer2_size_per_kernel  # i-th neuron in layer 3
+            layer2_offset = Config.NEURONS_L1 + k_index * Config.NEURONS_FEATURE
+
+            for i in range(Config.NEURONS_FEATURE):
+                output_targets = [] # Target definition
+                j = ((i // Config.SHAPE_FEATURE) // Config.POOLING_SIZE) * Config.SHAPE_POOL + ((i % Config.SHAPE_FEATURE) // Config.POOLING_SIZE) # position in next pooling layer
+                output_targets.append(Config.NEURONS_L1 + Config.NEURONS_L2 + (k_index * Config.NEURONS_POOL) + j)
                 writer.writerow([
                     layer2_offset + i,       # id
+                    0,                       # initial_charge
+                    str(output_targets),     # output_targets
+                    1,                       # neuron_type
+                    *l2_firing_rules         # Send all the spikes
+                ])
+
+        # Layer 3: Apply an average pooling on previous layer
+        for k_index in range(Config.KERNEL_NUMBER):
+            layer3_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + k_index * Config.NEURONS_POOL
+            for i in range(Config.NEURONS_POOL):
+                writer.writerow([
+                    layer3_offset + i,       # id
                     0,                       # initial_charge
                     "[]",                    # output_targets
                     1,                       # neuron_type
-                    "[1,1,1,0,0]"            # For now I only need to see the resulting images
-                ])'''
-        
-        # LAYER 2: Feature Maps (180 neuroni) 
-        layer3_targets = str(list(range(Config.NEURONS_LAYER1_2, Config.NEURONS_LAYER3)))
-        
-        for k_index in range(len(kernels)):
-            layer2_offset = Config.NEURONS_LAYER1 + k_index * layer2_size_per_kernel
-
-            for i in range(layer2_size_per_kernel):
-                writer.writerow([
-                    layer2_offset + i,       # id
-                    0,                       # initial_charge
-                    layer3_targets,          # ### MODIFICA: Invia i dati al Layer 3
-                    1,                       # neuron_type
-                    "[1,13,1,4,0]",          # ### MODIFICA: Regole di sparo base
-                    "[1,9,1,3,0]",
-                    "[1,5,1,2,0]",
-                    "[1,1,1,1,0]",
-                    "[1,1,1,0,0]"            # forgetting rule
+                    "[1,1,0,0,0]"            # Send all the spikes #TODO send 1/4 of spike.
                 ])
 
-        # LAYER 3: Decisione Fully-Connected (100 neuroni)
-        base_thresh = Config.COMPARISON_THRESHOLD 
-        layer4_targets = str(list(range(Config.NEURONS_LAYER3, Config.NEURONS_TOTAL))) 
-        for neuron_id in range(Config.NEURONS_LAYER1_2, Config.NEURONS_LAYER3):
-            # Regole di sparo basate sulla confidenza
-            rule_high = f"[1, {base_thresh + 4}, 1, 3, 0]"
-            rule_med = f"[1, {base_thresh + 2}, 1, 2, 0]"
-            rule_low = f"[1, {base_thresh}, 1, 1, 0]"
-    
-            writer.writerow([
-                neuron_id,            # id
-                0,                    # initial_charge
-                layer4_targets,       # output_targets
-                1,                    # neuron_type
-                rule_high,
-                rule_med,
-                rule_low,
-                "[1,1,1,0,0]"         # forgetting rule
-            ])  
-
-        # LAYER 4: Output Classi (10 neuroni)
-        for neuron_id in range(Config.NEURONS_LAYER3, Config.NEURONS_TOTAL):
-            writer.writerow([
-                neuron_id,            # id
-                0,                    # initial_charge
-                "[]",                 # output_targets
-                2,                    # neuron_type
-                "[1,1,1,0,0]"         # forgetting rule
-            ])
 
