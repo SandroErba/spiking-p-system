@@ -110,6 +110,10 @@ def database(database):
     if database == "pathmnist":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 9
+    
+    if database == "dermamnist":
+        Config.IMG_SHAPE = 28
+        Config.CLASSES = 7
 
     if database == "flower":
         Config.IMG_SHAPE = 224

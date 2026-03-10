@@ -12,7 +12,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score, classification_report
 
 from sps import handle_csv
-from sps.digit_image import get_mnist_data
+from sps.digit_image import get_mnist_data as get_digit_mnist_data
+from sps.med_image import get_mnist_data as get_med_mnist_data
+from sps.flower_image import get_flowers102_data
 from sps.handle_csv import cnn_SNPS_csv, extend_csv
 from sps.config import Config
 from sps.snp_system import SNPSystem
@@ -21,13 +23,43 @@ from sklearn.preprocessing import label_binarize
 from sklearn.metrics import roc_auc_score
 
 
+_CACHED_MODELS = {}
+
+
 
 def launch_mnist_cnn():
     t=time.time() #TODO fare test con C maggiore e minore
-    x_train, y_train, x_test, y_test = get_mnist_data()
-    cnn_SNPS_csv() #use only if the csv was changed
-    svm, logreg = train_cnn(x_train, y_train)
-    train_time = time.time() - t
+    if Config.DATABASE == "digit":
+        print("[DATASET] source=digit_image dataset=digit")
+        x_train, y_train, x_test, y_test = get_digit_mnist_data()
+    elif Config.DATABASE == "flower":
+        print("[DATASET] source=flower_image dataset=flower102")
+        x_train, y_train, x_test, y_test = get_flowers102_data()    
+    else:
+        if not Config.DATABASE:
+            raise ValueError("Config.DATABASE is empty. Set it to 'digit' or a valid MedMNIST name.")
+        print(f"[DATASET] source=med_image dataset={Config.DATABASE}")
+        x_train, y_train, x_test, y_test = get_med_mnist_data(Config.DATABASE)
+
+    cache_key = (
+        Config.DATABASE,
+        Config.TRAIN_SIZE,
+        Config.CSV_NAME,
+        Config.SVM_C,
+        Config.Q_RANGE,
+        Config.KERNEL_NUMBER,
+    )
+
+    train_time = 0.0
+    if cache_key in _CACHED_MODELS:
+        svm, logreg = _CACHED_MODELS[cache_key]
+        print("[MODEL] cached train reused")
+    else:
+        #cnn_SNPS_csv() #use only if the csv was changed
+        svm, logreg = train_cnn(x_train, y_train)
+        train_time = time.time() - t
+        _CACHED_MODELS[cache_key] = (svm, logreg)
+        print("[MODEL] trained and cached")
 
     #test phase
     t=time.time()
@@ -44,7 +76,7 @@ def train_cnn(x_train, y_train):
     snps.start()
 
     #Support Vector Machine
-    svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
+    svm = LinearSVC(C=Config.SVM_C, max_iter=50000)
     svm.fit(snps.pooling_image.T, y_train)
 
     #Logistic Regression
@@ -153,7 +185,7 @@ def discretize_percentile(alpha): #method 1 - percentile based importance
 
 def discretize_proportional(alpha): #method 2 - proportional based importance
     multipliers = 1 + np.round(alpha * Config.DISC_RANGE)
-    return int(multipliers) # convert to integer
+    return multipliers.astype(int) # convert to integer
 
 
 
