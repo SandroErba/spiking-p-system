@@ -1,4 +1,5 @@
 from keras.src.datasets import mnist
+from keras.src.datasets import mnist
 from matplotlib import pyplot as plt
 import numpy as np
 from sps.config import Config
@@ -33,8 +34,12 @@ def show_digit(x, y, train = False):
     if train and Config.TRAIN_SIZE < 30:
         nrows = 2
         ncols = int((Config.TRAIN_SIZE - 1) / 2)
+    if train and Config.TRAIN_SIZE < 30:
+        nrows = 2
+        ncols = int((Config.TRAIN_SIZE - 1) / 2)
 
     fig, axes = plt.subplots(nrows, ncols, figsize=(15, 3))
+
 
 
     for row in range(nrows):

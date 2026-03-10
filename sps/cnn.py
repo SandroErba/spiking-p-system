@@ -465,3 +465,57 @@ ROC AUC: 0.986478484946012
 --------------------------
 
     """
+    #print(snps.feature_image[0])
+    #print("image 0: ", snps.feature_image[0])
+    #print("image shape: ", snps.feature_image.shape)
+
+    #show_results(train_data, snps.feature_image, Config.SHAPE_FEATURE, Config.K_RANGE) #show output images for feature extraction layer
+    #avg_pooling_image = snps.pooling_image // 4 #TODO this is the work that the firing rules in layer pool will do
+    #TODO the range is still the same because i sum 4 values, and the do an avg pooling, so /4
+    #show_results(train_data, avg_pooling_image, Config.SHAPE_POOL, Config.K_RANGE) #show output images for average pooling layer
+
+
+def show_results(train_data, output_array, img_size, img_range):
+    print("range of values for current image:" , img_range)
+    images = np.asarray(output_array)
+    num_inputs = images.shape[1]
+    kernels = Config.KERNEL_NUMBER
+
+    #cols = min(kernels + 1, 6)            # +1 for original image
+    cols = Config.KERNEL_NUMBER + 1
+    rows = int(np.ceil((kernels + 1) / cols))
+
+    plt.figure(figsize=(3 * cols, 3 * rows * num_inputs))
+
+    img_index = 0
+    for inp in range(num_inputs):
+
+        plt.subplot(num_inputs * rows, cols, img_index + 1)
+        #print("ORIGINAL IMAGE:", train_data[inp])
+        plt.imshow(train_data[inp], cmap="gray")
+        plt.title(f"Input {inp} – Original")
+        plt.axis("off")
+
+        img_index += 1
+
+        for k in range(kernels):
+            start = k * (img_size ** 2)
+            end   = (k + 1) * (img_size ** 2)
+
+            feature = images[start:end, inp].reshape(
+                img_size, img_size
+            )
+
+            vmin, vmax = img_range[k]
+            plt.subplot(num_inputs * rows, cols, img_index + 1)
+            plt.imshow(feature, cmap="gray", vmin=vmin, vmax=vmax)
+            plt.title(f"Input {inp} – Kernel {k}")
+            plt.axis("off")
+
+            #print("kernel number", k, "values",feature)
+
+            img_index += 1
+
+    plt.tight_layout()
+    plt.show()
+
