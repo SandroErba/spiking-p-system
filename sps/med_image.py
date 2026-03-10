@@ -1,6 +1,6 @@
-import matplotlib.pyplot as plt
 import medmnist
 import numpy as np
+from matplotlib import pyplot as plt
 from medmnist import INFO
 from sps.config import Config
 
@@ -11,184 +11,120 @@ from sps.config import Config
 #aggiungi BreastMNIST e altri, testali
 #risolvere i TODO add in GUI
 
-def get_mnist_data(data_name): # download the database
+def get_mnist_data(data_name=None, rgb_to_gray_method="pca"):
+    """Return MedMNIST data as x_train, y_train, x_test, y_test (digit-style preprocessing)."""
+    data_name = data_name or Config.DATABASE
+    if data_name not in INFO:
+        available = ", ".join(sorted(INFO.keys()))
+        raise ValueError(f"Unknown MedMNIST dataset '{data_name}'. Available: {available}")
+
     info = INFO[data_name]
     data_class = getattr(medmnist, info['python_class'])
     train_dataset = data_class(split='train', download=True)
     test_dataset = data_class(split='test', download=True)
 
-    return (
-        (process_dataset(train_dataset, Config.TRAIN_SIZE)),
-        (process_dataset(test_dataset, Config.TEST_SIZE))
-    )
+    train_imgs = train_dataset.imgs[:Config.TRAIN_SIZE]
+    test_imgs = test_dataset.imgs[:Config.TEST_SIZE]
 
+    train_data = to_grayscale_batch(train_imgs, rgb_to_gray_method)
+    test_data = to_grayscale_batch(test_imgs, rgb_to_gray_method)
 
-def get_mnist_cnn_data(data_name='bloodmnist'):
-    (train_red, train_green, train_blue, train_labels), (test_red, test_green, test_blue, test_labels) = get_mnist_data(data_name)
-    train_gray = merge_rgb_channels_to_grayscale(train_red, train_green, train_blue)
-    test_gray = merge_rgb_channels_to_grayscale(test_red, test_green, test_blue)
-    return train_gray, train_labels, test_gray, test_labels
+    train_label = train_dataset.labels[:Config.TRAIN_SIZE].flatten()
+    test_label = test_dataset.labels[:Config.TEST_SIZE].flatten()
 
-
-def process_dataset(dataset, count): # flatten and split among color channels
-    imgs = dataset.imgs[:count]
-    labels = dataset.labels[:count].flatten()
-    red_channel = []
-    green_channel = []
-    blue_channel = []
-
-    for img in imgs:
-        if Config.QUANTIZATION:
-            ch_r, ch_g, ch_b = quantize_rgb_image(img)
-        else:
-            ch_r, ch_g, ch_b = binarize_rgb_image(img)
-        red_channel.append(ch_r)
-        green_channel.append(ch_g)
-        blue_channel.append(ch_b)
-
-    #show_quantized_image(dataset.imgs[0], red_channel[0], green_channel[0], blue_channel[0]) #Show first image
-    #show_quantized_image(dataset.imgs[1], red_channel[1], green_channel[1], blue_channel[1]) #Show second image
-    #show_quantized_image(dataset.imgs[2], red_channel[2], green_channel[2], blue_channel[2]) #Show third image
-
-    return (
-        np.array(red_channel),
-        np.array(green_channel),
-        np.array(blue_channel),
-        labels
-    )
-
-
-def merge_rgb_channels_to_grayscale(red_channel, green_channel, blue_channel):
-    red = np.asarray(red_channel)
-    green = np.asarray(green_channel)
-    blue = np.asarray(blue_channel)
-
-    if red.shape != green.shape or red.shape != blue.shape:
-        raise ValueError("R, G, B channels must have the same shape.")
-
-    rgb = np.stack([red.astype(np.float32), green.astype(np.float32), blue.astype(np.float32)], axis=-1)
-    flat = rgb.reshape(-1, 3)
-
-    mean = flat.mean(axis=0, keepdims=True)
-    centered = flat - mean
-
-    cov = (centered.T @ centered) / max(centered.shape[0] - 1, 1)
-    eigvals, eigvecs = np.linalg.eigh(cov)
-    principal_vec = eigvecs[:, np.argmax(eigvals)]
-
-    if principal_vec.sum() < 0:
-        principal_vec = -principal_vec
-
-    pca_values = centered @ principal_vec
-    pca_gray = pca_values.reshape(red.shape)
-
-    min_val = float(np.min(pca_gray))
-    max_val = float(np.max(pca_gray))
-    if max_val > min_val:
-        gray = (pca_gray - min_val) / (max_val - min_val)
-    else:
-        gray = np.zeros_like(pca_gray, dtype=np.float32)
-
-    if np.issubdtype(red.dtype, np.integer):
-        info = np.iinfo(red.dtype)
-        scaled = gray * info.max
-        return np.clip(np.rint(scaled), info.min, info.max).astype(red.dtype)
-
-    return gray.astype(np.float32)
-
-def binarize_rgb_image(img_rgb): # binarize for create the input array
-    binary_channels = 1 - (img_rgb > int(Config.THRESHOLD)).astype(int) # From [0,255] to [0,1]
-    downsampled = []
-    for c in range(3):
-        ch = binary_channels[:, :, c]
-        downsampled.append(ch)
-    return downsampled  # List of 3 arrays of 784 bit
-
-def quantize_rgb_image(img_rgb):
-    # Divide into 5 ranges: 0, 1–63, 64–127, 128–191, 192–255 TODO can be done from 0-63 -> 1 or 0-63 -> 0 (max 3 spike)
-    thereshold_fac = 256 / Config.Q_RANGE
-    quantized = np.round(img_rgb.astype(float) / thereshold_fac).astype(int)
-    #quantized[img_rgb == 0] = 0
-    inverted = np.where(
-        quantized == 0,
-        0,
-        Config.Q_RANGE + 1 - quantized
-    )
-    channels = []
+    # Same quantization strategy used in digit_image.py.
+    train_q = ((train_data.astype(np.float32) * Config.Q_RANGE) // 256).astype(np.uint8)
+    test_q = ((test_data.astype(np.float32) * Config.Q_RANGE) // 256).astype(np.uint8)
     if Config.INVERT:
-        for c in range(3):
-            channels.append(inverted[:, :, c])
-    else:
-        for c in range(3):
-            channels.append(quantized[:, :, c])
-    return channels
+        train_q = Config.Q_RANGE - train_q
+        test_q = Config.Q_RANGE - test_q
+
+    return train_q, train_label, test_q, test_label
 
 
-#for output an image
-def show_images(output_array):
-    images = np.asarray(output_array)
-    num_images = min(images.shape[1], Config.TRAIN_SIZE)
-    cols = min(num_images, 5)
-    rows = int(np.ceil(num_images / cols))
-    plt.figure(figsize=(2.5 * cols, 2.5 * rows))
+def to_grayscale_batch(imgs, method="pca"):
+    # Already grayscale: (N, H, W)
+    if imgs.ndim == 3:
+        return imgs
 
-    for i in range(num_images):
-        img = images[:, i].reshape((Config.SHAPE_FEATURE, Config.SHAPE_FEATURE))
-        plt.subplot(rows, cols, i + 1)
-        plt.imshow(img, cmap='gray', vmin=0, vmax=1)
-        plt.title(f"Image {i}")
-        plt.axis('off')
+    # Single-channel grayscale: (N, H, W, 1)
+    if imgs.ndim == 4 and imgs.shape[-1] == 1:
+        return imgs[..., 0]
 
-    plt.tight_layout()
-    plt.show()
+    # RGB: (N, H, W, 3)
+    if imgs.ndim == 4 and imgs.shape[-1] == 3:
+        if method == "luminance":
+            return rgb_to_gray_luminance(imgs)
+        if method == "pca":
+            return rgb_to_gray_pca(imgs)
+        raise ValueError("Unknown rgb_to_gray_method. Use 'luminance' or 'pca'.")
+
+    raise ValueError(f"Unsupported image tensor shape: {imgs.shape}")
+
+
+def rgb_to_gray_luminance(imgs):
+    weights = np.array([0.299, 0.587, 0.114], dtype=np.float32)
+    gray = np.tensordot(imgs.astype(np.float32), weights, axes=([-1], [0]))
+    return np.clip(np.rint(gray), 0, 255).astype(np.uint8)
+
+
+def rgb_to_gray_pca(imgs):
+    out = np.empty(imgs.shape[:3], dtype=np.uint8)
+    for i in range(imgs.shape[0]):
+        rgb = imgs[i].astype(np.float32)
+        flat = rgb.reshape(-1, 3)
+        mean = flat.mean(axis=0, keepdims=True)
+        centered = flat - mean
+        cov = (centered.T @ centered) / max(centered.shape[0] - 1, 1)
+        eigvals, eigvecs = np.linalg.eigh(cov)
+        principal_vec = eigvecs[:, np.argmax(eigvals)]
+
+        # Keep orientation stable.
+        if principal_vec.sum() < 0:
+            principal_vec = -principal_vec
+
+        projected = centered @ principal_vec
+        projected = projected.reshape(rgb.shape[:2])
+
+        min_val = float(np.min(projected))
+        max_val = float(np.max(projected))
+        if max_val > min_val:
+            norm = (projected - min_val) / (max_val - min_val)
+        else:
+            norm = np.zeros_like(projected, dtype=np.float32)
+
+        out[i] = np.clip(np.rint(norm * 255), 0, 255).astype(np.uint8)
+
+    return out
 
 
 
-# Debug only
-def show_quantized_image(original_img, q_r, q_g, q_b):
-    """
-    original_img: original RGB image (H,W,3)
-    q_r, q_g, q_b: quantized channels (values 0–4)
-    """
 
-    # Convert quantized levels back to 0–255 for visualization
-    # Level 0 = 0
-    # Level 1–4 spread across intensity range
-    def expand_channel(ch):
-        return (ch / Config.Q_RANGE * 255).astype(np.uint8)
 
-    r = expand_channel(q_r)
-    g = expand_channel(q_g)
-    b = expand_channel(q_b)
+def show_samples(x, y, train=False):
+    x_np = np.asarray(x)
+    y_np = np.asarray(y).ravel()
 
-    reconstructed = np.stack([r, g, b], axis=-1)
+    nrows = 3
+    ncols = 10
+    if train and Config.TRAIN_SIZE < 30:
+        nrows = 2
+        ncols = max(1, int((Config.TRAIN_SIZE - 1) / 2))
 
-    plt.figure(figsize=(12, 6))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(15, 3))
 
-    plt.subplot(2, 3, 1)
-    plt.title("Original")
-    plt.imshow(original_img)
-    plt.axis("off")
+    for row in range(nrows):
+        for col in range(ncols):
+            idx = row * ncols + col
+            if idx >= len(x_np):
+                axes[row, col].axis("off")
+                continue
 
-    plt.subplot(2, 3, 2)
-    plt.title("Quantized R (0–4)")
-    plt.imshow(q_r, cmap="gray", vmin=0, vmax=4)
-    plt.axis("off")
-
-    plt.subplot(2, 3, 3)
-    plt.title("Quantized G (0–4)")
-    plt.imshow(q_g, cmap="gray", vmin=0, vmax=4)
-    plt.axis("off")
-
-    plt.subplot(2, 3, 4)
-    plt.title("Quantized B (0–4)")
-    plt.imshow(q_b, cmap="gray", vmin=0, vmax=4)
-    plt.axis("off")
-
-    plt.subplot(2, 3, 5)
-    plt.title("Reconstructed (using 0–255 remap)")
-    plt.imshow(reconstructed)
-    plt.axis("off")
+            image = x_np[idx].reshape((Config.IMG_SHAPE, Config.IMG_SHAPE))
+            ax = axes[row, col]
+            ax.imshow(image, cmap="gray_r", interpolation="nearest")
+            ax.set_title(f"Label: {y_np[idx]}")
+            ax.axis("off")
 
     plt.tight_layout()
     plt.show()

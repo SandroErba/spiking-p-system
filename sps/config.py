@@ -1,6 +1,6 @@
 class Config:
     MODE = "cnn"
-    DATABASE = 'digit'
+    DATABASE = None
 
     # IMAGES
     IMG_SHAPE = 28 #ipotizing squared shape images of 28 pixels
@@ -57,15 +57,15 @@ class Config:
     SVM_C = 1.0 #TODO ___tunable___
 
     #MATRIX QUANTIZE #TODO ___tunable___
-    QUANTIZE_METHOD = 3 #TODO add in GUI
+    QUANTIZE_METHOD = 1 #TODO add in GUI
     M_SPARSITY = 0.5 #percentage of 0 values in the quantized matrix, used if QUANTIZE_METHOD == 1
     M_POSITIVE = 0.25 #percentage of 1 values in the quantized matrix, used if QUANTIZE_METHOD == 1
     M_THRESHOLD = 0.5 #multiplied factor for column values, used if QUANTIZE_METHOD == 2
 
     #IMPORTANCE #TODO ___tunable___
     ALPHA_METHOD = 2 #how the model calculate the magnitude of the weights #TODO add in GUI
-    DISCRETIZE_METHOD = 1 #how the model apply the *3 to rules #TODO add in GUI
-    DISC_RANGE = 2
+    DISCRETIZE_METHOD = 2 #how the model apply the *3 to rules #TODO add in GUI
+    DISC_RANGE = 4  #work on discretize method 2
 
     # ENERGY COSTS
     WORST_REGEX = 100
@@ -89,15 +89,37 @@ class Config:
 def database(database):
     Config.DATABASE = database
 
-    if database == "medmnist":
+    if database == "tissuemnist":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 8
+    
+    if database == "breastmnist":
+        Config.IMG_SHAPE = 28
+        Config.CLASSES = 2
+        Config.TRAIN_SIZE = 500
+        Config.TEST_SIZE = 100
+    
+    if database == "octmnist":
+        Config.IMG_SHAPE = 28
+        Config.CLASSES = 4
+    
+    if database == "bloodmnist":
+        Config.IMG_SHAPE = 28
+        Config.CLASSES = 8
+    
+    if database == "pathmnist":
+        Config.IMG_SHAPE = 28
+        Config.CLASSES = 9
 
     if database == "flower":
         Config.IMG_SHAPE = 224
         Config.CLASSES = 102
+        Config.TRAIN_SIZE = 2040
+        Config.TEST_SIZE = 1020
 
 
     if database == "digit":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 10
+
+    

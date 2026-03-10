@@ -165,7 +165,7 @@ def cnn_SNPS_csv():
 
 
 def extend_csv(file_path, q, q_name, multipliers):
-    # separa nome ed estensione
+    # create a new version of the csv with new output_targets and rules based on q and multipliers
     base, ext = os.path.splitext(file_path)
     new_file_path = f"{base}_{q_name}{ext}"
 
@@ -178,7 +178,7 @@ def extend_csv(file_path, q, q_name, multipliers):
 
     for i in range(Config.NEURONS_L3):
         row = rows[i+pool_offset+1]
-        # Nuovi output_targets basati su q
+        # new output targets based on q
         new_targets = []
         for j in range(Config.CLASSES):
 
@@ -190,33 +190,33 @@ def extend_csv(file_path, q, q_name, multipliers):
             elif weight == -1:
                 new_targets.append(-j)
             if len(row) < 3:
-                print(f"Attenzione: riga {i} troppo corta:", row)
+                print(f"Warning: row {i} too short:", row)
                 row += [''] * (3 - len(row))
         row[2] = str(new_targets)
 
-        #Nuove regole firing
+        #New firing rules
         new_rules = []
-        for out_spikes in range(Config.K_RANGE[0][1], 0, -1):  # da 48 a 1
+        for out_spikes in range(Config.K_RANGE[0][1], 0, -1):  # from 48 to 1
             k = Config.POOLING_SIZE ** 2 * out_spikes  # 48*4, 47*4, ..., 1*4
             multiplied = int(out_spikes * multipliers[i]) if multipliers is not None else out_spikes #TODO rules tuning
             new_rules.append(str([1, k, k, multiplied, 0]))
 
         row[:] = row[:4] + new_rules
 
-    #Aggiungi 10 neuroni finali
+    #add new rows for classes's output neurons 
     for j in range(Config.CLASSES-1):
 
         new_row = [
             output_offset + j,   # id
             0,             # initial charge
-            "[]",          # nessun output
-            2,              # neuron type (accumulatore)
+            "[]",          # no output
+            2,              # neuron type (accumulator/output)
             "[1,1,0,0,0]"  # send all spikes
         ]
 
         rows.append(new_row)
 
-    #Riscrivi file
+    # write the new csv
     with open(new_file_path, mode='w', newline='') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
@@ -251,8 +251,7 @@ def save_results(svm_accuracy, lr_accuracy, time):
 
 def log_experiment(csv_path="csv/results.csv", params=None, metrics=None):
     """
-    Log esperimento con parametri variabili.
-    params e metrics vengono salvati come JSON.
+    log_experiment(csv_path="csv/results.csv", params=None, metrics=None)
     """
     file_exists = os.path.isfile(csv_path)
 

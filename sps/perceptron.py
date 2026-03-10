@@ -14,11 +14,11 @@ class OnlineDiscretePerceptron:
         self.W = np.random.choice([-1, 0, 1], size=(n_features, n_classes)).astype(np.float64)
 
     # ----------------------------
-    # Forward step singolo
+    # single forward pass
     # ----------------------------
     def forward(self, x):
         """
-        Calcola i punteggi per 10 classi
+        
         x: array shape (1352,)
         """
         x_avg = x / 4.0
@@ -26,7 +26,7 @@ class OnlineDiscretePerceptron:
 
     def predict(self, x):
         """
-        Restituisce la classe predetta e i punteggi
+        returns predicted class and raw scores
         """
         scores = self.forward(x)
         return np.argmax(scores), scores
@@ -36,9 +36,9 @@ class OnlineDiscretePerceptron:
     # ----------------------------
     def update(self, x, y_true):
         """
-        Aggiorna i pesi del percettrone step-by-step
+        update weights based on a single example (x, y_true)
         x: array shape (1352,)
-        y_true: label corretta (0-9)
+        y_true: correct label (0-9)
         """
 
         scores = self.forward(x)
@@ -49,14 +49,14 @@ class OnlineDiscretePerceptron:
             self.W *= (1 - self.weight_decay)
 
         if pred != y_true:
-            self.W[:, y_true] += self.lr * x      # rinforza la classe corretta
-            self.W[:, pred] -= self.lr * x        # indebolisce la classe predetta erroneamente
+            self.W[:, y_true] += self.lr * x      # reinforce the correct class
+            self.W[:, pred] -= self.lr * x        # weaken the incorrectly predicted class
 
     # ----------------------------
-    # Metodo finale: matrice sinapsi
+    # Final method: synapse matrix
     # ----------------------------
     def get_synapses(self):
         """
-        Restituisce la matrice dei pesi discreti finale
+        Returns the final matrix of discrete weights after training.
         """
         return self.W.copy()

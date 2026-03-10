@@ -51,9 +51,17 @@ class SimulatorGUI(ctk.CTk):
         self.net_var = tk.StringVar(value="Divisible by 3")
         self.dataset_var = tk.StringVar(value="digit")
         self.quantize_methods = {
-            "quantize_percentile": 1,
-            "quantize_threshold": 2,
-            "quantize_twn": 3,
+            "quantize_percentile (1)": 1,
+            "quantize_threshold (2)": 2,
+            "quantize_twn (3)": 3,
+        }
+        self.alpha_methods = {
+            "magnitude (1)": 1,
+            "separability (2)": 2,
+        }
+        self.discretize_methods = {
+            "percentile (1)": 1,
+            "proportional (2)": 2,
         }
         default_method = next(
             (
@@ -61,9 +69,27 @@ class SimulatorGUI(ctk.CTk):
                 for name, value in self.quantize_methods.items()
                 if value == Config.QUANTIZE_METHOD
             ),
-            "quantize_percentile",
+            "quantize_percentile (1)",
+        )
+        default_alpha = next(
+            (
+                name
+                for name, value in self.alpha_methods.items()
+                if value == Config.ALPHA_METHOD
+            ),
+            "magnitude (1)",
+        )
+        default_discretize = next(
+            (
+                name
+                for name, value in self.discretize_methods.items()
+                if value == Config.DISCRETIZE_METHOD
+            ),
+            "percentile (1)",
         )
         self.method_var = tk.StringVar(value=default_method)
+        self.alpha_method_var = tk.StringVar(value=default_alpha)
+        self.discretize_method_var = tk.StringVar(value=default_discretize)
         self.train_size_var = tk.StringVar(value=str(Config.TRAIN_SIZE))
         self.test_size_var = tk.StringVar(value=str(Config.TEST_SIZE))
         self.q_range_var = tk.StringVar(value=str(Config.Q_RANGE))
@@ -212,9 +238,18 @@ class SimulatorGUI(ctk.CTk):
         left = ctk.CTkFrame(tab, fg_color="transparent")
         left.grid(row=0, column=0, sticky="nsew", padx=(20, 10), pady=(10, 10))
 
-        # Internal frame for parameters to keep layout clean and expandable.
+        # Internal frame for parameters split in two columns:
+        # left column for menus, right column for text entries.
         left_form = ctk.CTkFrame(left, fg_color="transparent")
         left_form.pack(fill="both", expand=True, anchor="nw")
+        left_form.grid_columnconfigure(0, weight=1)
+        left_form.grid_columnconfigure(1, weight=1)
+
+        menus_col = ctk.CTkFrame(left_form, fg_color="transparent")
+        menus_col.grid(row=0, column=0, sticky="nw", padx=(0, 12))
+
+        entries_col = ctk.CTkFrame(left_form, fg_color="transparent")
+        entries_col.grid(row=0, column=1, sticky="nw", padx=(12, 0))
 
         right = ctk.CTkFrame(tab, fg_color="transparent")
         right.grid(row=0, column=1, sticky="nsew", padx=(10, 20), pady=(10, 10))
@@ -231,21 +266,27 @@ class SimulatorGUI(ctk.CTk):
             output_options={"row": 1, "column": 0, "sticky": "nsew", "padx": 0, "pady": (10, 8)},
         )
 
-        ctk.CTkLabel(left_form, text="Dataset:", font=ui_font).pack(anchor="w", pady=(0, 10))
-        self._menu(left_form, self.dataset_var, ["digit", "flower"], ui_font, pady=(0, 16))
+        ctk.CTkLabel(menus_col, text="Dataset:", font=ui_font).pack(anchor="w", pady=(0, 10))
+        self._menu(menus_col, self.dataset_var, ["digit", "flower"], ui_font, pady=(0, 16))
 
-        ctk.CTkLabel(left_form, text="Quantization Method:", font=ui_font).pack(anchor="w", pady=(0, 10))
+        ctk.CTkLabel(menus_col, text="Quantization Method:", font=ui_font).pack(anchor="w", pady=(0, 10))
         self._menu(
-            left_form,
+            menus_col,
             self.method_var,
-            ["quantize_percentile", "quantize_threshold", "quantize_twn"],
+            list(self.quantize_methods.keys()),
             ui_font,
-            pady=0,
+            pady=(0, 16),
         )
 
-        ctk.CTkLabel(left_form, text="Train Size:", font=ui_font).pack(anchor="w", pady=(12, 6))
+        ctk.CTkLabel(menus_col, text="Alpha Method:", font=ui_font).pack(anchor="w", pady=(0, 10))
+        self._menu(menus_col, self.alpha_method_var, list(self.alpha_methods.keys()), ui_font, pady=(0, 16))
+
+        ctk.CTkLabel(menus_col, text="Discretize Method:", font=ui_font).pack(anchor="w", pady=(0, 10))
+        self._menu(menus_col, self.discretize_method_var, list(self.discretize_methods.keys()), ui_font, pady=(0, 0))
+
+        ctk.CTkLabel(entries_col, text="Train Size:", font=ui_font).pack(anchor="w", pady=(0, 6))
         ctk.CTkEntry(
-            left_form,
+            entries_col,
             textvariable=self.train_size_var,
             width=180,
             height=30,
@@ -253,9 +294,9 @@ class SimulatorGUI(ctk.CTk):
             validatecommand=self._positive_int_vcmd,
         ).pack(anchor="w", pady=(0, 10))
 
-        ctk.CTkLabel(left_form, text="Test Size:", font=ui_font).pack(anchor="w", pady=(0, 6))
+        ctk.CTkLabel(entries_col, text="Test Size:", font=ui_font).pack(anchor="w", pady=(0, 6))
         ctk.CTkEntry(
-            left_form,
+            entries_col,
             textvariable=self.test_size_var,
             width=180,
             height=30,
@@ -263,9 +304,9 @@ class SimulatorGUI(ctk.CTk):
             validatecommand=self._positive_int_vcmd,
         ).pack(anchor="w", pady=(0, 10))
 
-        ctk.CTkLabel(left_form, text="Q Range:", font=ui_font).pack(anchor="w", pady=(0, 6))
+        ctk.CTkLabel(entries_col, text="Q Range:", font=ui_font).pack(anchor="w", pady=(0, 6))
         ctk.CTkEntry(
-            left_form,
+            entries_col,
             textvariable=self.q_range_var,
             width=180,
             height=30,
@@ -335,6 +376,8 @@ class SimulatorGUI(ctk.CTk):
             Config.TEST_SIZE = test_size
             Config.Q_RANGE = q_range
             Config.QUANTIZE_METHOD = self.quantize_methods[self.method_var.get()]
+            Config.ALPHA_METHOD = self.alpha_methods[self.alpha_method_var.get()]
+            Config.DISCRETIZE_METHOD = self.discretize_methods[self.discretize_method_var.get()]
             Config.compute_k_range()
             cnn.launch_mnist_cnn()
 
