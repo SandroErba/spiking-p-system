@@ -224,7 +224,7 @@ def extend_csv(file_path, q, q_name, multipliers):
     return new_file_path
 
 
-def save_results(svm_accuracy, lr_accuracy, time):
+def save_results(svm_accuracy, lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_svm_accuracy, raw_lr_accuracy, time):
     log_experiment(
         params={
             "train size": Config.TRAIN_SIZE,
@@ -244,6 +244,10 @@ def save_results(svm_accuracy, lr_accuracy, time):
         metrics={
             "SVM accuracy": svm_accuracy,
             "LR accuracy": lr_accuracy,
+            "ens accuracy": ens_accuracy,
+            "ens imp accuracy": ens_imp_accuracy,
+            "raw svm accuracy": raw_svm_accuracy,
+            "raw lr accuracy": raw_lr_accuracy,
             "time": time
         }
     )
