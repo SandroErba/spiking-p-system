@@ -97,45 +97,45 @@ class OnlineDiscretePerceptron:
     # ----------------------------
     def update(self, x, y_true):
         """
-        Aggiorna i pesi del percettrone step-by-step
+        update the weights of the perceptron step-by-step
         x: array shape (1352,)
-        y_true: label corretta (0-9)
+        y_true: correct label (0-9)
         """
 
         scores = self.forward(x)
         pred = np.argmax(scores) #TODO replace this 2 lines with the "predict" function
 
         if pred != y_true:
-            # aggiornamento locale stile perceptron
+            # local update like perceptron
             self.W[:, y_true] += x
             self.W[:, pred] -= x
 
-        # proietta i pesi su {-1,0,1} e applica sparsity
+        # project the weights onto {-1,0,1} and apply sparsity
         self._project_weights()
 
     # ----------------------------
-    # Proiezione pesi discreti
+    # Project weights
     # ----------------------------
     def _project_weights(self):
         # clamp a [-1,1] TODO is correct? im no losing a lot of information, if numbers are >> 1?
         self.W = np.clip(self.W, -1, 1)
 
-        # applica sparsity (più vicini allo 0 diventano 0)
+        # apply sparsity (more similar to 0 become 0)
         if self.sparsity > 0:
             flat = self.W.flatten()
             n_zero = int(self.sparsity * flat.size)
 
-            # trova i pesi più piccoli in valore assoluto
+            # find the smallest weights in absolute value
             idx = np.argsort(np.abs(flat))[:n_zero]
             flat[idx] = 0
             self.W = flat.reshape(self.W.shape)
 
     # ----------------------------
-    # Metodo finale: matrice sinapsi
+    # Final method: synapse matrix
     # ----------------------------
     def get_synapses(self):
         """
-        Restituisce la matrice dei pesi discreti finale
+        Returns the final matrix of discrete weights after training.
         """
         return self.W.copy()
 

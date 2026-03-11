@@ -33,6 +33,9 @@ class ChargeTracker:
         if self.mode == "step_by_step":
             if self.format == "csv":
                 self.csv_writer.writerow(row)
+            elif self.format == "parquet":
+                # Buffer rows and flush once in finish().
+                self.history.append(row)
         else:
             self.history.append(row)
 
@@ -40,6 +43,15 @@ class ChargeTracker:
         if self.mode == "step_by_step":
             if self.format == "csv" and self.csv_file is not None:
                 self.csv_file.close()
+            elif self.format == "parquet":
+                df = pd.DataFrame(self.history, columns=self.header)
+                try:
+                    df.to_parquet(self.filename, engine='pyarrow', index=False)
+                except (ImportError, ModuleNotFoundError):
+                    fallback_filename = os.path.splitext(self.filename)[0] + ".csv"
+                    print("[ChargeTracker] pyarrow missing, saving CSV:", fallback_filename)
+                    df.to_csv(fallback_filename, index=False)
+                self.history.clear()
                 
         elif self.mode == "all_at_once":
             df = pd.DataFrame(self.history, columns=self.header)
@@ -47,6 +59,11 @@ class ChargeTracker:
             if self.format == "csv":
                 df.to_csv(self.filename, index=False)
             elif self.format == "parquet":
-                df.to_parquet(self.filename, engine='pyarrow', index=False)
+                try:
+                    df.to_parquet(self.filename, engine='pyarrow', index=False)
+                except (ImportError, ModuleNotFoundError):
+                    fallback_filename = os.path.splitext(self.filename)[0] + ".csv"
+                    print("[ChargeTracker] pyarrow missing, saving CSV:", fallback_filename)
+                    df.to_csv(fallback_filename, index=False)
             
             self.history.clear() # clears memory after writing to disk

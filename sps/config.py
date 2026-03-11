@@ -48,6 +48,9 @@ class Config:
     SHAPE_POOL = int(SHAPE_FEATURE / POOLING_SIZE) #size of the resulting image after the pooling (13)
     NEURONS_POOL = int(SHAPE_POOL ** 2) #number of neurons for each image in layer 3 (169)
     NEURONS_L3 = int(KERNEL_NUMBER * NEURONS_POOL) #number of neurons on the pooling layer (1352)
+    NEURONS_LP = NEURONS_L3
+    NEURONS_L12 = NEURONS_L1 + NEURONS_L2
+    NEURONS_T = NEURONS_L1 + NEURONS_L2 + NEURONS_L3
 
     #L3 - CLASSIFICATION
     CLASSES = 10
@@ -72,7 +75,17 @@ class Config:
     EXPECTED_REGEX = 10
     EXPECTED_SPIKE = 0.5
 
+    # Synapse tuning weights (used in binarized/quantized modes)
+    POSITIVE_REINFORCE = 1
+    NEGATIVE_PENALIZATION = 1
+
     THRESHOLD = 128 # higher Thr -> more spike
+
+    # Charge tracker output integration (Francesca)
+    TRACK_CHARGES = False
+    TRACK_MODE = "step_by_step" # "step_by_step" saves after each image, "all_at_once" saves at the end of the execution
+    TRACK_FORMAT = "csv"      # "csv" or "parquet"
+    TRACK_FILENAME = "output_charges"
 
 
     @classmethod
@@ -125,5 +138,18 @@ def database(database):
     if database == "digit":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 10
+
+    # Keep derived architecture fields aligned after dataset-specific changes.
+    Config.KERNEL_NUMBER = len(Config.KERNELS)
+    Config.KERNEL_SHAPE = len(Config.KERNELS[0])
+    Config.SHAPE_FEATURE = int(Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1)
+    Config.NEURONS_FEATURE = int(Config.SHAPE_FEATURE ** 2)
+    Config.NEURONS_L2 = Config.NEURONS_FEATURE * Config.KERNEL_NUMBER
+    Config.SHAPE_POOL = int(Config.SHAPE_FEATURE / Config.POOLING_SIZE)
+    Config.NEURONS_POOL = int(Config.SHAPE_POOL ** 2)
+    Config.NEURONS_L3 = int(Config.KERNEL_NUMBER * Config.NEURONS_POOL)
+    Config.NEURONS_LP = Config.NEURONS_L3
+    Config.NEURONS_L12 = Config.NEURONS_L1 + Config.NEURONS_L2
+    Config.NEURONS_T = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3
 
     

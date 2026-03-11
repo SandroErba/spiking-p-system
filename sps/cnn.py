@@ -6,6 +6,7 @@
 # for cnn and kernels see https://medium.com/data-science/conv2d-to-finally-understand-what-happens-in-the-forward-pass-1bbaafb0b148
 #guardare il lavoro di Iris Ermini, analizza immagini grandi binarizzandole
 
+from matplotlib import pyplot as plt
 import numpy as np
 import time
 from sklearn.linear_model import LogisticRegression
@@ -55,7 +56,8 @@ def launch_mnist_cnn():
         svm, logreg = _CACHED_MODELS[cache_key]
         print("[MODEL] cached train reused")
     else:
-        #cnn_SNPS_csv() #use only if the csv was changed
+        # Rebuild base graph on train to avoid stale CSV after merges/config edits.
+        cnn_SNPS_csv()
         svm, logreg = train_cnn(x_train, y_train)
         train_time = time.time() - t
         _CACHED_MODELS[cache_key] = (svm, logreg)
@@ -89,7 +91,7 @@ def train_cnn(x_train, y_train):
     return svm, logreg #snps.model.get_synapses()
 
 def print_results(y_test, pred, scores):
-    y_test_bin = label_binarize(y_test, classes=np.arange(10)) #ROC curve
+    y_test_bin = label_binarize(y_test, classes=np.arange(Config.CLASSES)) #ROC curve
     roc_auc = roc_auc_score(
         y_test_bin,
         scores,
@@ -153,9 +155,11 @@ def extend_and_test(x_test, method, w, multipliers):
     extended_path = extend_csv("csv/" + Config.CSV_NAME, np.array(q), method, multipliers)
     snps.load_neurons_from_csv(extended_path)
     snps.start()
-    y_pred = np.argmax(snps.charge_map_prediction, axis=0)
+    n_samples = len(x_test)
+    scores = snps.charge_map_prediction[:, :n_samples]
+    y_pred = np.argmax(scores, axis=0)
 
-    return y_pred, snps.pooling_image, snps.charge_map_prediction.T
+    return y_pred, snps.pooling_image[:, :n_samples], scores.T
 
 def get_importance(w):
     alpha = compute_neuron_importance(w)
