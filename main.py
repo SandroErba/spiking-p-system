@@ -13,7 +13,7 @@ Config.compute_k_range()
 
 cnn.launch_mnist_cnn()
 
-
+#ciao
 #other_networks.compute_extended() #require halting mode
 #other_networks.compute_divisible_3() #require halting mode
 #other_networks.compute_gen_even() #require generative mode
