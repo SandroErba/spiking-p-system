@@ -13,12 +13,6 @@ Config.compute_k_range()
 
 cnn.launch_mnist_cnn()
 
-Config.SVM_C = 3.0
-cnn.launch_mnist_cnn()
-
-cnn.launch_mnist_cnn()
-
-
 
 #edge_detection.launch_gray_SNPS()
 

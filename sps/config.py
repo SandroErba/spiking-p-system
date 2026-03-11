@@ -64,8 +64,8 @@ class Config:
 
     #IMPORTANCE #TODO ___tunable___
     ALPHA_METHOD = 2 #how the model calculate the magnitude of the weights #TODO add in GUI
-    DISCRETIZE_METHOD = 2 #how the model apply the *3 to rules #TODO add in GUI
-    DISC_RANGE = 4  #work on discretize method 2
+    DISCRETIZE_METHOD = 1 #how the model apply the *3 to rules #TODO add in GUI
+    DISC_RANGE = 2  #work on discretize method 2
 
     # ENERGY COSTS
     WORST_REGEX = 100
