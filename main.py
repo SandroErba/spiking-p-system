@@ -7,12 +7,13 @@ from sps import  other_networks, cnn, flower_image, digit_image, handle_csv
 from sps.config import Config, database
 
 
-database("digit") #can be digit, flower
-#Config.MODE = "generative" #set the mode of the P system: can be cnn (default), generative, halting
-Config.compute_k_range()
-
-cnn.launch_mnist_cnn()
+#database("digit") #can be digit, flower
+Config.MODE = "halting" #set the mode of the P system: can be cnn (default), generative, halting
+#Config.compute_k_range()
+Config.WHITE_HOLE = False 
+#cnn.launch_mnist_cnn()
 
 #other_networks.compute_extended() #require halting mode
 #other_networks.compute_divisible_3() #require halting mode
 #other_networks.compute_gen_even() #require generative mode
+other_networks.prova() #require halting mode

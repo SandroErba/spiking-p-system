@@ -27,3 +27,11 @@ def compute_extended():
     snps.load_neurons_from_csv("csv/" + "ExampleExtended.csv")
     snps.start()
     print(snps.history)
+
+def prova():
+    snps = SNPSystem(None, 100, True)
+    snps.load_neurons_from_csv("csv/" + "prova.csv")
+    snps.start()
+    print(snps.history)
+    for neuron in snps.neurons:
+        print(neuron.__str__())
