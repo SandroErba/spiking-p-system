@@ -1,5 +1,6 @@
 import numpy as np
 from spike_utils import TransformationRule
+from m_snp_system import MSNPSystem
 
 class MatrixExecutor:
 
@@ -11,6 +12,7 @@ class MatrixExecutor:
         self.deterministic = SNPSystem.deterministic
         self.max_steps = SNPSystem.max_steps
 
+
     # Necessito di un:
     # - configuration vector
     # - spiking vector
@@ -20,21 +22,30 @@ class MatrixExecutor:
     @staticmethod
     def test():
         # Let's test the example I made
+        #for i in range(len(rules)):
+        # #    spikingVector[i] = rules[i].check(c0[appliedNeurons[i]])
+        # print(spikingVector)
+        # print(spikingVector.shape)
+
+
+
+   
+
+        # for i in range(len(spikingVector)):
+        #     spikingVector[i] = rules[i].check(c0[np.where(spikingTransitionMatrix[i] < 0)[0][0]])
+        # print("test", spikingVector)
+
+        # print(spikingTransitionMatrix.shape)
+        # c1 = c0 + spikingVector @ spikingTransitionMatrix
+        # print(c1)
         c0 = np.array([9,0,0])
         r1 = TransformationRule(1,2,2,2,0)
         r2 = TransformationRule(0,1,1,1,0)
         r3 = TransformationRule(0,2,2,1,0)
         r4 = TransformationRule(0,1,1,1,0)
         rules = [r1,r2,r3,r4]
-        appliedNeurons = [0,1,1,2]
         spikingVector = np.zeros((len(rules),), dtype=int)
-        for i in range(len(rules)):
-            spikingVector[i] = rules[i].check(c0[appliedNeurons[i]])
-        print(spikingVector)
-        print(spikingVector.shape)
-
-
-
+        netGainVector = np.zeros((len(rules),), dtype=int)
         spikingTransitionMatrix = np.array([
             [-2,2,0],
             [0,-1,1],
@@ -43,9 +54,10 @@ class MatrixExecutor:
 
         ])
 
-        print(spikingTransitionMatrix.shape)
-        c1 = c0 + spikingVector @ spikingTransitionMatrix
-        print(c1)
+        test1 = MSNPSystem(c0,spikingVector,spikingTransitionMatrix,netGainVector,rules)
+        test1.execute(True)
+        print(test1.configurationVector)
+
 
     def __str__(self):
         output = ""
