@@ -55,15 +55,38 @@ class MatrixExecutor:
         ])
 
         test1 = MSNPSystem(c0,spikingVector,spikingTransitionMatrix,netGainVector,rules)
+        print(test1.applyingRuleVector)
         test1.execute(True)
         print(test1.configurationVector)
 
+    def translate_to_matrix(SNPSystem):
+        neurons = SNPSystem.neurons
+        deterministic = SNPSystem.deterministic
+        max_steps = SNPSystem.max_steps
+        configurationVector = np.zeros(len(neurons), dtype=int)
+        spikingVector = np.zeros((len(neurons),), dtype=int)
+        netGainVector = np.zeros((len(neurons),), dtype=int)
+        ruleVector = []
+        for neuron in neurons:
+            configurationVector[neuron.nid] = neuron.charge
+            for rule in neuron.transf_rules:
+                ruleVector.append(rule)
+        spikingTransitionMatrix = np.zeros((len(ruleVector), len(neurons)), dtype=int)
+        for i, rule in enumerate(ruleVector):
+            for target in rule.target:
+                # da finire
+                pass
+        pass
+
+        
 
     def __str__(self):
         output = ""
         for neuron in self.neurons:
             output += neuron.__str__() + "\n"
         return output
+
+    
 
 if __name__ == "__main__":
     MatrixExecutor.test()

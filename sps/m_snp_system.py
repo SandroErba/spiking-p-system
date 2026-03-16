@@ -9,6 +9,7 @@ class MSNPSystem:
         self.ruleVector = ruleVector
         self.max_steps = max_steps
         self.deterministic = deterministic
+        self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingVector))])
   
 
     def step(self):
@@ -44,9 +45,4 @@ class MSNPSystem:
 
     def update_spiking_vector(self):
         for i in range(len(self.spikingVector)):
-            # probabilmente sostituirò questa roba del where per renderlo computazionalmente più efficace, magari a costo di aggiungere un array di indici dei neuroni applicati
-            self.spikingVector[i] = self.ruleVector[i].check(self.configurationVector[np.where(self.spikingTransitionMatrix[i] < 0)[0][0]])
-
-            
-
-    
+            self.spikingVector[i] = self.ruleVector[i].check(self.configurationVector[self.applyingRuleVector[i]])

@@ -35,3 +35,4 @@ def prova():
     print(snps.history)
     for neuron in snps.neurons:
         print(neuron.__str__())
+        print("targets", neuron.targets)
