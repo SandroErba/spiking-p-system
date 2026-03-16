@@ -1,22 +1,23 @@
 class Config:
     MODE = "cnn"
-    DATABASE = None
+    DATABASE = 'digit'
 
     # IMAGES
     IMG_SHAPE = 28 #ipotizing squared shape images of 28 pixels
     BLOCK_SHAPE = 2  #the size of the window block for the second layer
 
     #SNPS BEHAVIOUR
-    INVERT = False #invert or not invert the spike in the starting images #TODO ___tunable___?
+    INVERT = False #invert or not invert the spike in the starting images
     QUANTIZATION = True
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
 
-    TRAIN_SIZE = 1000
-    TEST_SIZE = 500
+    TRAIN_SIZE = 5000
+    TEST_SIZE = 1000
 
     #L1 - INPUT IMAGE
     NEURONS_L1 = int(IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
-    Q_RANGE = 5 # the range of quantization, it works on images, rules and tuning #TODO ___tunable___
+    Q_RANGE = 10 # the range of quantization, it works on images, rules and tuning #TODO ___tunable___
+    #with sparse matrix (M_SPARSITY = 0.8) 10 is the best range
 
     #L2 - FEATURE EXTRACTION
     KERNELS = [
@@ -57,16 +58,18 @@ class Config:
 
     CSV_NAME = "SNPS_cnn.csv"
 
-    SVM_C = 1.0 #TODO ___tunable___
+    SVM_C = 1.0
 
     #MATRIX QUANTIZE #TODO ___tunable___
-    QUANTIZE_METHOD = 1 #TODO add in GUI
-    M_SPARSITY = 0.5 #percentage of 0 values in the quantized matrix, used if QUANTIZE_METHOD == 1
-    M_POSITIVE = 0.25 #percentage of 1 values in the quantized matrix, used if QUANTIZE_METHOD == 1
-    M_THRESHOLD = 0.5 #multiplied factor for column values, used if QUANTIZE_METHOD == 2
+    QUANTIZE_METHOD = 1 #can be 1 -> Percentile or 2 -> Threshold #TODO add in GUI
+
+    M_SPARSITY = 0.8 #percentage of 0 values in the quantized matrix, used if QUANTIZE_METHOD == 1
+    M_POSITIVE = 0.1 #percentage of 1 values in the quantized matrix, used if QUANTIZE_METHOD == 1
+
+    M_THRESHOLD = 1.5 #multiplied factor for column values, used if QUANTIZE_METHOD == 2
 
     #IMPORTANCE #TODO ___tunable___
-    ALPHA_METHOD = 2 #how the model calculate the magnitude of the weights #TODO add in GUI
+    ALPHA_METHOD = 1 #how the model calculate the magnitude of the weights #TODO add in GUI
     DISCRETIZE_METHOD = 1 #how the model apply the *3 to rules #TODO add in GUI
     DISC_RANGE = 2  #work on discretize method 2
 
@@ -105,21 +108,21 @@ def database(database):
     if database == "tissuemnist":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 8
-    
+
     if database == "breastmnist":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 2
         Config.TRAIN_SIZE = 500
         Config.TEST_SIZE = 100
-    
+
     if database == "octmnist":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 4
-    
+
     if database == "bloodmnist":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 8
-    
+
     if database == "pathmnist":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 9

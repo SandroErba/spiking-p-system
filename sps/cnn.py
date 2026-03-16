@@ -4,7 +4,6 @@
 
 
 # for cnn and kernels see https://medium.com/data-science/conv2d-to-finally-understand-what-happens-in-the-forward-pass-1bbaafb0b148
-#guardare il lavoro di Iris Ermini, analizza immagini grandi binarizzandole
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -65,9 +64,8 @@ def launch_mnist_cnn():
 
     #test phase
     t=time.time()
-    svm_accuracy, lr_accuracy = test_cnn(x_test, y_test, svm, logreg)
-    handle_csv.save_results(svm_accuracy, lr_accuracy, time.time()-t+train_time)
-
+    svm_accuracy, lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_svm_accuracy, raw_lr_accuracy = test_cnn(x_test, y_test, svm, logreg)
+    handle_csv.save_results(svm_accuracy, lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_svm_accuracy, raw_lr_accuracy, time.time()-t+train_time)
 
 
 def train_cnn(x_train, y_train):
@@ -121,30 +119,47 @@ def test_cnn(x_test, y_test, svm, logreg):
     features_int_pos = np.maximum(features // 4, 0)
 
     #SVM
-    svm_pred = svm.predict(features_int_pos.T)
-    print("raw svm accuracy:", svm.score(features_int_pos.T, y_test))
+    #svm_pred = svm.predict(features_int_pos.T)
+    raw_svm_accuracy = svm.score(features_int_pos.T, y_test)
+    print("raw svm accuracy:", raw_svm_accuracy)
     #print_results(y_test, svm_pred)
 
 
     #-------------------------Testing the logreg on SNPS-------------------------
-    snps_lr_pred, _, _ = extend_and_test(x_test,"lr", logreg.coef_, None)
+    snps_lr_pred, _, lr_scores = extend_and_test(x_test,"lr", logreg.coef_, None)
     lr_accuracy = np.mean(snps_lr_pred == y_test)
     print("SNPS logreg not_imp accuracy:", lr_accuracy)
     #print_results(y_test, snps_lr_pred)
 
 
-    snps_imp_lr_pred, _, lr_scores = extend_and_test(x_test,"lr_imp", logreg.coef_, get_importance(logreg.coef_))
+    snps_imp_lr_pred, _, lr_imp_scores = extend_and_test(x_test,"lr_imp", logreg.coef_, get_importance(logreg.coef_))
     snps_imp_lr_accuracy = np.mean(snps_imp_lr_pred == y_test)
     print("SNPS logreg accuracy:", snps_imp_lr_accuracy)
     #print_results(y_test, snps_imp_lr_pred, lr_scores)
 
 
     #LOGREG
-    lr_pred = logreg.predict(features_int_pos.T)
-    print("raw logreg accuracy:", logreg.score(features_int_pos.T, y_test))
+    #lr_pred = logreg.predict(features_int_pos.T)
+    raw_lr_accuracy = logreg.score(features_int_pos.T, y_test)
+    print("raw logreg accuracy:", raw_lr_accuracy)
     #print_results(y_test, lr_pred)
 
-    return snps_imp_svm_accuracy, snps_imp_lr_accuracy
+    #------------------combined charge------------ #TODO add new layer, split layer 3
+    # somma delle cariche dei due modelli
+    sum_pred = svm_scores.T + lr_scores.T
+    sum_labels = np.argmax(sum_pred, axis=0)
+    ens_accuracy = np.mean(sum_labels == y_test)
+    print("-SNPS ensemble accuracy:", ens_accuracy)
+
+    #------------------combined IMP charge------------
+    # somma delle cariche dei due modelli
+    sum_imp_pred = svm_imp_scores.T + lr_imp_scores.T
+    sum_imp_labels = np.argmax(sum_imp_pred, axis=0)
+    ens_imp_accuracy = np.mean(sum_imp_labels == y_test)
+    print("-SNPS imp ensemble accuracy:", ens_imp_accuracy)
+
+
+    return snps_imp_svm_accuracy, snps_imp_lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_svm_accuracy, raw_lr_accuracy
 
 
 
@@ -192,12 +207,10 @@ def discretize_proportional(alpha): #method 2 - proportional based importance
     return multipliers.astype(int) # convert to integer
 
 
-
 def quantize_matrix(w):
     # matrix quantization for last layer of SNPS: Transform from real values to {-1,0,1}
     if Config.QUANTIZE_METHOD == 1: q = quantize_percentile(w, Config.M_SPARSITY, Config.M_POSITIVE) # Percentile-based
-    elif Config.QUANTIZE_METHOD == 2: q = quantize_threshold(w, Config.M_THRESHOLD) # Threshold-based
-    else: _, q, _ = quantize_twn(w) #Config.QUANTIZE_METHOD == 3
+    else: q = quantize_threshold(w, Config.M_THRESHOLD) # Threshold-based
     return q
 
 
@@ -205,9 +218,8 @@ def quantize_matrix(w):
 #il link contiene info sulle reti ternarie TWN con pesi {-1,0,1}
 def quantize_percentile(w, p_zero, p_pos):
     """
-    Quantizza W in {-1,0,1} usando percentuali fisse.
-    Layer-wise (colonna per colonna).
-    p_neg + p_zero + p_pos = 1
+    Ternary quantization {-1,0,1} using fixed percentiles per column.
+    The smallest weights become -1, the largest become +1, the rest are 0.
     """
     p_neg = 1 - p_zero - p_pos
     w_q = np.zeros_like(w)
@@ -215,258 +227,72 @@ def quantize_percentile(w, p_zero, p_pos):
 
     for c in range(n_cols):
         col = w[:, c]
-        sorted_idx = np.argsort(col)  # indice dei pesi ordinati
+        sorted_idx = np.argsort(col)  # indices of sorted weights
         n_neg = int(p_neg * n_rows)
         n_zero = int(p_zero * n_rows)
-        # assegno -1 ai più piccoli
-        w_q[sorted_idx[:n_neg], c] = -1
-        # assegno 0 ai successivi
+
+        w_q[sorted_idx[:n_neg], c] = -1        # smallest weights
         w_q[sorted_idx[n_neg:n_neg+n_zero], c] = 0
-        # assegno +1 ai restanti
-        w_q[sorted_idx[n_neg+n_zero:], c] = 1
+        w_q[sorted_idx[n_neg+n_zero:], c] = 1  # largest weights
 
     return w_q
 
-def quantize_threshold(w, k=0.5):
+def quantize_threshold(w, k):
     """
-    Quantizza W in {-1,0,1} usando threshold layer-wise.
-    k: fattore moltiplicativo della media dei valori assoluti della colonna
+    Ternary quantization {-1,0,1} using a column-wise threshold.
+    Weights larger than k * mean(|w|) become ±1, others become 0.
     """
     w_q = np.zeros_like(w)
     n_rows, n_cols = w.shape
 
     for c in range(n_cols):
         col = w[:, c]
-        t = k * np.mean(np.abs(col))
-        w_q[:, c] = np.where(col > t, 1, np.where(col < -t, -1, 0))
+        t = k * np.mean(np.abs(col))  # threshold for this column
+        w_q[:, c] = np.where(col > t, 1, np.where(col < -t, -1, 0))  # ternary mapping
 
     return w_q
 
 
-def quantize_twn(w):
-    """
-    TWN-style ternarization.
-    Minimizza ||W - αB||^2 con B ∈ {-1,0,1}.
 
-    Applica il metodo per colonna.
+"""
+!!!ATTENZIONE: FINO A QUI HO SBAGLIATO E AVEVO svm", svm.coef_, get_importance(logreg.coef_))!
+quindi ignorare prima del 2026-03-06 14:10:52
+------------------------
+uno dei primi ensemble ha ottenuto 94.6%
+{"train size": 3000, "test size": 500, "q range": 10, "svm c": 1.0, "quantize method": 3, "alpha method": 2, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.5, "matrix positive": 0.25, "matrix threshold": 0.5, "database": "digit", "kernel number": 8}
+{"SVM accuracy": 0.92, "LR accuracy": 0, "time": 326.88240218162537}
 
-    Returns:
-        Q : matrice ternaria scalata (α * B)
-        B : matrice pura {-1,0,1}
-        alphas : scaling factors per colonna
-    """
+TRAIN: 3000
+SNPS svm not_imp accuracy: 0.92
+SNPS svm accuracy: 0.92
+raw svm accuracy: 0.95
+SNPS logreg not_imp accuracy: 0.9
+SNPS logreg accuracy: 0.922
+raw logreg accuracy: 0.958
 
-    Q = np.zeros_like(w, dtype=np.float64)
-    B = np.zeros_like(w, dtype=np.int8)
-    alphas = []
-
-    for j in range(w.shape[1]):
-        wj = w[:, j]
-
-        # δ = 0.7 * E(|w|)
-        delta = 0.7 * np.mean(np.abs(wj))
-
-        # ternary mask
-        b = np.zeros_like(wj)
-        b[wj > delta] = 1
-        b[wj < -delta] = -1
-
-        # calcolo α solo sui pesi non zero
-        if np.sum(np.abs(b)) > 0:
-            alpha = np.mean(np.abs(wj[np.abs(wj) > delta]))
-        else:
-            alpha = 0.0
-
-        q = alpha * b
-
-        Q[:, j] = q
-        B[:, j] = b
-        alphas.append(alpha)
-
-    return Q, B, np.array(alphas)
-
-
-
-"""500 data with 1 epoch:
-    realValue accuracy: 0.7280
-    SNPS accuracy: 0.666
-    SVM accuracy: 0.888
-    -----------
-    
-    500 with 6 epochs:
-    
-    realValue accuracy: 0.8420
-    SNPS accuracy: 0.832
-    SVM accuracy: 0.888
-    ------------
-    
-    2000 with 1 epochs:
-    
-    realValue accuracy: 0.8320
-    SNPS accuracy: 0.8215
-    SVM accuracy: 0.921
-    ------------
-    
-    500 with 4 epochs and suffled data:
-    realValue accuracy: 0.7020
-    SNPS accuracy: 0.71
-    SVM accuracy: 0.888
-    --------
-    
-    3000 with svm on SNPS
-    
-    SNPS svm accuracy: 0.8803333333333333
-    Perceptron accuracy: 0.8323
-    SVM accuracy: 0.9266666666666666
-    --------------
-    
-
-    3000 con QRANGE 16
-    SNPS svm accuracy: 0.8793333333333333
-    MULTI SNPS svm accuracy: 0.893
-    MULTI SNPS logreg accuracy: 0.8843333333333333
-    Perceptron accuracy: 0.8653
-    SVM accuracy: 0.9306666666666666
-    LOGREG accuracy: 0.9206666666666666
-    --------------
-    
-    5000 con QRANGE 20 e svm on SNPS
-    SNPS svm accuracy: 0.8842
-    MULTI SNPS svm accuracy: 0.9004
-    Perceptron accuracy: 0.8638
-    SVM accuracy: 0.9414
-    ----------------
-    
-    2000 Qrange 16
-    SNPS svm accuracy: 0.879
-    SNPS_IMP svm accuracy: 0.889
-    svm accuracy: 0.9215
-    SNPS logreg accuracy: 0.879
-    SNPS_IMP logreg accuracy: 0.8945
-    logreg accuracy: 0.921
-    
-    
-TEST ON DIFFERENT IMPORTANCE/ALPHA - all with 2000 Qrange 16
-------------------
-#method 1 - percentile
-
-SNPS svm accuracy: 0.879
-SNPS_IMP svm accuracy: 0.889
-svm accuracy: 0.9215
-SNPS logreg accuracy: 0.879
-SNPS_IMP logreg accuracy: 0.8945
-logreg accuracy: 0.921
-
---------------
-#method 2 - proporzionale con (alpha * 3)
-
-------SNPS svm accuracy: 0.879
-------SNPS_IMP svm accuracy: 0.886
-------svm accuracy: 0.9215
-------SNPS logreg accuracy: 0.879
-------SNPS_IMP logreg accuracy: 0.8905
-------logreg accuracy: 0.921
-
-
---------------
-#method 2 - proporzionale con (alpha * 6)
-
-------SNPS svm accuracy: 0.879
-------SNPS_IMP svm accuracy: 0.8875
-------svm accuracy: 0.9215
-------SNPS logreg accuracy: 0.879
-------SNPS_IMP logreg accuracy: 0.882
-------logreg accuracy: 0.921
-
-
-------------------------------------
-#!! alpha 2 - separabilità - method 1 - IL MIGLIORE!
-
-------SNPS_IMP svm accuracy: 0.892
-------svm accuracy: 0.9215
-------SNPS_IMP logreg accuracy: 0.8945
-------logreg accuracy: 0.921
-
-
-----------------------------
-#alpha 2 - separabilità - method 2 con (alpha * 3)
-
-------SNPS_IMP svm accuracy: 0.8825
-------svm accuracy: 0.9215
-------SNPS_IMP logreg accuracy: 0.891
-------logreg accuracy: 0.921
-
-
-#--------------------#
-#--------------------#
-confronto il migliore (alpha 2 method 1) con più dati rispetto a alpha 1 e method 1
-
----alpha 1 - method 1; 5000 con QRANGE 30, QUANTIZE_METHOD = 1:
-
-------SNPS_IMP svm accuracy: 0.8976
------- SNPS_IMP logreg ROC AUC: 0.9842738716226563
-------svm accuracy: 0.9432
-------SNPS_IMP logreg accuracy: 0.8752
------- SNPS_IMP logreg ROC AUC: 0.9822524209355377
-------logreg accuracy: 0.9348
-
---------------------------
-
----alpha 2 - method 1; 5000 con QRANGE 30, QUANTIZE_METHOD = 1:
-------SNPS_IMP svm accuracy: 0.9054
-------svm accuracy: 0.9432
-------SNPS_IMP logreg accuracy: 0.8732
-------logreg accuracy: 0.9348
+SNPS ensemble accuracy: 0.928
+SNPS imp ensemble accuracy: 0.946
+-------------------------------
+---simulazione del 2026-03-07 17:59:44 - SPARSITY: 0.8 - QRANGE: 10
+{"train size": 5000, "test size": 1000, "q range": 10, "svm c": 1.0, "quantize method": 1, "alpha method": 2, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.8, "matrix positive": 0.1, "matrix threshold": 0.5, "database": "digit", "kernel number": 8}
+{"SVM accuracy": 0.924, "LR accuracy": 0.922, "ens accuracy": 0.936, "ens imp accuracy": 0.941, "time": 643.7142617702484}
+------------------------
+---Fisso QRANGE a 10, SPARSITY: 0.8, e vario train size esponenzialmente per vedere se davvero calano le performance:
+la migliore l'ho ottenuta con TRAIN 4000 e TEST 1000 e ha 93.8%:
+{"train size": 4000, "test size": 1000, "q range": 10, "svm c": 1.0, "quantize method": 1, "alpha method": 2, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.8, "matrix positive": 0.1, "matrix threshold": 0.5, "database": "digit", "kernel number": 8}
+{"SVM accuracy": 0.906, "LR accuracy": 0.921, "ens accuracy": 0.924, "ens imp accuracy": 0.938, "raw svm accuracy": 0.947, "raw lr accuracy": 0.955, "time": 744.9951825141907}
+---------------------------------------
+---prove con quantizzazione a metodo 2 e vari k (M_THRESHOLD):
+il migliore l'ho ottenuto con k:1.5 e ha 95%:
+{"train size": 5000, "test size": 1000, "q range": 5, "svm c": 1.0, "quantize method": 2, "alpha method": 2, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.8, "matrix positive": 0.1, "matrix threshold": 1.5, "database": "digit", "kernel number": 8}
+{"SVM accuracy": 0.911, "LR accuracy": 0.936, "ens accuracy": 0.941, "ens imp accuracy": 0.949, "raw svm accuracy": 0.944, "raw lr accuracy": 0.958, "time": 335.30409836769104} 
 
 ------------------------------
+---ho messo alpha method = 1, mantenuto il miglior risultato precedente e ottenuto 94.9%:
+{"train size": 5000, "test size": 1000, "q range": 5, "svm c": 1.0, "quantize method": 2, "alpha method": 1, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.8, "matrix positive": 0.1, "matrix threshold": 1.5, "database": "digit", "kernel number": 8}
+{"SVM accuracy": 0.913, "LR accuracy": 0.937, "ens accuracy": 0.941, "ens imp accuracy": 0.949, "raw svm accuracy": 0.944, "raw lr accuracy": 0.958, "time": 320.3761622905731}
+----------------------------
 
-QUINDI ora mantengo alpha 2 method 1  -> abbasso QRANGE di molto
-5000 dati QRANGE 5, QUANTIZE_METHOD = 1: IMPORTANTE: SVM è PEGGIORATA E LOGREG è MIGLIORATA
-------SNPS_IMP svm accuracy: 0.8868
------- SNPS_IMP logreg ROC AUC: 0.9818811904418677
-------svm accuracy: 0.9356
-------SNPS_IMP logreg accuracy: 0.9086
------- SNPS_IMP logreg ROC AUC: 0.9834633919502526
-------logreg accuracy: 0.9404
-
--------------------------
-5000 dati QRANGE 10, QUANTIZE_METHOD = 1:
-
-------SNPS_IMP svm accuracy: 0.8942
------- SNPS_IMP logreg ROC AUC: 0.9835764677706512
-------svm accuracy: 0.942
-------SNPS_IMP logreg accuracy: 0.8918
------- SNPS_IMP logreg ROC AUC: 0.9836198235252503
-------logreg accuracy: 0.9384
-
-
-#-----------------------#
-#-----------------------#
-ho aggiunto che test != train, valori nel config
-#-----------------------#
-#-----------------------#
-Confronto QUANTIZE_METHOD 2 e 3, per ora avevo solo 1.
-
-
-5000 dati 1000 test QRANGE 5 QUANTIZE_METHOD 2:
-
-------SNPS_IMP svm accuracy: 0.911
-ROC AUC: 0.9888781786887512
-------svm accuracy: 0.944
-------SNPS_IMP logreg accuracy: 0.926
-ROC AUC: 0.986478484946012
-------logreg accuracy: 0.958
-
-!uguale a sopra ma 5000 nel test (come nei casi precedenti):
-
-
-!!!ATTENZIONE: FINO A QUI HO SBAGLIATO E AVEVO svm", svm.coef_, get_importance(logreg.coef_))!
---------------------
-5000 dati 1000 test QRANGE 30:
-
-
-
---------------------------
 
     """
     #print(snps.feature_image[0])

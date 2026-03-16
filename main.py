@@ -7,102 +7,43 @@ from sps import  other_networks, cnn, flower_image, digit_image, handle_csv, med
 from sps.config import Config, database
 
 
-database("bloodmnist") #can be digit, flower
+database("digit") #can be digit, flower
 #Config.MODE = "generative" #set the mode of the P system: can be cnn (default), generative, halting
 Config.compute_k_range()
 
-# ---------------- BLOCK 5 (10 TEST-ONLY RUNS) ----------------
-# Obiettivo: migliorare molto LR/SVM senza retrain.
-# IMPORTANTE: i parametri di train-key restano fissi per riuso cache:
-# DATABASE, TRAIN_SIZE, CSV_NAME, SVM_C, Q_RANGE, KERNEL_NUMBER.
+# ---------------- ENS-IMP BATCH SWEEP (digit) ----------------
+# Total tests: 20
+# Main grid (18): q in [10, 11, 12], disc_range in [5, 6], threshold in [1.00, 1.03, 1.05]
+# Stability repeats (2): q=11, disc_range=6, threshold=1.05
 Config.SVM_C = 3.0
-
-# Test 1 - baseline attuale migliore (veloce)
-Config.ALPHA_METHOD = 2
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
+Config.DISCRETIZE_METHOD = 2
 Config.QUANTIZE_METHOD = 2
-Config.M_THRESHOLD = 0.7
-cnn.launch_mnist_cnn()
-
-# Test 2 - soglia un po' piu alta
-Config.ALPHA_METHOD = 2
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
-Config.QUANTIZE_METHOD = 2
-Config.M_THRESHOLD = 0.8
-cnn.launch_mnist_cnn()
-
-# Test 3 - soglia alta
-Config.ALPHA_METHOD = 2
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
-Config.QUANTIZE_METHOD = 2
-Config.M_THRESHOLD = 0.9
-cnn.launch_mnist_cnn()
-
-# Test 4 - soglia molto alta
-Config.ALPHA_METHOD = 2
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
-Config.QUANTIZE_METHOD = 2
-Config.M_THRESHOLD = 1.0
-cnn.launch_mnist_cnn()
-
-# Test 5 - soglia intermedia
-Config.ALPHA_METHOD = 2
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
-Config.QUANTIZE_METHOD = 2
-Config.M_THRESHOLD = 0.6
-cnn.launch_mnist_cnn()
-
-# Test 6 - confronto col miglior TWN storico
-Config.ALPHA_METHOD = 2
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
-Config.QUANTIZE_METHOD = 3
-Config.M_THRESHOLD = 0.7
-cnn.launch_mnist_cnn()
-
-# Test 7 - quantize percentile: piu sparsita
-Config.ALPHA_METHOD = 2
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
-Config.QUANTIZE_METHOD = 1
-Config.M_SPARSITY = 0.6
-Config.M_POSITIVE = 0.2
-cnn.launch_mnist_cnn()
-
-# Test 8 - quantize percentile: molto sparso
-Config.ALPHA_METHOD = 2
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
-Config.QUANTIZE_METHOD = 1
-Config.M_SPARSITY = 0.7
-Config.M_POSITIVE = 0.15
-cnn.launch_mnist_cnn()
-
-# Test 9 - quantize percentile: meno sparso
-Config.ALPHA_METHOD = 2
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
-Config.QUANTIZE_METHOD = 1
-Config.M_SPARSITY = 0.4
-Config.M_POSITIVE = 0.3
-cnn.launch_mnist_cnn()
-
-# Test 10 - cambio solo alpha (potenziale boost SVM)
-Config.ALPHA_METHOD = 1
-Config.DISCRETIZE_METHOD = 1
-Config.DISC_RANGE = 2
-Config.QUANTIZE_METHOD = 2
-Config.M_THRESHOLD = 0.7
-cnn.launch_mnist_cnn()
 
 
+def launch_test(tag, q_range, disc_range, threshold):
+	Config.Q_RANGE = q_range
+	Config.compute_k_range()
+	Config.DISC_RANGE = disc_range
+	Config.ALPHA_METHOD = 2
+	Config.M_THRESHOLD = threshold
+	print(
+		f"\n[{tag}] q={Config.Q_RANGE} disc={Config.DISC_RANGE} "
+		f"alpha={Config.ALPHA_METHOD} thr={Config.M_THRESHOLD}"
+	)
+	cnn.launch_mnist_cnn()
 
-#edge_detection.launch_gray_SNPS()
+
+print("\n========== ENS GRID (18 TESTS) ==========")
+for q in [10, 11, 12]:
+	for disc in [5, 6]:
+		for threshold in [1.00, 1.03, 1.05]:
+			launch_test("ENS", q, disc, threshold)
+
+print("\n========== ENS STABILITY (2 TESTS) ==========")
+for _ in range(2):
+	launch_test("ENS-REP", 11, 6, 1.05)
+
+
 
 #other_networks.compute_extended() #require halting mode
 #other_networks.compute_divisible_3() #require halting mode

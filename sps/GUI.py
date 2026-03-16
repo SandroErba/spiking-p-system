@@ -65,8 +65,7 @@ class SimulatorGUI(ctk.CTk):
         self.quantize_methods = {
             "quantize_percentile (1)": 1,
             "quantize_threshold (2)": 2,
-            "quantize_twn (3)": 3,
-        } #TODO delete twn, is no longer present
+        }
         self.alpha_methods = {
             "magnitude (1)": 1,
             "separability (2)": 2,
