@@ -1,5 +1,7 @@
 import numpy as np
-from spike_utils import TransformationRule
+from sps.spike_utils import TransformationRule  # Changed back to absolute import
+from sps.snp_system import SNPSystem  # Changed back to absolute import
+
 class MSNPSystem:
     def __init__(self,configurationVector,spikingVector,spikingTransitionMatrix,netGainVector,ruleVector,max_steps=1000,deterministic=True):
         self.configurationVector = configurationVector

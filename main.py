@@ -5,15 +5,16 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 from sps import  other_networks, cnn, flower_image, digit_image, handle_csv
 from sps.config import Config, database
-
+from sps.m_matrix_executor import MatrixExecutor
 
 #database("digit") #can be digit, flower
-Config.MODE = "halting" #set the mode of the P system: can be cnn (default), generative, halting
+#Config.MODE = "halting" #set the mode of the P system: can be cnn (default), generative, halting
 #Config.compute_k_range()
-Config.WHITE_HOLE = False 
+#Config.WHITE_HOLE = False 
 #cnn.launch_mnist_cnn()
 
 #other_networks.compute_extended() #require halting mode
 #other_networks.compute_divisible_3() #require halting mode
 #other_networks.compute_gen_even() #require generative mode
-other_networks.prova() #require halting mode
+#other_networks.prova() #require halting mode
+MatrixExecutor.test2()
