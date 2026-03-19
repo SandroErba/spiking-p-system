@@ -105,6 +105,8 @@ class SNPSystem:
             for idx in spike_event.targets:
                 if idx >= 0:
                     #print("targets", spike_event.targets, "idx", idx)
+                    #print("neurons idx error", idx)
+                    #print("number of neurons:", len(self.neurons))
                     self.neurons[idx].receive(spike_event.charge)
                 else:
                     self.neurons[-idx].inhibit(spike_event.charge)
@@ -121,15 +123,17 @@ class SNPSystem:
                     offset = input_id + Config.NEURONS_L1 + Config.NEURONS_L2
                     self.pooling_image[input_id][self.t_step - 2] = self.neurons[offset].charge
             if 2 < self.t_step <= len(self.spike_train) + 2:
-                if len(self.labels) == 0: #there is a better method?
+                if len(self.labels) == 0: #check if this is the test phase
+                    offset = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3 #output for SNPS without ensemble
+                    if self.neurons[offset].neuron_type != 2: offset = offset + Config.NEURONS_L3 #output for SNPS with ensemble
                     for input_id in range(Config.CLASSES): #generate output charge
-                        offset = input_id + Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3 - 1
-                        self.charge_map_prediction[input_id][self.t_step - 3] = self.neurons[offset].charge
+                        self.charge_map_prediction[input_id][self.t_step - 3] = self.neurons[offset + input_id].charge
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
 
         # set negative charge to 0 for the inhibitor spike
+        #TODO formally, this is not present in papers. add a forgetting rule
         for neuron in self.neurons:
             if neuron.charge < 0:
                 neuron.charge = 0

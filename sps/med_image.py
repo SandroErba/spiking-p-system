@@ -11,7 +11,7 @@ from sps.config import Config
 #aggiungi BreastMNIST e altri, testali
 #risolvere i TODO add in GUI
 
-def get_mnist_data(data_name=None, rgb_to_gray_method="pca"):
+def get_med_mnist_data(data_name=None, rgb_to_gray_method="pca"):
     """Return MedMNIST data as x_train, y_train, x_test, y_test (digit-style preprocessing)."""
     data_name = data_name or Config.DATABASE
     if data_name not in INFO:

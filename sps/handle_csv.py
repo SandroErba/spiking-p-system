@@ -164,6 +164,125 @@ def cnn_SNPS_csv():
 
 
 
+def ensemble_csv(svm_q, logreg_q, svm_imp, logreg_imp): #TODO ottimizzare offset più in basso e usarli anche sopra
+    """Generate the SN P system with the ensemble of two models"""
+    os.makedirs("csv", exist_ok=True)
+    with open("csv/" + Config.CSV_ENS_NAME, mode='w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
+
+        # Layer 1: Input an image and send the corresponding spike
+        l1_firing_rules = [
+            f"[0,{i},{i},{i},0]"
+            for i in range(Config.Q_RANGE, 0, -1)
+        ]
+        for neuron_id in range(Config.NEURONS_L1):
+            i_row = neuron_id // Config.IMG_SHAPE
+            i_col = neuron_id % Config.IMG_SHAPE
+            output_targets = []
+
+            for k_index, kernel in enumerate(Config.KERNELS):
+                layer2_offset = Config.NEURONS_L1 + k_index * Config.NEURONS_FEATURE
+
+                for ki in range(Config.KERNEL_SHAPE):
+                    for kj in range(Config.KERNEL_SHAPE):
+                        o_row = i_row - ki
+                        o_col = i_col - kj
+
+                        if 0 <= o_row < Config.SHAPE_FEATURE and 0 <= o_col < Config.SHAPE_FEATURE:
+                            output_idx = o_row * Config.SHAPE_FEATURE + o_col
+                            target_id = layer2_offset + output_idx
+                            weight = kernel[ki][kj]
+                            if weight == 1:
+                                output_targets.append(target_id)
+                            elif weight == -1:
+                                output_targets.append(-target_id)
+
+            writer.writerow([
+                neuron_id,                     # id
+                0,                             # initial_charge
+                str(output_targets),           # output_targets
+                0,                             # neuron_type
+                *l1_firing_rules                  # firing rules
+            ])
+
+        # Layer 2: Accumulate spikes from the kernels and extract features
+        for k_index in range(len(Config.KERNELS)):
+            l2_firing_rules = [
+                f"[0,{i},{i},{i},0]"
+                for i in range(Config.K_RANGE[k_index][1], 0, -1)
+            ]
+
+            layer2_offset = Config.NEURONS_L1 + k_index * Config.NEURONS_FEATURE
+
+            for i in range(Config.NEURONS_FEATURE):
+                output_targets = [] # Target definition
+                j = ((i // Config.SHAPE_FEATURE) // Config.POOLING_SIZE) * Config.SHAPE_POOL + ((i % Config.SHAPE_FEATURE) // Config.POOLING_SIZE) # position in next pooling layer
+                first_target = Config.NEURONS_L1 + Config.NEURONS_L2 + (k_index * Config.NEURONS_POOL) + j
+                second_target = first_target + Config.NEURONS_L3
+                output_targets.append(first_target)
+                output_targets.append(second_target)
+
+                writer.writerow([
+                    layer2_offset + i,       # id
+                    0,                       # initial_charge
+                    str(output_targets),     # output_targets
+                    1,                       # neuron_type
+                    *l2_firing_rules         # Send all the spikes
+                ])
+
+        # Layer 3 - average pooling and apply two different synapses matrices
+        pool_offset = Config.NEURONS_L1 + Config.NEURONS_L2
+        output_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + 2 * Config.NEURONS_L3
+        rows_to_add = build_rows(pool_offset, svm_q, svm_imp) #First classification: svm
+        for row in rows_to_add:
+            writer.writerow(row)
+
+        new_start = pool_offset + len(rows_to_add)
+        rows_to_add = build_rows(new_start, logreg_q, logreg_imp) #Second classification: logreg
+        for row in rows_to_add:
+            writer.writerow(row)
+
+        for j in range(Config.CLASSES):
+            row = [
+                output_offset + j,   # id
+                0,             # initial charge
+                "[]",          # no output
+                2,             # neuron type (accumulator/output)
+                "[1,1,0,0,0]"  # send all spikes
+            ]
+            writer.writerow(row)
+
+    return "csv/" + Config.CSV_ENS_NAME
+
+
+def build_rows(start_offset, q, multipliers=None):
+    #create a layer 3 block using weights and multipliers as input
+    output_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + 2 * Config.NEURONS_L3
+    new_rows = []
+
+    for i in range(Config.NEURONS_L3):
+        new_targets = []
+        for j in range(Config.CLASSES):
+            weight = q[i, j]
+            j = j + output_offset
+
+            if weight == 1:
+                new_targets.append(j)
+            elif weight == -1:
+                new_targets.append(-j)
+
+        new_rules = []
+        for out_spikes in range(Config.K_RANGE[0][1], 0, -1):
+            k = Config.POOLING_SIZE ** 2 * out_spikes
+            multiplied = int(out_spikes * multipliers[i]) if multipliers is not None else out_spikes
+            new_rules.append(str([1, k, k, multiplied, 0]))
+
+        row = [str(start_offset + i), "0", str(new_targets), "1"] + new_rules
+        new_rows.append(row)
+
+    return new_rows
+
 def extend_csv(file_path, q, q_name, multipliers):
     # create a new version of the csv with new output_targets and rules based on q and multipliers
     base, ext = os.path.splitext(file_path)
@@ -171,8 +290,6 @@ def extend_csv(file_path, q, q_name, multipliers):
 
     with open(file_path, newline='') as f:
         rows = list(csv.reader(f))
-    #header = reader[0]
-    #rows = reader[1:]
     output_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3
     pool_offset = Config.NEURONS_L1 + Config.NEURONS_L2
 
@@ -183,7 +300,7 @@ def extend_csv(file_path, q, q_name, multipliers):
         for j in range(Config.CLASSES):
 
             weight = q[i, j]
-            j = j + output_offset - 1
+            j = j + output_offset #TODO maybe -1
 
             if weight == 1:
                 new_targets.append(j)
@@ -204,7 +321,7 @@ def extend_csv(file_path, q, q_name, multipliers):
         row[:] = row[:4] + new_rules
 
     #add new rows for classes's output neurons 
-    for j in range(Config.CLASSES-1):
+    for j in range(Config.CLASSES): #TODO maybe -1
 
         new_row = [
             output_offset + j,   # id
@@ -224,7 +341,7 @@ def extend_csv(file_path, q, q_name, multipliers):
     return new_file_path
 
 
-def save_results(svm_accuracy, lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_svm_accuracy, raw_lr_accuracy, time):
+def save_results(ensemble_accuracy, time):
     log_experiment(
         params={
             "train size": Config.TRAIN_SIZE,
@@ -242,12 +359,7 @@ def save_results(svm_accuracy, lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_
             "kernel number": Config.KERNEL_NUMBER
         },
         metrics={
-            "SVM accuracy": svm_accuracy,
-            "LR accuracy": lr_accuracy,
-            "ens accuracy": ens_accuracy,
-            "ens imp accuracy": ens_imp_accuracy,
-            "raw svm accuracy": raw_svm_accuracy,
-            "raw lr accuracy": raw_lr_accuracy,
+            "ensemble accuracy": ensemble_accuracy,
             "time": time
         }
     )
@@ -274,3 +386,5 @@ def log_experiment(csv_path="csv/results.csv", params=None, metrics=None):
             writer.writeheader()
 
         writer.writerow(row)
+
+

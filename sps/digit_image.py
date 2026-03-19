@@ -16,9 +16,6 @@ def get_mnist_data():
     if Config.INVERT:
         train_q = Config.Q_RANGE - train_q
         test_q = Config.Q_RANGE - test_q
-    #print(train_q[0])
-    #plt.imshow(train_q[0])
-    #plt.show()
     return train_q, train_label, test_q, test_label
 
 

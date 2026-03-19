@@ -11,7 +11,7 @@ class Config:
     QUANTIZATION = True
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
 
-    TRAIN_SIZE = 5000
+    TRAIN_SIZE = 3000
     TEST_SIZE = 1000
 
     #L1 - INPUT IMAGE
@@ -54,6 +54,7 @@ class Config:
     CLASSES = 10
 
     CSV_NAME = "SNPS_cnn.csv"
+    CSV_ENS_NAME = "SNPS_ens.csv"
 
     SVM_C = 1.0
 
@@ -67,7 +68,7 @@ class Config:
 
     #IMPORTANCE #TODO ___tunable___
     ALPHA_METHOD = 1 #how the model calculate the magnitude of the weights #TODO add in GUI
-    DISCRETIZE_METHOD = 1 #how the model apply the *3 to rules #TODO add in GUI
+    DISCRETIZE_METHOD = 2 #how the model apply the *3 to rules #TODO add in GUI
     DISC_RANGE = 2  #work on discretize method 2
 
     # ENERGY COSTS
@@ -99,8 +100,8 @@ def database(database):
     if database == "breastmnist":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 2
-        Config.TRAIN_SIZE = 500
-        Config.TEST_SIZE = 100
+        if Config.TRAIN_SIZE > 546: Config.TRAIN_SIZE = 546
+        if Config.TRAIN_SIZE > 156: Config.TRAIN_SIZE = 156
 
     if database == "octmnist":
         Config.IMG_SHAPE = 28
@@ -119,7 +120,6 @@ def database(database):
         Config.CLASSES = 102
         Config.TRAIN_SIZE = 2040
         Config.TEST_SIZE = 1020
-
 
     if database == "digit":
         Config.IMG_SHAPE = 28
