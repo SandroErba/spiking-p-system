@@ -1,4 +1,5 @@
 import numpy as np
+import random
 from sps.spike_utils import TransformationRule  # Changed back to absolute import
 from sps.snp_system import SNPSystem  # Changed back to absolute import
 
@@ -45,20 +46,22 @@ class MSNPSystem:
         return False
 
 
-    def update_spiking_vector(self):
+    def update_spiking_vector(self,verbose=False):
         for i in range(len(self.spikingVector)):
             self.spikingVector[i] = self.ruleVector[i].check(self.configurationVector[self.applyingRuleVector[i]])
-        
+
         if not self.deterministic:
+            overlap = 0
             for i in range(1, len(self.spikingVector)):
-                overlap = 0
                 if self.spikingVector[i] == 1 and self.spikingVector[i-1] == 1 and self.applyingRuleVector[i] == self.applyingRuleVector[i-1]:
                    overlap += 1
                 else:
                     if overlap > 0:
-                        for j in range(i-overlap-1, i-1):
+                        for j in range(i-overlap-1, i):
                             self.spikingVector[j] = 0
-                        self.spikingVector[i-overlap-1+random.randint(0, overlap)] = 1
+                        self.spikingVector[random.choice(range(i-overlap-1, i))] = 1
+                        if verbose:
+                            print("Non-deterministic choice made among", overlap + 1, "overlapping rules at neuron", self.applyingRuleVector[i])
                     overlap = 0
 
                 

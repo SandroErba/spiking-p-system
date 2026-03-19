@@ -74,7 +74,7 @@ class MatrixExecutor:
                 for target in neuron.targets:
                     spikingTransitionMatrix[rule_idx, target] = rule.target 
                 rule_idx += 1
-        return MSNPSystem(configurationVector, spikingVector, spikingTransitionMatrix, netGainVector, rules)
+        return MSNPSystem(configurationVector, spikingVector, spikingTransitionMatrix, netGainVector, rules, max_steps, deterministic)
         
 
     def __str__(self):
@@ -95,8 +95,18 @@ class MatrixExecutor:
         translatedSystem.step()
         print(translatedSystem.spikingVector)
         # testa il non determinismo
-        
 
+    def test3():
+        snps = SNPSystem(0, 100, False)  # Fix: Pass 0 for input_len to avoid None error
+        # Fix: Update path for root execution
+        snps.load_neurons_from_csv("csv/prova.csv")
+        translatedSystem = MatrixExecutor.translate_to_matrix(snps)
+        print(translatedSystem.applyingRuleVector)
+        print(translatedSystem.spikingVector)
+        translatedSystem.configurationVector[1] = 2
+        print(translatedSystem.configurationVector)
+        translatedSystem.update_spiking_vector(verbose=True)
+        print(translatedSystem.spikingVector)
 
 
 if __name__ == "__main__":

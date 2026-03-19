@@ -17,4 +17,4 @@ from sps.m_matrix_executor import MatrixExecutor
 #other_networks.compute_divisible_3() #require halting mode
 #other_networks.compute_gen_even() #require generative mode
 #other_networks.prova() #require halting mode
-MatrixExecutor.test2()
+MatrixExecutor.test3()
