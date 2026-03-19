@@ -1,7 +1,7 @@
 import numpy as np
-from sps.spike_utils import TransformationRule  # Fixed import
-from sps.m_snp_system import MSNPSystem  # Fixed import
-from sps.snp_system import SNPSystem  # Fixed import
+from sps.spike_utils import TransformationRule  
+from sps.m_snp_system import MSNPSystem  
+from sps.snp_system import SNPSystem
 
 class MatrixExecutor:
     # Da capire per gil spike train
@@ -65,7 +65,6 @@ class MatrixExecutor:
             for rule in neuron.transf_rules:
                 rules.append(rule)
         spikingVector = np.zeros((len(rules),), dtype=int)
-        # Fix: Initialize matrix after rules are collected
         spikingTransitionMatrix = np.zeros((len(rules), len(neurons)), dtype=int)
         rule_idx = 0
         for neuron in neurons:
@@ -85,8 +84,7 @@ class MatrixExecutor:
 
     @staticmethod
     def test2():
-        snps = SNPSystem(0, 100, True)  # Fix: Pass 0 for input_len to avoid None error
-        # Fix: Update path for root execution
+        snps = SNPSystem(0, 100, True)
         snps.load_neurons_from_csv("csv/prova.csv")
         translatedSystem = MatrixExecutor.translate_to_matrix(snps)
         print(translatedSystem.spikingTransitionMatrix)
@@ -97,8 +95,7 @@ class MatrixExecutor:
         # testa il non determinismo
 
     def test3():
-        snps = SNPSystem(0, 100, False)  # Fix: Pass 0 for input_len to avoid None error
-        # Fix: Update path for root execution
+        snps = SNPSystem(0, 100, False)
         snps.load_neurons_from_csv("csv/prova.csv")
         translatedSystem = MatrixExecutor.translate_to_matrix(snps)
         print(translatedSystem.applyingRuleVector)
@@ -107,16 +104,4 @@ class MatrixExecutor:
         print(translatedSystem.configurationVector)
         translatedSystem.update_spiking_vector(verbose=True)
         print(translatedSystem.spikingVector)
-
-
-if __name__ == "__main__":
-    #snps = SNPSystem(0, 100, True)  # Fix: Pass 0 for input_len to avoid None error
-    # Fix: Update path for root execution
-    #snps.load_neurons_from_csv("csv/prova.csv")
-    #translatedSystem = MatrixExecutor.translate_to_matrix(snps)
-    #print(translatedSystem.spikingTransitionMatrix)
-    snps = SNPSystem(0, 10, False)  # Fix: Pass 0 for input_len to avoid None error
-    snps.load_neurons_from_csv("csv/" + "ExampleExtended.csv")
-    translatedSystem = MatrixExecutor.translate_to_matrix(snps)
-    print(translatedSystem.spikingTransitionMatrix)
 
