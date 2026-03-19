@@ -58,13 +58,13 @@ class MatrixExecutor:
         deterministic = SNPSystem.deterministic
         max_steps = SNPSystem.max_steps
         configurationVector = np.zeros(len(neurons), dtype=int)
-        spikingVector = np.zeros((len(neurons),), dtype=int)
         netGainVector = np.zeros((len(neurons),), dtype=int)
         rules = []
         for neuron in neurons:
             configurationVector[neuron.nid] = neuron.charge
             for rule in neuron.transf_rules:
                 rules.append(rule)
+        spikingVector = np.zeros((len(rules),), dtype=int)
         # Fix: Initialize matrix after rules are collected
         spikingTransitionMatrix = np.zeros((len(rules), len(neurons)), dtype=int)
         rule_idx = 0
@@ -72,7 +72,7 @@ class MatrixExecutor:
             for rule in neuron.transf_rules:
                 spikingTransitionMatrix[rule_idx, neuron.nid] = -rule.source
                 for target in neuron.targets:
-                    spikingTransitionMatrix[rule_idx, target] += rule.target  # Accumulate if multiple targets
+                    spikingTransitionMatrix[rule_idx, target] = rule.target 
                 rule_idx += 1
         return MSNPSystem(configurationVector, spikingVector, spikingTransitionMatrix, netGainVector, rules)
         
@@ -87,9 +87,17 @@ class MatrixExecutor:
     def test2():
         snps = SNPSystem(0, 100, True)  # Fix: Pass 0 for input_len to avoid None error
         # Fix: Update path for root execution
-        snps.load_neurons_from_csv("sps/csv/prova.csv")
+        snps.load_neurons_from_csv("csv/prova.csv")
         translatedSystem = MatrixExecutor.translate_to_matrix(snps)
         print(translatedSystem.spikingTransitionMatrix)
+        print(translatedSystem.applyingRuleVector)
+        print(translatedSystem.spikingVector)
+        translatedSystem.step()
+        print(translatedSystem.spikingVector)
+        # testa il non determinismo
+        
+
+
 
 if __name__ == "__main__":
     #snps = SNPSystem(0, 100, True)  # Fix: Pass 0 for input_len to avoid None error

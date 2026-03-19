@@ -11,7 +11,7 @@ class MSNPSystem:
         self.ruleVector = ruleVector
         self.max_steps = max_steps
         self.deterministic = deterministic
-        self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingVector))])
+        self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingTransitionMatrix))])
   
 
     def step(self):
@@ -48,3 +48,18 @@ class MSNPSystem:
     def update_spiking_vector(self):
         for i in range(len(self.spikingVector)):
             self.spikingVector[i] = self.ruleVector[i].check(self.configurationVector[self.applyingRuleVector[i]])
+        
+        if not self.deterministic:
+            for i in range(1, len(self.spikingVector)):
+                overlap = 0
+                if self.spikingVector[i] == 1 and self.spikingVector[i-1] == 1 and self.applyingRuleVector[i] == self.applyingRuleVector[i-1]:
+                   overlap += 1
+                else:
+                    if overlap > 0:
+                        for j in range(i-overlap-1, i-1):
+                            self.spikingVector[j] = 0
+                        self.spikingVector[i-overlap-1+random.randint(0, overlap)] = 1
+                    overlap = 0
+
+                
+                   
