@@ -4,7 +4,7 @@ from sps.spike_utils import TransformationRule
 from sps.snp_system import SNPSystem  
 
 class MSNPSystem:
-    def __init__(self,configurationVector,spikingVector,spikingTransitionMatrix,netGainVector,ruleVector,max_steps=1000,deterministic=True):
+    def __init__(self,configurationVector,spikingVector,spikingTransitionMatrix,netGainVector,ruleVector,max_steps=1000,deterministic=True,spike_train=None,input_neurons=None):
         self.configurationVector = configurationVector
         self.spikingVector = spikingVector
         self.spikingTransitionMatrix = spikingTransitionMatrix
@@ -13,35 +13,40 @@ class MSNPSystem:
         self.max_steps = max_steps
         self.deterministic = deterministic
         self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingTransitionMatrix))])
-  
+        self.spike_train = spike_train
+        if input_neurons is None:
+            self.input_neurons = []
+        else:
+            self.input_neurons = input_neurons
+        self.t_step = 0
 
     def step(self):
-        if self.max_steps <= 0:
-            return False
+        if self.spike_train and self.t_step < len(self.spike_train):
+            if self.spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
+                self.configurationVector[self.input_neurons] += 1
+        #da vedere se aggiungere anche gli spike train separati per ogni neurone 
 
         self.update_spiking_vector()
         self.configurationVector = self.configurationVector + self.spikingVector @ self.spikingTransitionMatrix
         self.netGainVector = self.spikingVector @ self.spikingTransitionMatrix
-
-        self.max_steps -= 1
         return True
     
     def execute(self,verbose=False):
-        step = 0
+        self.t_step = 0
         if verbose:
             print("Initial Configuration Vector:", self.configurationVector)
             print("-" * 30)
-        while self.step():
+        while self.step() and self.t_step < self.max_steps:
             if verbose:
-                print("Step:", step + 1)
+                print("Step:", self.t_step + 1)
                 print("Spiking Vector applied:", self.spikingVector)
                 print("Configuration Vector obtained:", self.configurationVector)
-                print("Net Gain Vector in step", step + 1, ":", self.netGainVector)
+                print("Net Gain Vector in step", self.t_step + 1, ":", self.netGainVector)
                 print("-" * 30)
-            if np.all(self.spikingVector == 0):
+            if np.all(self.spikingVector == 0): # devo interrompere se ci sono ancora spike train da processare?
                 print("Computation halts because the spiking vector is zero; no more rules can be applied; the input is accepted")
                 return True
-            step += 1
+            self.t_step += 1
         print("Computation halts because the maximum number of steps has been reached; the input is rejected")
         return False
 
