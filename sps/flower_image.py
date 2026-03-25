@@ -3,11 +3,11 @@ from torchvision.datasets import Flowers102
 import numpy as np
 from sps.config import Config
 
-# TODO class: what i should do with this database?
+
 def get_flowers102_data():
     Config.INVERT = False
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((Config.IMG_SHAPE, Config.IMG_SHAPE)),
     ])
 
     train_dataset = Flowers102(

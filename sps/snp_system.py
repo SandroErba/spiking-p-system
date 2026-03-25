@@ -165,6 +165,8 @@ class SNPSystem:
             for idx in spike_event.targets:
                 if idx >= 0:
                     #print("targets", spike_event.targets, "idx", idx)
+                    #print("neurons idx error", idx)
+                    #print("number of neurons:", len(self.neurons))
                     self.neurons[idx].receive(spike_event.charge)
                     self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
                 else:
@@ -188,25 +190,16 @@ class SNPSystem:
                     offset = input_id + Config.NEURONS_L1 + Config.NEURONS_L2
                     self.pooling_image[input_id][self.t_step - 2] = self.neurons[offset].charge
             if 2 < self.t_step <= len(self.spike_train) + 2:
-                sample_idx = self.t_step - 3
-                if 0 <= sample_idx < self.charge_map_prediction.shape[1]:
-                    output_ids = self.output_neuron_ids if self.output_neuron_ids else []
-                    if output_ids:
-                        max_classes = min(len(output_ids), self.charge_map_prediction.shape[0])
-                        for class_idx in range(max_classes):
-                            nid = output_ids[class_idx]
-                            if 0 <= nid < len(self.neurons):
-                                self.charge_map_prediction[class_idx, sample_idx] = self.neurons[nid].charge
-                    else:
-                        for class_idx in range(Config.CLASSES):
-                            nid = class_idx + Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3 - 1
-                            if 0 <= nid < len(self.neurons):
-                                self.charge_map_prediction[class_idx][sample_idx] = self.neurons[nid].charge
+                if len(self.labels) == 0: #check if this is the test phase
+                    offset = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3 #output for SNPS without ensemble
+                    if self.neurons[offset].neuron_type != 2: offset = offset + Config.NEURONS_L3 #output for SNPS with ensemble
+                    for input_id in range(Config.CLASSES): #generate output charge
+                        self.charge_map_prediction[input_id][self.t_step - 3] = self.neurons[offset + input_id].charge
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
 
-        # set negative charge to 0 for the inhibitor spike
+        # enforce non-negative charges globally
         for neuron in self.neurons:
             if neuron.charge < 0:
                 neuron.charge = 0

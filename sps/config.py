@@ -11,12 +11,12 @@ class Config:
     QUANTIZATION = True
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
 
-    TRAIN_SIZE = 5000
-    TEST_SIZE = 1000
+    TRAIN_SIZE = 1000
+    TEST_SIZE = 200
 
     #L1 - INPUT IMAGE
     NEURONS_L1 = int(IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
-    Q_RANGE = 10 # the range of quantization, it works on images, rules and tuning #TODO ___tunable___
+    Q_RANGE = 11 # the range of quantization, it works on images, rules and tuning #TODO ___tunable___
     #with sparse matrix (M_SPARSITY = 0.8) 10 is the best range
 
     #L2 - FEATURE EXTRACTION
@@ -57,21 +57,22 @@ class Config:
     CLASSES = 10
 
     CSV_NAME = "SNPS_cnn.csv"
+    CSV_ENS_NAME = "SNPS_ens.csv"
 
-    SVM_C = 1.0
+    SVM_C = 3.0
 
-    #MATRIX QUANTIZE #TODO ___tunable___
-    QUANTIZE_METHOD = 1 #can be 1 -> Percentile or 2 -> Threshold #TODO add in GUI
+    #MATRIX TERNARIZE #TODO ___tunable___
+    TERNARIZE_METHOD = 2 #can be 1 -> Percentile or 2 -> Threshold #TODO add in GUI
 
-    M_SPARSITY = 0.8 #percentage of 0 values in the quantized matrix, used if QUANTIZE_METHOD == 1
-    M_POSITIVE = 0.1 #percentage of 1 values in the quantized matrix, used if QUANTIZE_METHOD == 1
+    M_SPARSITY = 0.8 #percentage of 0 values in the quantized matrix, used if TERNARIZE_METHOD == 1
+    M_POSITIVE = 0.1 #percentage of 1 values in the quantized matrix, used if TERNARIZE_METHOD == 1
 
-    M_THRESHOLD = 1.5 #multiplied factor for column values, used if QUANTIZE_METHOD == 2
+    M_THRESHOLD = 1.05 #multiplied factor for column values, used if TERNARIZE_METHOD == 2
 
     #IMPORTANCE #TODO ___tunable___
-    ALPHA_METHOD = 1 #how the model calculate the magnitude of the weights #TODO add in GUI
-    DISCRETIZE_METHOD = 1 #how the model apply the *3 to rules #TODO add in GUI
-    DISC_RANGE = 2  #work on discretize method 2
+    IMPORTANCE_METHOD = 2 #how the model calculate the magnitude of the weights #TODO add in GUI
+    DISCRETIZE_METHOD = 2 #how the model apply the *3 to rules #TODO add in GUI
+    DISC_RANGE = 6  #work on discretize method 2
 
     # ENERGY COSTS
     WORST_REGEX = 100
@@ -112,8 +113,8 @@ def database(database):
     if database == "breastmnist":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 2
-        Config.TRAIN_SIZE = 500
-        Config.TEST_SIZE = 100
+        if Config.TRAIN_SIZE > 546: Config.TRAIN_SIZE = 546
+        if Config.TRAIN_SIZE > 156: Config.TRAIN_SIZE = 156
 
     if database == "octmnist":
         Config.IMG_SHAPE = 28
@@ -136,7 +137,6 @@ def database(database):
         Config.CLASSES = 102
         Config.TRAIN_SIZE = 2040
         Config.TEST_SIZE = 1020
-
 
     if database == "digit":
         Config.IMG_SHAPE = 28

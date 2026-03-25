@@ -22,6 +22,8 @@ class TransformationRule:
 
     def check(self, charge):
         #with div and mod is possible to manage all value condition for charge
+        if self.target == 0 and self.div == 1 and self.mod == -1 and self.source == 0:
+            return charge < 0
         if charge > 0 and charge >= self.mod and charge >= self.target: #for avoid negative values
             if self.div > 0:
                 return charge >= self.source and (charge - self.mod) % self.div == 0

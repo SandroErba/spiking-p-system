@@ -62,11 +62,11 @@ class SimulatorGUI(ctk.CTk):
         self.net_var = tk.StringVar(value="Divisible by 3")
         default_dataset = Config.DATABASE if Config.DATABASE else "digit"
         self.dataset_var = tk.StringVar(value=default_dataset)
-        self.quantize_methods = {
-            "quantize_percentile (1)": 1,
-            "quantize_threshold (2)": 2,
+        self.TERNARIZE_methods = {
+            "ternarize_percentile (1)": 1,
+            "ternarize_threshold (2)": 2,
         }
-        self.alpha_methods = {
+        self.IMPORTANCE_methods = {
             "magnitude (1)": 1,
             "separability (2)": 2,
         }
@@ -74,13 +74,13 @@ class SimulatorGUI(ctk.CTk):
             "percentile (1)": 1,
             "proportional (2)": 2,
         }
-        default_method = self._label_from_value(self.quantize_methods, Config.QUANTIZE_METHOD, "quantize_percentile (1)")
-        default_alpha = self._label_from_value(self.alpha_methods, Config.ALPHA_METHOD, "magnitude (1)")
+        default_method = self._label_from_value(self.TERNARIZE_methods, Config.TERNARIZE_METHOD, "ternarize_percentile (1)")
+        default_IMPORTANCE = self._label_from_value(self.IMPORTANCE_methods, Config.IMPORTANCE_METHOD, "magnitude (1)")
         default_discretize = self._label_from_value(
             self.discretize_methods, Config.DISCRETIZE_METHOD, "percentile (1)"
         )
         self.method_var = tk.StringVar(value=default_method)
-        self.alpha_method_var = tk.StringVar(value=default_alpha)
+        self.IMPORTANCE_method_var = tk.StringVar(value=default_IMPORTANCE)
         self.discretize_method_var = tk.StringVar(value=default_discretize)
         self.track_charges_var = tk.BooleanVar(value=bool(getattr(Config, "TRACK_CHARGES", False)))
         self.track_mode_var = tk.StringVar(value=str(getattr(Config, "TRACK_MODE", "step_by_step")))
@@ -277,8 +277,8 @@ class SimulatorGUI(ctk.CTk):
 
         menu_blocks = [
             ("Dataset:", self.dataset_var, self.DATASET_OPTIONS, (0, 16)),
-            ("Quantization Method:", self.method_var, list(self.quantize_methods.keys()), (0, 16)),
-            ("Alpha Method:", self.alpha_method_var, list(self.alpha_methods.keys()), (0, 16)),
+            ("Ternarize Method:", self.method_var, list(self.TERNARIZE_methods.keys()), (0, 16)),
+            ("Importance Method:", self.IMPORTANCE_method_var, list(self.IMPORTANCE_methods.keys()), (0, 16)),
             ("Discretize Method:", self.discretize_method_var, list(self.discretize_methods.keys()), (0, 0)),
         ]
         for label, variable, values, pady in menu_blocks:
@@ -374,8 +374,8 @@ class SimulatorGUI(ctk.CTk):
             Config.TRAIN_SIZE = train_size
             Config.TEST_SIZE = test_size
             Config.Q_RANGE = q_range
-            Config.QUANTIZE_METHOD = self.quantize_methods[self.method_var.get()]
-            Config.ALPHA_METHOD = self.alpha_methods[self.alpha_method_var.get()]
+            Config.TERNARIZE_METHOD = self.TERNARIZE_methods[self.method_var.get()]
+            Config.IMPORTANCE_METHOD = self.IMPORTANCE_methods[self.IMPORTANCE_method_var.get()]
             Config.DISCRETIZE_METHOD = self.discretize_methods[self.discretize_method_var.get()]
             Config.TRACK_CHARGES = bool(self.track_charges_var.get())
             Config.TRACK_MODE = self.track_mode_var.get()

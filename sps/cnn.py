@@ -5,67 +5,39 @@
 
 # for cnn and kernels see https://medium.com/data-science/conv2d-to-finally-understand-what-happens-in-the-forward-pass-1bbaafb0b148
 
-from matplotlib import pyplot as plt
 import numpy as np
 import time
+
+from matplotlib import pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score, classification_report
 
 from sps import handle_csv
-from sps.digit_image import get_mnist_data as get_digit_mnist_data
-from sps.med_image import get_mnist_data as get_med_mnist_data
+from sps.digit_image import get_mnist_data
 from sps.flower_image import get_flowers102_data
-from sps.handle_csv import cnn_SNPS_csv, extend_csv
+from sps.handle_csv import cnn_SNPS_csv, extend_csv, ensemble_csv
 from sps.config import Config
+from sps.med_image import get_med_mnist_data
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
 from sklearn.preprocessing import label_binarize
 from sklearn.metrics import roc_auc_score
 
 
-_CACHED_MODELS = {}
-
 
 
 def launch_mnist_cnn():
-    t=time.time() #TODO fare test con C maggiore e minore
-    if Config.DATABASE == "digit":
-        print("[DATASET] source=digit_image dataset=digit")
-        x_train, y_train, x_test, y_test = get_digit_mnist_data()
-    elif Config.DATABASE == "flower":
-        print("[DATASET] source=flower_image dataset=flower102")
-        x_train, y_train, x_test, y_test = get_flowers102_data()    
-    else:
-        if not Config.DATABASE:
-            raise ValueError("Config.DATABASE is empty. Set it to 'digit' or a valid MedMNIST name.")
-        print(f"[DATASET] source=med_image dataset={Config.DATABASE}")
-        x_train, y_train, x_test, y_test = get_med_mnist_data(Config.DATABASE)
+    t=time.time()
+    x_train, y_train, x_test, y_test = get_mnist_data()
+    example_direct(x_train, y_train, x_test, y_test) #compare with models tuned on input images
 
-    cache_key = (
-        Config.DATABASE,
-        Config.TRAIN_SIZE,
-        Config.CSV_NAME,
-        Config.SVM_C,
-        Config.Q_RANGE,
-        Config.KERNEL_NUMBER,
-    )
-
-    train_time = 0.0
-    if cache_key in _CACHED_MODELS:
-        svm, logreg = _CACHED_MODELS[cache_key]
-        print("[MODEL] cached train reused")
-    else:
-        # Rebuild base graph on train to avoid stale CSV after merges/config edits.
-        cnn_SNPS_csv()
-        svm, logreg = train_cnn(x_train, y_train)
-        train_time = time.time() - t
-        _CACHED_MODELS[cache_key] = (svm, logreg)
-        print("[MODEL] trained and cached")
+    cnn_SNPS_csv() #create the csv for the SNPS
+    svm, logreg = train_cnn(x_train, y_train)
 
     #test phase
     t=time.time()
-    svm_accuracy, lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_svm_accuracy, raw_lr_accuracy = test_cnn(x_test, y_test, svm, logreg)
-    handle_csv.save_results(svm_accuracy, lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_svm_accuracy, raw_lr_accuracy, time.time()-t+train_time)
+    ensemble_accuracy = test_cnn(x_test, y_test, svm, logreg)
+    # handle_csv.save_results(ensemble_accuracy, time.time()-t)
 
 
 def train_cnn(x_train, y_train):
@@ -76,127 +48,62 @@ def train_cnn(x_train, y_train):
     snps.start()
 
     #Support Vector Machine
-    svm = LinearSVC(C=Config.SVM_C, max_iter=50000)
+    svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
     svm.fit(snps.pooling_image.T, y_train)
 
     #Logistic Regression
     logreg = LogisticRegression(
         solver="lbfgs",
-        max_iter=1000
+        max_iter=10000
     )
     logreg.fit(snps.pooling_image.T, y_train)
 
-    return svm, logreg #snps.model.get_synapses()
+    return svm, logreg
 
-def print_results(y_test, pred, scores):
-    y_test_bin = label_binarize(y_test, classes=np.arange(Config.CLASSES)) #ROC curve
-    roc_auc = roc_auc_score(
-        y_test_bin,
-        scores,
-        multi_class="ovr",
-        average="macro"
-    )
-    print("ROC AUC:", roc_auc)
-    print("F1 macro:", f1_score(y_test, pred, average="macro"))
-    print("F1 weighted:", f1_score(y_test, pred, average="weighted"))
-    print(classification_report(y_test, pred))
 
 def test_cnn(x_test, y_test, svm, logreg):
 
-    #-------------------------Testing the svm on SNPS-------------------------
-    snps_svm_pred, _, svm_scores = extend_and_test(x_test,"svm", svm.coef_, None)
-    snps_svm_accuracy = np.mean(snps_svm_pred == y_test)
-    print("SNPS svm not_imp accuracy:", snps_svm_accuracy)
-    #print_results(y_test, svm_scores)
+    compare_performance(x_test, y_test, svm, logreg) #for checking performance of other networks
 
+    ensemble_pred = ensemble_and_test(x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
+    ensemble_accuracy = np.mean(ensemble_pred == y_test)
+    print("SNPS actual ensemble accuracy:", ensemble_accuracy)
 
-    snps_imp_svm_pred, features, svm_imp_scores = extend_and_test(x_test,"svm_imp", svm.coef_, get_importance(svm.coef_))
-    snps_imp_svm_accuracy = np.mean(snps_imp_svm_pred == y_test)
-    print("SNPS svm accuracy:", snps_imp_svm_accuracy)
-    #print_results(y_test, snps_imp_svm_pred, svm_imp_scores)
+    return ensemble_accuracy
 
-
-    features_int_pos = np.maximum(features // 4, 0)
-
-    #SVM
-    #svm_pred = svm.predict(features_int_pos.T)
-    raw_svm_accuracy = svm.score(features_int_pos.T, y_test)
-    print("raw svm accuracy:", raw_svm_accuracy)
-    #print_results(y_test, svm_pred)
-
-
-    #-------------------------Testing the logreg on SNPS-------------------------
-    snps_lr_pred, _, lr_scores = extend_and_test(x_test,"lr", logreg.coef_, None)
-    lr_accuracy = np.mean(snps_lr_pred == y_test)
-    print("SNPS logreg not_imp accuracy:", lr_accuracy)
-    #print_results(y_test, snps_lr_pred)
-
-
-    snps_imp_lr_pred, _, lr_imp_scores = extend_and_test(x_test,"lr_imp", logreg.coef_, get_importance(logreg.coef_))
-    snps_imp_lr_accuracy = np.mean(snps_imp_lr_pred == y_test)
-    print("SNPS logreg accuracy:", snps_imp_lr_accuracy)
-    #print_results(y_test, snps_imp_lr_pred, lr_scores)
-
-
-    #LOGREG
-    #lr_pred = logreg.predict(features_int_pos.T)
-    raw_lr_accuracy = logreg.score(features_int_pos.T, y_test)
-    print("raw logreg accuracy:", raw_lr_accuracy)
-    #print_results(y_test, lr_pred)
-
-    #------------------combined charge------------ #TODO add new layer, split layer 3
-    # somma delle cariche dei due modelli
-    sum_pred = svm_scores.T + lr_scores.T
-    sum_labels = np.argmax(sum_pred, axis=0)
-    ens_accuracy = np.mean(sum_labels == y_test)
-    print("-SNPS ensemble accuracy:", ens_accuracy)
-
-    #------------------combined IMP charge------------
-    # somma delle cariche dei due modelli
-    sum_imp_pred = svm_imp_scores.T + lr_imp_scores.T
-    sum_imp_labels = np.argmax(sum_imp_pred, axis=0)
-    ens_imp_accuracy = np.mean(sum_imp_labels == y_test)
-    print("-SNPS imp ensemble accuracy:", ens_imp_accuracy)
-
-
-    return snps_imp_svm_accuracy, snps_imp_lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_svm_accuracy, raw_lr_accuracy
-
-
-
-def extend_and_test(x_test, method, w, multipliers):
+def ensemble_and_test(x_test, svm_w, logreg_w, svm_imp, logreg_imp):
     snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
     snps.spike_train = x_test
-    q = quantize_matrix(w.T)
-    extended_path = extend_csv("csv/" + Config.CSV_NAME, np.array(q), method, multipliers)
+    snps.labels = []
+    svm_q = quantize_matrix(svm_w.T)
+    logreg_q = quantize_matrix(logreg_w.T)
+    extended_path = ensemble_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
     snps.load_neurons_from_csv(extended_path)
     snps.start()
-    n_samples = len(x_test)
-    scores = snps.charge_map_prediction[:, :n_samples]
-    y_pred = np.argmax(scores, axis=0)
+    y_pred = np.argmax(snps.charge_map_prediction, axis=0)
 
-    return y_pred, snps.pooling_image[:, :n_samples], scores.T
+    return y_pred
+
+
 
 def get_importance(w):
     alpha = compute_neuron_importance(w)
     if Config.DISCRETIZE_METHOD == 1: multipliers = discretize_percentile(alpha)
     else: multipliers = discretize_proportional(alpha) #Config.DISCRETIZE == 2
-
     return multipliers
 
 def compute_neuron_importance(w):
     #Magnitude: neurons with larger overall weights across classes are considered more influential
-    if Config.ALPHA_METHOD == 1: alpha = np.linalg.norm(w, axis=0) #alpha 1
+    if Config.IMPORTANCE_METHOD == 1: alpha = np.linalg.norm(w, axis=0) #importance method 1
     # Weight range: neurons whose weights vary more between classes are considered more discriminative
-    else: alpha = np.max(w, axis=0) - np.min(w, axis=0) #Config.ALPHA_METHOD == 2
+    else: alpha = np.max(w, axis=0) - np.min(w, axis=0) #Config.IMPORTANCE_METHOD == 2
     alpha = alpha / max(alpha.max(), 1e-8) #Normalize in range [0:1]
     return alpha
-
 
 def discretize_percentile(alpha): #method 1 - percentile based importance
     p25 = np.percentile(alpha, 25)   # first quartile
     p75 = np.percentile(alpha, 75)   # third quartile
     multipliers = np.ones_like(alpha)  # default multiplier = 1 (low importance)
-
     multipliers[alpha > p75] = 3       # top 25% most important neurons
     multipliers[(alpha > p25) & (alpha <= p75)] = 2  # middle 50%
     multipliers[alpha <= p25] = 1      # bottom 25%
@@ -207,12 +114,13 @@ def discretize_proportional(alpha): #method 2 - proportional based importance
     return multipliers.astype(int) # convert to integer
 
 
+
+
 def quantize_matrix(w):
     # matrix quantization for last layer of SNPS: Transform from real values to {-1,0,1}
-    if Config.QUANTIZE_METHOD == 1: q = quantize_percentile(w, Config.M_SPARSITY, Config.M_POSITIVE) # Percentile-based
+    if Config.TERNARIZE_METHOD == 1: q = quantize_percentile(w, Config.M_SPARSITY, Config.M_POSITIVE) # Percentile-based
     else: q = quantize_threshold(w, Config.M_THRESHOLD) # Threshold-based
     return q
-
 
 #https://www.emergentmind.com/topics/ternary-weight-networks-twns
 #il link contiene info sulle reti ternarie TWN con pesi {-1,0,1}
@@ -253,6 +161,81 @@ def quantize_threshold(w, k):
     return w_q
 
 
+
+def example_direct(x_train, y_train, x_test, y_test):
+    x_train = x_train.reshape(len(x_train), -1)
+    x_test = x_test.reshape(len(x_test), -1)
+
+    svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
+    svm.fit(x_train, y_train)
+
+    #Logistic Regression
+    logreg = LogisticRegression(
+        solver="lbfgs",
+        max_iter=10000
+    )
+    logreg.fit(x_train, y_train)
+
+    print("svm direct accuracy", svm.score(x_test, y_test))
+    print("logreg direct accuracy", logreg.score(x_test, y_test))
+
+def compare_performance(x_test, y_test, svm, logreg):
+    #-------------------------Testing the svm on SNPS-------------------------
+    snps_svm_pred, _, svm_scores = extend_and_test(x_test,"svm", svm.coef_, None)
+    snps_svm_accuracy = np.mean(snps_svm_pred == y_test)
+    print("SNPS svm accuracy:", snps_svm_accuracy)
+
+    #add importance
+    snps_imp_svm_pred, features, svm_imp_scores = extend_and_test(x_test,"svm_imp", svm.coef_, get_importance(svm.coef_))
+    snps_imp_svm_accuracy = np.mean(snps_imp_svm_pred == y_test)
+    print("SNPS svm imp accuracy:", snps_imp_svm_accuracy)
+
+    features_int_pos = np.maximum(features // 4, 0) #extract feature from images
+
+    #real weights SVM
+    raw_svm_accuracy = svm.score(features_int_pos.T, y_test)
+    print("real weights svm accuracy:", raw_svm_accuracy)
+
+    #-------------------------Testing the logreg on SNPS-------------------------
+    snps_lr_pred, _, lr_scores = extend_and_test(x_test,"lr", logreg.coef_, None)
+    lr_accuracy = np.mean(snps_lr_pred == y_test)
+    print("SNPS logreg accuracy:", lr_accuracy)
+
+    #add importance
+    snps_imp_lr_pred, _, lr_imp_scores = extend_and_test(x_test,"lr_imp", logreg.coef_, get_importance(logreg.coef_))
+    snps_imp_lr_accuracy = np.mean(snps_imp_lr_pred == y_test)
+    print("SNPS logreg imp accuracy:", snps_imp_lr_accuracy)
+
+    #real weights LOGREG
+    raw_lr_accuracy = logreg.score(features_int_pos.T, y_test)
+    print("real weights logreg accuracy:", raw_lr_accuracy)
+
+    #------------------combined charge------------
+    # sum charge of the models
+    sum_pred = svm_scores.T + lr_scores.T
+    sum_labels = np.argmax(sum_pred, axis=0)
+    ens_accuracy = np.mean(sum_labels == y_test)
+    print("SNPS ensemble accuracy:", ens_accuracy)
+
+    #------------------combined IMP charge------------
+    # sum charge of the models with importance (same as the SNPS with ensemble)
+    sum_imp_pred = svm_imp_scores.T + lr_imp_scores.T
+    sum_imp_labels = np.argmax(sum_imp_pred, axis=0)
+    ens_imp_accuracy = np.mean(sum_imp_labels == y_test)
+    print("SNPS imp ensemble accuracy:", ens_imp_accuracy)
+
+
+def extend_and_test(x_test, method, w, multipliers):
+    snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
+    snps.spike_train = x_test
+    snps.labels = []
+    q = quantize_matrix(w.T)
+    extended_path = extend_csv("csv/" + Config.CSV_NAME, np.array(q), method, multipliers)
+    snps.load_neurons_from_csv(extended_path)
+    snps.start()
+    y_pred = np.argmax(snps.charge_map_prediction, axis=0)
+
+    return y_pred, snps.pooling_image, snps.charge_map_prediction.T
 
 """
 !!!ATTENZIONE: FINO A QUI HO SBAGLIATO E AVEVO svm", svm.coef_, get_importance(logreg.coef_))!
@@ -295,57 +278,3 @@ il migliore l'ho ottenuto con k:1.5 e ha 95%:
 
 
     """
-    #print(snps.feature_image[0])
-    #print("image 0: ", snps.feature_image[0])
-    #print("image shape: ", snps.feature_image.shape)
-
-    #show_results(train_data, snps.feature_image, Config.SHAPE_FEATURE, Config.K_RANGE) #show output images for feature extraction layer
-    #avg_pooling_image = snps.pooling_image // 4 #TODO this is the work that the firing rules in layer pool will do
-    #TODO the range is still the same because i sum 4 values, and the do an avg pooling, so /4
-    #show_results(train_data, avg_pooling_image, Config.SHAPE_POOL, Config.K_RANGE) #show output images for average pooling layer
-
-
-def show_results(train_data, output_array, img_size, img_range):
-    print("range of values for current image:" , img_range)
-    images = np.asarray(output_array)
-    num_inputs = images.shape[1]
-    kernels = Config.KERNEL_NUMBER
-
-    #cols = min(kernels + 1, 6)            # +1 for original image
-    cols = Config.KERNEL_NUMBER + 1
-    rows = int(np.ceil((kernels + 1) / cols))
-
-    plt.figure(figsize=(3 * cols, 3 * rows * num_inputs))
-
-    img_index = 0
-    for inp in range(num_inputs):
-
-        plt.subplot(num_inputs * rows, cols, img_index + 1)
-        #print("ORIGINAL IMAGE:", train_data[inp])
-        plt.imshow(train_data[inp], cmap="gray")
-        plt.title(f"Input {inp} – Original")
-        plt.axis("off")
-
-        img_index += 1
-
-        for k in range(kernels):
-            start = k * (img_size ** 2)
-            end   = (k + 1) * (img_size ** 2)
-
-            feature = images[start:end, inp].reshape(
-                img_size, img_size
-            )
-
-            vmin, vmax = img_range[k]
-            plt.subplot(num_inputs * rows, cols, img_index + 1)
-            plt.imshow(feature, cmap="gray", vmin=vmin, vmax=vmax)
-            plt.title(f"Input {inp} – Kernel {k}")
-            plt.axis("off")
-
-            #print("kernel number", k, "values",feature)
-
-            img_index += 1
-
-    plt.tight_layout()
-    plt.show()
-
