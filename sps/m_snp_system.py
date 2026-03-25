@@ -21,6 +21,7 @@ class MSNPSystem:
         self.t_step = 0
 
     def step(self):
+        # white hole ?? 
         if self.spike_train and self.t_step < len(self.spike_train):
             if self.spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
                 self.configurationVector[self.input_neurons] += 1
