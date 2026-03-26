@@ -348,8 +348,8 @@ def save_results(ensemble_accuracy, time):
             "test size": Config.TEST_SIZE,
             "q range": Config.Q_RANGE,
             "svm c": Config.SVM_C,
-            "quantize method": Config.QUANTIZE_METHOD,
-            "alpha method": Config.ALPHA_METHOD,
+            "ternarize method": Config.TERNARIZE_METHOD,
+            "importance method": Config.IMPORTANCE_METHOD,
             "discretize method": Config.DISCRETIZE_METHOD,
             "discretization range": Config.DISC_RANGE,
             "matrix sparsity": Config.M_SPARSITY,
@@ -388,3 +388,43 @@ def log_experiment(csv_path="csv/results.csv", params=None, metrics=None):
         writer.writerow(row)
 
 
+def save_accuracies_sparsity(
+        csv_path="csv/accuracies_sparsity.csv",
+        accuracies=None,   # list of 10 values
+        train_size=None,
+        q_range=None,
+        sparsity=None,
+        positive=None,
+        negative=None
+):
+    file_exists = os.path.isfile(csv_path)
+
+    accuracies = accuracies or [None] * 10
+
+    row = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "train_size": train_size,
+        "q_range": q_range,
+        "sparsity": sparsity,
+        "positive": positive,
+        "negative": negative,
+    }
+
+    # add accuracy columns
+    for i in range(10):
+        row[f"acc_{i}"] = accuracies[i]
+
+    fieldnames = (
+            ["timestamp", "train_size", "q_range", "sparsity", "positive", "negative"] +
+            [f"acc_{i}" for i in range(10)]
+    )
+
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+
+    with open(csv_path, mode="a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(row)

@@ -55,6 +55,7 @@ class SimulatorGUI(ctk.CTk):
             "quantize_threshold (2)": 2,
             "quantize_twn (3)": 3,
         } #TODO delete twn, is no longer present
+        #TODO now is called "ternarize" instead of "quantized"
         self.alpha_methods = {
             "magnitude (1)": 1,
             "separability (2)": 2,
@@ -67,7 +68,7 @@ class SimulatorGUI(ctk.CTk):
             (
                 name
                 for name, value in self.quantize_methods.items()
-                if value == Config.QUANTIZE_METHOD
+                if value == Config.TERNARIZE_METHOD
             ),
             "quantize_percentile (1)",
         )
@@ -75,7 +76,7 @@ class SimulatorGUI(ctk.CTk):
             (
                 name
                 for name, value in self.alpha_methods.items()
-                if value == Config.ALPHA_METHOD
+                if value == Config.IMPORTANCE_METHOD
             ),
             "magnitude (1)",
         )
@@ -375,8 +376,8 @@ class SimulatorGUI(ctk.CTk):
             Config.TRAIN_SIZE = train_size
             Config.TEST_SIZE = test_size
             Config.Q_RANGE = q_range
-            Config.QUANTIZE_METHOD = self.quantize_methods[self.method_var.get()]
-            Config.ALPHA_METHOD = self.alpha_methods[self.alpha_method_var.get()]
+            Config.TERNARIZE_METHOD = self.quantize_methods[self.method_var.get()]
+            Config.IMPORTANCE_METHOD = self.alpha_methods[self.alpha_method_var.get()]
             Config.DISCRETIZE_METHOD = self.discretize_methods[self.discretize_method_var.get()]
             Config.compute_k_range()
             cnn.launch_mnist_cnn()
