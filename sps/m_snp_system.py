@@ -2,9 +2,11 @@ import numpy as np
 import random
 from sps.spike_utils import TransformationRule
 from sps.snp_system import SNPSystem  
+from sps.config import Config
+
 
 class MSNPSystem:
-    def __init__(self,configurationVector,spikingVector,spikingTransitionMatrix,netGainVector,ruleVector,max_steps=1000,deterministic=True,spike_train=None,input_neurons=None):
+    def __init__(self,configurationVector,spikingVector,spikingTransitionMatrix,netGainVector,ruleVector,max_steps=1000,deterministic=True,single_spike_train=None,input_neurons=None):
         self.configurationVector = configurationVector
         self.spikingVector = spikingVector
         self.spikingTransitionMatrix = spikingTransitionMatrix
@@ -13,23 +15,33 @@ class MSNPSystem:
         self.max_steps = max_steps
         self.deterministic = deterministic
         self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingTransitionMatrix))])
-        self.spike_train = spike_train
+        self.single_spike_train = single_spike_train
         if input_neurons is None:
             self.input_neurons = []
         else:
             self.input_neurons = input_neurons
         self.t_step = 0
 
+    def loadImages(self,img_spike_train):
+        self.img_spike_train = img_spike_train
+
     def step(self):
-        # white hole ?? 
-        if self.spike_train and self.t_step < len(self.spike_train):
-            if self.spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
+
+        if Config.MODE == "CNN":
+            if self.t_step < self.img_spike_train.shape[0]:
+                self.configurationVector[self.input_neurons] += self.img_spike_train[self.t_step]
+
+        elif self.single_spike_train and self.t_step < len(self.single_spike_train):
+            if self.single_spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
                 self.configurationVector[self.input_neurons] += 1
-        #da vedere se aggiungere anche gli spike train separati per ogni neurone 
 
         self.update_spiking_vector()
         self.configurationVector = self.configurationVector + self.spikingVector @ self.spikingTransitionMatrix
         self.netGainVector = self.spikingVector @ self.spikingTransitionMatrix
+
+        if Config.WHITE_HOLE:
+            self.configurationVector = np.zero_like(self.configurationVector)
+
         return True
     
     def execute(self,verbose=False):
