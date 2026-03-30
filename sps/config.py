@@ -70,10 +70,6 @@ class Config:
     EXPECTED_REGEX = 10
     EXPECTED_SPIKE = 0.5
 
-    # Synapse tuning weights (used in binarized/quantized modes)
-    POSITIVE_REINFORCE = 1 #TODO check here
-    NEGATIVE_PENALIZATION = 1
-
     THRESHOLD = 128 # higher Thr -> more spike
 
     # Charge tracker output integration (Francesca)
@@ -142,7 +138,4 @@ def database(database):
     Config.SHAPE_POOL = int(Config.SHAPE_FEATURE / Config.POOLING_SIZE)
     Config.NEURONS_POOL = int(Config.SHAPE_POOL ** 2)
     Config.NEURONS_L3 = int(Config.KERNEL_NUMBER * Config.NEURONS_POOL)
-    Config.NEURONS_LP = Config.NEURONS_L3
-    Config.NEURONS_L12 = Config.NEURONS_L1 + Config.NEURONS_L2
-    Config.NEURONS_T = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3
 

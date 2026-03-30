@@ -1,5 +1,4 @@
 from keras.src.datasets import mnist
-from keras.src.datasets import mnist
 from matplotlib import pyplot as plt
 import numpy as np
 from sps.config import Config

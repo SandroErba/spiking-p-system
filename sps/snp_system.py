@@ -1,84 +1,46 @@
 import numpy as np
 from sps.config import Config
-
 from .p_neuron import PNeuron
 from .spike_utils import SpikeEvent, TransformationRule, History
 import csv
-
-from .charge_tracker import ChargeTracker
 
 
 class SNPSystem:
     """Spiking Neural P System"""
 
-    def __init__(self, *args):
-        # Backward compatible constructor:
-        # - (input_len, max_steps, deterministic)
-        # - (max_delay, max_steps, input_type, output_type, deterministic)
-        if len(args) == 3:
-            input_len, max_steps, deterministic = args
-            max_delay = 5
-            input_type = "images"
-            output_type = "images"
-        elif len(args) == 5:
-            max_delay, max_steps, input_type, output_type, deterministic = args
-            input_len = max_steps
-        else:
-            raise TypeError("SNPSystem expects 3 or 5 positional arguments")
+    def __init__(self, input_len, max_steps, deterministic):
 
-        if Config.MODE in ("binarized", "quantized"):
-            self.charge_map_l1 = np.zeros(Config.NEURONS_L1, dtype=float) # support array - for saving and showing the internal charge
-            self.charge_map_l2 = np.zeros(Config.NEURONS_L12 - Config.NEURONS_L1, dtype=float)
-            self.charge_map_l3 = np.zeros(Config.NEURONS_L3 - Config.NEURONS_L12, dtype=float)
-            self.charge_map_l4 = np.zeros(Config.NEURONS_T - Config.NEURONS_L3, dtype=float)
-
-        # init time step, history
         PNeuron.reset_nid()
-        self.input_type = input_type
-        self.output_type = output_type
         self.input_len = input_len
         self.t_step = 0
         self.max_steps = max_steps
         self.deterministic = deterministic # can be true or false
-        self.spike_fired = 0
-        self.inhibition_fired = 0
-        self.firing_applied = 0
-        self.forgetting_applied = 0
 
         self.history = None
 
 
-        self.max_delay = max_delay # init circular future spiking events based on max_delay
+        self.max_delay = 5 # init circular future spiking events based on max_delay
         self.spike_events = [[] for _ in range(self.max_delay)]
 
         self.neurons = []
         self.spike_train = None
-        self.output_neuron_ids = []
-
-        if Config.MODE in ("binarized", "quantized"): # record firing of layer 2 for the training phase
-            self.labels = []
-            self.old_layer_2_firing_counts = 0
-            self.layer_2_firing_counts = 0
-            self.layer_2_synapses = []
-            # structure to memorize layer 3 synampses' weights for training
-            self.layer_3_firing_counts = np.zeros(Config.NEURONS_L3 - Config.NEURONS_L12, dtype=int)
-            self.old_layer_3_firing_counts = 0
-            self.layer_3_synapses = []
 
         # record output
         if Config.MODE == "generative":
             self.output = [] # time between two spikes in the output neuron
-        elif Config.MODE in ("binarized", "quantized"):
-            self.output_array = np.zeros((self.max_steps, Config.CLASSES), dtype=int) # array of prediction
-
-        if Config.MODE == "edge":
-            self.feature_image = np.zeros((Config.SHAPE_FEATURE * Config.SHAPE_FEATURE, input_len), dtype=int)
-        if Config.MODE == "cnn":
+        elif Config.MODE == "cnn":
             self.feature_image = np.zeros((Config.NEURONS_FEATURE * Config.KERNEL_NUMBER, input_len), dtype=int)
             self.pooling_image = np.zeros((Config.NEURONS_L3, input_len), dtype=int)
-            self.charge_map_prediction = np.zeros((Config.CLASSES, input_len), dtype=int)
+            self.labels = []
+            self.correct = 0
+            self.charge_map_prediction = np.zeros((Config.CLASSES, input_len), dtype=int) #values for the last layer of the cnn
 
-        self.charge_tracker = None # I initialize the charge tracker 
+
+        self.firing_applied = 0 # record energy used
+        self.forgetting_applied = 0
+        self.spike_fired = 0
+        self.inhibition_fired = 0 #those need the energy_tracker
+
     def init_history(self):
         """init tick history based on the system's neurons"""
         self.history = History(self.neurons)
@@ -86,19 +48,7 @@ class SNPSystem:
     def start(self):
         """start sending and receiving spikes"""
         self.init_history()
-        if getattr(Config, "TRACK_CHARGES", False):
-            self.charge_tracker = ChargeTracker(
-                filename=getattr(Config, "TRACK_FILENAME", "output_charges"),
-                mode=getattr(Config, "TRACK_MODE", "step_by_step"),
-                format=getattr(Config, "TRACK_FORMAT", "csv"),
-                num_neurons=len(self.neurons),
-            )
-        else:
-            self.charge_tracker = None
-        # keep on ticking until output condition is met or max number of ticks is exceeded
-        while True:
-            if self.charge_tracker is not None:
-                self.charge_tracker.record_charges(self.t_step, self.neurons) #takes the index of the current image and reads the charge of each neuron and saves it in self.history.
+        while True: # keep on ticking until output condition is met or max number of ticks is exceeded
             if not self.tick():
                 # calculate consumed energy
                 """For more info, see latex document and chapter 5.5 of 'Beyond classification: directly training spiking
@@ -107,10 +57,8 @@ class SNPSystem:
                 total_rules = sum(len(neuron.transf_rules) for neuron in self.neurons)
                 w_energy = self.t_step * (total_synapses + total_rules * Config.WORST_REGEX)
                 e_energy = int(self.spike_fired * Config.EXPECTED_SPIKE + (self.firing_applied + self.forgetting_applied) * Config.EXPECTED_REGEX)
-                if self.charge_tracker is not None:
-                    self.charge_tracker.finish()
 
-                if self.output_type == "generative":
+                if Config.MODE == "generative":
                     print("Spike fired at time step", self.output[0], "and time step", self.output[1], ". The output is", self.output[1] - self.output[0])
                 return w_energy, e_energy
 
@@ -132,27 +80,18 @@ class SNPSystem:
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
-        # print only if there is activity in Layer 3 (useful for understanding the decision)
-        #if Config.MODE in ("binarized", "quantized") and np.any(self.charge_map_l3):
-        #    print(f"\n=== T_STEP {self.t_step} ===")
-        #    print(f"Activations Layer 3 (mid neurons):")
-        #    print(self.charge_map_l3) # print the array of your 24 neurons
-            
-
-        #self.show_charge() #debug only - for saving the internal charge
-
         input_spike = False # check if there are more input for halting condition
-        if self.spike_train is not None and self.t_step < len(self.spike_train):
-            if Config.MODE in ("binarized", "quantized", "edge", "cnn"): # you have an array of images as input
+        if Config.MODE == "cnn": # you have an array of images as input
+            if self.spike_train.any() and self.t_step < len(self.spike_train):
                 input_spike = True
                 input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
                 for i, neuron in enumerate(self.neurons):
                     if neuron.neuron_type == 0:
                         if input_vector[i] > 0:
                             neuron.charge =  int(neuron.charge) + int(input_vector[i]) # add charge to the corresponding neuron
-                            #self.spike_fired += input_vector[i]
                             self.history.record_incoming(neuron, input_vector[i], "input")
-            elif self.spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
+        elif self.spike_train and self.t_step < len(self.spike_train):
+            if self.spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
                 input_spike = True
                 for neuron in self.neurons:
                     if neuron.neuron_type == 0:
@@ -168,25 +107,18 @@ class SNPSystem:
                     #print("neurons idx error", idx)
                     #print("number of neurons:", len(self.neurons))
                     self.neurons[idx].receive(spike_event.charge)
-                    self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
                 else:
                     self.neurons[-idx].inhibit(spike_event.charge)
-                    self.history.record_incoming(self.neurons[-idx], spike_event.charge, spike_event.nid)
+                self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
 
-        # create the output images
-        if Config.MODE == "edge":
-            for input_id in range(Config.SHAPE_FEATURE * Config.SHAPE_FEATURE):
-                offset = input_id + Config.NEURONS_L1 + (Config.SHAPE_FEATURE * Config.SHAPE_FEATURE * Config.KERNEL_NUMBER)
-                if self.neurons[offset].charge > 0:
-                    self.feature_image[input_id][self.t_step - 2] = 1
-
+        # fill charge maps
         if Config.MODE == "cnn":
             if 0 < self.t_step <= len(self.spike_train):
-                for input_id in range(Config.NEURONS_L2): # generate feature images
+                for input_id in range(Config.NEURONS_L2): #generate feature images
                     offset = input_id + Config.NEURONS_L1
                     self.feature_image[input_id][self.t_step - 1] = self.neurons[offset].charge
             if 1 < self.t_step <= len(self.spike_train) + 1:
-                for input_id in range(Config.NEURONS_L3): # generate pooling images
+                for input_id in range(Config.NEURONS_L3): #generate pooling images
                     offset = input_id + Config.NEURONS_L1 + Config.NEURONS_L2
                     self.pooling_image[input_id][self.t_step - 2] = self.neurons[offset].charge
             if 2 < self.t_step <= len(self.spike_train) + 2:
@@ -199,51 +131,11 @@ class SNPSystem:
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
 
-        # enforce non-negative charges globally
+        # set negative charge to 0 for the inhibitor spike
+        #TODO formally, this is not present in papers. add a forgetting rule
         for neuron in self.neurons:
             if neuron.charge < 0:
                 neuron.charge = 0
-
-        # synapses tuning, enter only in the image classification mode
-        if Config.MODE in ("binarized", "quantized") and len(self.layer_2_synapses) > 0:
-            if Config.QUANTIZATION and np.any(self.charge_map_l2):
-                #print("MATRIX LAYER 2: ", charge_map_l2)
-                label = self.labels[self.t_step - 2] # -2 because the P system requires 2 step for start the computation
-                for idx in range(Config.NEURONS_L2):
-                    self.layer_2_synapses[label][idx] = self.layer_2_synapses[label][idx] + (self.charge_map_l2[idx] * (Config.CLASSES - 1))
-                    for wrong_label in range(Config.CLASSES):
-                        if wrong_label != label:
-                            self.layer_2_synapses[wrong_label][idx] -= self.charge_map_l2[idx]
-
-            elif not Config.QUANTIZATION:
-                fired_diff = self.layer_2_firing_counts - self.old_layer_2_firing_counts
-                fired_indices = np.where(fired_diff > 0)[0]  
-                if fired_indices.size > 0:
-                    l3_neurons_count = len(self.layer_2_synapses)
-                    label = self.labels[self.t_step - 2]
-                    target_l3_indices = [label]
-                    for idx in fired_indices:
-                        for l3_idx in range(l3_neurons_count):
-                            if l3_idx in target_l3_indices:
-                                self.layer_2_synapses[l3_idx][idx] += Config.POSITIVE_REINFORCE
-                            else:
-                                self.layer_2_synapses[l3_idx][idx] -= Config.NEGATIVE_PENALIZATION
-                    self.old_layer_2_firing_counts = self.layer_2_firing_counts.copy()
-            
-        # synapses tuning for layer 3
-        if self.input_type == "images" and self.output_type == "prediction" and len(self.layer_3_synapses) > 0:
-            current_label_idx = self.t_step - 2
-            if 0 <= current_label_idx < len(self.labels): 
-                if Config.QUANTIZATION and np.any(self.charge_map_l3):
-                    label = self.labels[current_label_idx]
-                    num_l3_neurons = self.layer_3_synapses.shape[1] 
-                    for idx in range(num_l3_neurons):
-                        if self.charge_map_l3[idx] > 0:
-                            self.layer_3_synapses[label][idx] += self.charge_map_l3[idx]
-                            for wrong_label in range(Config.CLASSES):
-                                if wrong_label != label:
-                                    self.layer_3_synapses[wrong_label][idx] -= self.charge_map_l3[idx]
-
 
         # check for halting computation
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
@@ -296,44 +188,4 @@ class SNPSystem:
                 neuron = PNeuron(snp_system=self, charge = initial_charge, targets=targets, transf_rules=transf_rules, neuron_type=neuron_type)
                 neurons.append(neuron)
         self.neurons = neurons
-        self.output_neuron_ids = [n.nid for n in neurons if n.neuron_type == 2]
-
-        # Keep prediction matrix aligned with current run length.
-        if Config.MODE == "cnn" and self.spike_train is not None:
-            n_samples = len(self.spike_train)
-            self.charge_map_prediction = np.zeros((Config.CLASSES, n_samples), dtype=int)
-
         return neurons
-
-
-
-
-    # support array - for saving and showing the internal charge
-    @staticmethod
-    def save_charge(self, neuron):
-        nid = neuron.nid
-        if 0 <= nid < Config.NEURONS_L1:
-            self.charge_map_l1[nid] = neuron.charge
-            return
-        l2_index = nid - Config.NEURONS_L1
-        if 0 <= nid < Config.NEURONS_L12:
-            self.charge_map_l2[l2_index] = neuron.charge
-            return
-        l3_index = nid - Config.NEURONS_L12
-        if 0 <= nid < Config.NEURONS_L3:
-            self.charge_map_l3[l3_index] = neuron.charge
-            return
-        l4_index = nid - Config.NEURONS_L3
-        if 0 <= nid < Config.NEURONS_T:
-            self.charge_map_l4[l4_index] = neuron.charge
-            return
-
-    def show_charge(self):
-        print("-------------MATRIX LAYER 1 at time step ", self.t_step, "------------------")
-        print(self.charge_map_l1)
-        print("-------------MATRIX LAYER 2 at time step ", self.t_step, "------------------")
-        print(self.charge_map_l2)
-        print("-------------MATRIX LAYER 3 at time step ", self.t_step, "------------------")
-        print(self.charge_map_l3)
-        print("-------------MATRIX LAYER 4 at time step ", self.t_step, "------------------")
-        print(self.charge_map_l4)

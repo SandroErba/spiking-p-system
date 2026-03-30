@@ -2,7 +2,7 @@
 
 This window lets the user run two main workflows:
 1) small example networks,
-2) a CNN 28x28 pipeline.
+2) a image classification P system.
 
 Tasks run in a background thread and logs are shown in the output box.
 """

@@ -1,4 +1,3 @@
-"""P Neuron"""
 import random
 from sps.config import Config
 

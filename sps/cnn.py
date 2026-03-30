@@ -1,16 +1,8 @@
-#PRIMA: search for an easy CNN and try to recreate it -> https://pythonguides.com/simple-mnist-convnet-keras/
-#LEGGERE DN-SNP: SNP-based lightweight deep network for CT image segmentation of COVID-19 o paper simili con CNN
-#LEGGERE PER STDP: https://www.frontiersin.org/journals/computational-neuroscience/articles/10.3389/fncom.2015.00099/full
-
-
-# for cnn and kernels see https://medium.com/data-science/conv2d-to-finally-understand-what-happens-in-the-forward-pass-1bbaafb0b148
-
 import numpy as np
 import time
 
 from matplotlib import pyplot as plt
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score, classification_report
 
 from sps import handle_csv
 from sps.digit_image import get_mnist_data
@@ -21,7 +13,6 @@ from sps.med_image import get_med_mnist_data
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
 from sklearn.preprocessing import label_binarize
-from sklearn.metrics import roc_auc_score
 
 
 
