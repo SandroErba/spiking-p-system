@@ -24,7 +24,7 @@ def _build_layer2_rules(k_index):
     for i in range(Config.K_RANGE[k_index][1], 0, -1):
         rules.append(f"[0,{i},{i},{i},0]")
 
-    rules.append("[1,-1,0,0,0]")
+    rules.append("[-1,-1,0,0,0]")
     return rules
 
 
