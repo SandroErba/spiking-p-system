@@ -199,11 +199,6 @@ class SNPSystem:
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
 
-        # enforce non-negative charges globally
-        for neuron in self.neurons:
-            if neuron.charge < 0:
-                neuron.charge = 0
-
         # synapses tuning, enter only in the image classification mode
         if Config.MODE in ("binarized", "quantized") and len(self.layer_2_synapses) > 0:
             if Config.QUANTIZATION and np.any(self.charge_map_l2):
