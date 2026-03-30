@@ -15,12 +15,25 @@ class MSNPSystem:
         self.max_steps = max_steps
         self.deterministic = deterministic
         self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingTransitionMatrix))])
+        
+        self.targetVector = np.array([
+            row[np.where(row > 0)[0][0]] if np.any(row > 0) else 0
+            for row in self.spikingTransitionMatrix
+        ])
+
         self.single_spike_train = single_spike_train
         if input_neurons is None:
             self.input_neurons = []
         else:
             self.input_neurons = input_neurons
         self.t_step = 0
+
+    """
+        le immagini in input, che sono (per ora) un array monodimensionale,
+        sono nel formato 1xn, dove n è il risultato di altezza x larghezza dell'immagine
+        quindi come input passerò un array di dimensione (m,n) dove m è il numero di immagini 
+        da processare, e n è il numero di pixel (o input neurons) per ogni immagine
+    """
 
     def loadImages(self,img_spike_train):
         self.img_spike_train = img_spike_train
@@ -40,7 +53,7 @@ class MSNPSystem:
         self.netGainVector = self.spikingVector @ self.spikingTransitionMatrix
 
         if Config.WHITE_HOLE:
-            self.configurationVector = np.zero_like(self.configurationVector)
+            self.configurationVector = np.zeros_like(self.configurationVector)
 
         return True
     
@@ -63,11 +76,49 @@ class MSNPSystem:
         print("Computation halts because the maximum number of steps has been reached; the input is rejected")
         return False
 
+    # def check(self, charge):
+    #     #with div and mod is possible to manage all value condition for charge
+    #     if charge > 0 and charge >= self.mod and charge >= self.target: #for avoid negative values
+    #         if self.div > 0:
+    #             return charge >= self.source and (charge - self.mod) % self.div == 0
+    #         if self.div == 0:
+    #             return charge >= self.source and charge == self.mod
+    #     return False
+
+    """
+    - charge: the current charge of the neuron
+    - source: the number of spikes consumed by the rule
+    - div: the divisor in the rule's regular expression (a^div)*
+    - mod: the modulus in the rule's regular expression (a^mod)
+    - target: the number of spikes produced by the rule (if > 0) or 0 for forgetting rules
+    """
+
+    def rule_check(self, charge, source, div, mod,target):
+        if charge > 0 and charge >= mod and charge >= target:
+            if div > 0:
+                return charge >= source and (charge - mod) % div == 0
+            if div == 0:
+                return charge >= source and charge == mod
+        return False
+        
+
 
     def update_spiking_vector(self,verbose=False):
         for i in range(len(self.spikingVector)):
-            self.spikingVector[i] = self.ruleVector[i].check(self.configurationVector[self.applyingRuleVector[i]])
+            self.spikingVector[i] = self.rule_check(self.configurationVector[self.applyingRuleVector[i]], abs(self.spikingTransitionMatrix[i][self.applyingRuleVector[i]]),self.ruleVector[0][i],self.ruleVector[1][i],self.targetVector[i])
+        """
+        # regex are in the form: a^mod (a^div)^*
+        # with source == 0, the rule consumes all the spike
+        """
 
+        """
+        # rule vector is in format:
+        # ( (div1, div2, ..., divn),
+        #   (mod1, mod2, ..., modn),
+        )
+        """
+
+# da rivedere, perché faccio schifo
         if not self.deterministic:
             overlap = 0
             for i in range(1, len(self.spikingVector)):
