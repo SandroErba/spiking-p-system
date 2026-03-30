@@ -29,15 +29,13 @@ from sklearn.metrics import roc_auc_score
 def launch_mnist_cnn():
     t=time.time()
     x_train, y_train, x_test, y_test = get_mnist_data()
-    example_direct(x_train, y_train, x_test, y_test) #compare with models tuned on input images
+    #example_direct(x_train, y_train, x_test, y_test) #compare with models baseline, launched directly on input images
 
     cnn_SNPS_csv() #create the csv for the SNPS
     svm, logreg = train_cnn(x_train, y_train)
 
-    #test phase
-    t=time.time()
     ensemble_accuracy = test_cnn(x_test, y_test, svm, logreg)
-    # handle_csv.save_results(ensemble_accuracy, time.time()-t)
+    handle_csv.save_results(ensemble_accuracy, time.time()-t)
 
 
 def train_cnn(x_train, y_train):
@@ -63,7 +61,7 @@ def train_cnn(x_train, y_train):
 
 def test_cnn(x_test, y_test, svm, logreg):
 
-    compare_performance(x_test, y_test, svm, logreg) #for checking performance of other networks
+    compare_performance(x_test, y_test, svm, logreg) #for running and checking performance of other networks
 
     ensemble_pred = ensemble_and_test(x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
     ensemble_accuracy = np.mean(ensemble_pred == y_test)
@@ -179,6 +177,7 @@ def example_direct(x_train, y_train, x_test, y_test):
     print("svm direct accuracy", svm.score(x_test, y_test))
     print("logreg direct accuracy", logreg.score(x_test, y_test))
 
+
 def compare_performance(x_test, y_test, svm, logreg):
     #-------------------------Testing the svm on SNPS-------------------------
     snps_svm_pred, _, svm_scores = extend_and_test(x_test,"svm", svm.coef_, None)
@@ -236,45 +235,3 @@ def extend_and_test(x_test, method, w, multipliers):
     y_pred = np.argmax(snps.charge_map_prediction, axis=0)
 
     return y_pred, snps.pooling_image, snps.charge_map_prediction.T
-
-"""
-!!!ATTENZIONE: FINO A QUI HO SBAGLIATO E AVEVO svm", svm.coef_, get_importance(logreg.coef_))!
-quindi ignorare prima del 2026-03-06 14:10:52
-------------------------
-uno dei primi ensemble ha ottenuto 94.6%
-{"train size": 3000, "test size": 500, "q range": 10, "svm c": 1.0, "quantize method": 3, "alpha method": 2, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.5, "matrix positive": 0.25, "matrix threshold": 0.5, "database": "digit", "kernel number": 8}
-{"SVM accuracy": 0.92, "LR accuracy": 0, "time": 326.88240218162537}
-
-TRAIN: 3000
-SNPS svm not_imp accuracy: 0.92
-SNPS svm accuracy: 0.92
-raw svm accuracy: 0.95
-SNPS logreg not_imp accuracy: 0.9
-SNPS logreg accuracy: 0.922
-raw logreg accuracy: 0.958
-
-SNPS ensemble accuracy: 0.928
-SNPS imp ensemble accuracy: 0.946
--------------------------------
----simulazione del 2026-03-07 17:59:44 - SPARSITY: 0.8 - QRANGE: 10
-{"train size": 5000, "test size": 1000, "q range": 10, "svm c": 1.0, "quantize method": 1, "alpha method": 2, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.8, "matrix positive": 0.1, "matrix threshold": 0.5, "database": "digit", "kernel number": 8}
-{"SVM accuracy": 0.924, "LR accuracy": 0.922, "ens accuracy": 0.936, "ens imp accuracy": 0.941, "time": 643.7142617702484}
-------------------------
----Fisso QRANGE a 10, SPARSITY: 0.8, e vario train size esponenzialmente per vedere se davvero calano le performance:
-la migliore l'ho ottenuta con TRAIN 4000 e TEST 1000 e ha 93.8%:
-{"train size": 4000, "test size": 1000, "q range": 10, "svm c": 1.0, "quantize method": 1, "alpha method": 2, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.8, "matrix positive": 0.1, "matrix threshold": 0.5, "database": "digit", "kernel number": 8}
-{"SVM accuracy": 0.906, "LR accuracy": 0.921, "ens accuracy": 0.924, "ens imp accuracy": 0.938, "raw svm accuracy": 0.947, "raw lr accuracy": 0.955, "time": 744.9951825141907}
----------------------------------------
----prove con quantizzazione a metodo 2 e vari k (M_THRESHOLD):
-il migliore l'ho ottenuto con k:1.5 e ha 95%:
-{"train size": 5000, "test size": 1000, "q range": 5, "svm c": 1.0, "quantize method": 2, "alpha method": 2, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.8, "matrix positive": 0.1, "matrix threshold": 1.5, "database": "digit", "kernel number": 8}
-{"SVM accuracy": 0.911, "LR accuracy": 0.936, "ens accuracy": 0.941, "ens imp accuracy": 0.949, "raw svm accuracy": 0.944, "raw lr accuracy": 0.958, "time": 335.30409836769104} 
-
-------------------------------
----ho messo alpha method = 1, mantenuto il miglior risultato precedente e ottenuto 94.9%:
-{"train size": 5000, "test size": 1000, "q range": 5, "svm c": 1.0, "quantize method": 2, "alpha method": 1, "discretize method": 1, "discretization range": 2, "matrix sparsity": 0.8, "matrix positive": 0.1, "matrix threshold": 1.5, "database": "digit", "kernel number": 8}
-{"SVM accuracy": 0.913, "LR accuracy": 0.937, "ens accuracy": 0.941, "ens imp accuracy": 0.949, "raw svm accuracy": 0.944, "raw lr accuracy": 0.958, "time": 320.3761622905731}
-----------------------------
-
-
-    """

@@ -4,12 +4,6 @@ from matplotlib import pyplot as plt
 from medmnist import INFO
 from sps.config import Config
 
-# TODO Matteo
-#https://medmnist.com/
-#togliere italiano dalle classi eccetto cnn.py
-#testare effetto della variabile DISC_RANGE (DISCRETIZE_METHOD = 2)
-#aggiungi BreastMNIST e altri, testali
-#risolvere i TODO add in GUI
 
 def get_med_mnist_data(data_name=None, rgb_to_gray_method="pca"):
     """Return MedMNIST data as x_train, y_train, x_test, y_test (digit-style preprocessing)."""

@@ -10,7 +10,7 @@ def _build_layer1_qrange_rules():
     rules = []
 
     for level in range(Config.Q_RANGE - 1, 0, -1):
-        lower = (level * 256 + Config.Q_RANGE - 1) // Config.Q_RANGE
+        lower = (level * 256 + Config.Q_RANGE - 1) // Config.Q_RANGE #change 256 into the maximum range of the current image
         rules.append(f"[1,{lower},{lower},{level},0]")
 
     rules.append("[1,1,0,0,0]")
@@ -27,91 +27,9 @@ def _build_layer2_rules(k_index):
     rules.append("[1,-1,0,0,0]")
     return rules
 
-def kernel_SNPS_csv():
-    """
-    Generate a 3-layer SN P system to perform edge detection on a 28x28 image
-    using 6 convolution kernels (2x2) with values 1 and -1.
-    The structure is:
-    - Layer 1: Input neurons (784 neurons), firing to 6 parallel subnetworks
-    - Layer 2: One 27x27 grid per kernel (6 kernels → 4374 neurons)
-    - Layer 3: 27x27 neurons (729 neurons), sum of all filtered maps
-    for more info see: Ultrafast neuromorphic photonic image processing with a VCSEL neuron"""
-    kernels = [
-        [[1, -1], [1, -1]], # Vertical 1
-        [[-1, 1], [-1, 1]], # Vertical 2
-        [[-1, -1], [1, 1]], # Horizontal 1
-        [[1, 1], [-1, -1]], # Horizontal 2
-        [[-1, 1], [1, -1]], # Diagonal 1
-        [[1, -1], [-1, 1]]  # Diagonal 2
-    ]
-    layer1_size = Config.IMG_SHAPE * Config.IMG_SHAPE
-    layer2_size_per_kernel = Config.SHAPE_FEATURE * Config.SHAPE_FEATURE
-    total_layer2_size = layer2_size_per_kernel * len(kernels)
-    layer3_offset = Config.NEURONS_L1 + total_layer2_size
-
-    with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
-        writer = csv.writer(csv_file)
-        writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
-
-        # Layer 1: Input a 28x28 grayscale image
-        for neuron_id in range(layer1_size):
-            i_row = neuron_id // Config.IMG_SHAPE
-            i_col = neuron_id % Config.IMG_SHAPE
-            output_targets = []
-
-            for k_index, kernel in enumerate(kernels):
-                layer2_offset = Config.NEURONS_L1 + k_index * layer2_size_per_kernel
-
-                for ki in range(Config.KERNEL_SHAPE):
-                    for kj in range(Config.KERNEL_SHAPE):
-                        o_row = i_row - ki
-                        o_col = i_col - kj
-
-                        if 0 <= o_row < Config.SHAPE_FEATURE and 0 <= o_col < Config.SHAPE_FEATURE:
-                            output_idx = o_row * Config.SHAPE_FEATURE + o_col
-                            target_id = layer2_offset + output_idx
-                            weight = kernel[ki][kj]
-                            if weight == 1:
-                                output_targets.append(target_id)
-                            elif weight == -1:
-                                output_targets.append(-target_id)
-
-            writer.writerow([
-                neuron_id,                     # id
-                0,                             # initial_charge
-                str(output_targets),          # output_targets
-                0,                             # neuron_type
-                "[0,1,1,1,0]"                  # firing rule
-            ])
-
-        # Layer 2: Accumulate spikes from the kernels
-        for k_index in range(len(kernels)):
-            layer2_offset = Config.NEURONS_L1 + k_index * layer2_size_per_kernel
-
-            for i in range(layer2_size_per_kernel):
-                output_target = layer3_offset + i  # Same i-th neuron in layer 3
-                writer.writerow([
-                    layer2_offset + i,       # id
-                    0,                       # initial_charge
-                    f"[{output_target}]",    # output_targets
-                    1,                       # neuron_type
-                    "[0,2,0,1,0]"            # Fires only if c == 2 because 2 is the kernel threshold value
-                ])
-
-        # Layer 3: Aggregation neurons
-        for i in range(layer2_size_per_kernel):
-            writer.writerow([
-                layer3_offset + i,           # id
-                0,                           # initial_charge
-                "[]",                        # output_targets
-                2,                           # neuron_type (output)
-                "[1,1,0,0,0]"                # Forgetting rule
-            ])
-
-
 
 def cnn_SNPS_csv():
-    """Generate the SN P system to replicate the cnn"""
+    """Generate the SN P system to replicate the cnn structure"""
     os.makedirs("csv", exist_ok=True)
     with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
@@ -181,7 +99,7 @@ def cnn_SNPS_csv():
 
 
 
-def ensemble_csv(svm_q, logreg_q, svm_imp, logreg_imp): #TODO ottimizzare offset più in basso e usarli anche sopra
+def ensemble_csv(svm_q, logreg_q, svm_imp, logreg_imp):
     """Generate the SN P system with the ensemble of two models"""
     os.makedirs("csv", exist_ok=True)
     with open("csv/" + Config.CSV_ENS_NAME, mode='w', newline='') as csv_file:
@@ -327,13 +245,13 @@ def extend_csv(file_path, q, q_name, multipliers):
         new_rules = []
         for out_spikes in range(Config.K_RANGE[0][1], 0, -1):  # from 48 to 1
             k = Config.POOLING_SIZE ** 2 * out_spikes  # 48*4, 47*4, ..., 1*4
-            multiplied = int(out_spikes * multipliers[i]) if multipliers is not None else out_spikes #TODO rules tuning
+            multiplied = int(out_spikes * multipliers[i]) if multipliers is not None else out_spikes #rules tuning using importance
             new_rules.append(str([1, k, k, multiplied, 0]))
 
         row[:] = row[:4] + new_rules
 
     #add new rows for classes's output neurons 
-    for j in range(Config.CLASSES): #TODO maybe -1
+    for j in range(Config.CLASSES):
 
         new_row = [
             output_offset + j - 1,   # id

@@ -111,9 +111,8 @@ class SimulatorGUI(ctk.CTk):
         ctk.CTkLabel(
             head,
             text=(
-                "Use this interface to test the simulator capabilities. "
-                "You can run simple logic gates or full CNNs without the need "
-                "to modify the config files."
+                "Use this interface to test different SN P systems. "
+                "You can run some example networks or a layered structure."
             ),
             font=("Arial", 14),
             text_color="gray",
@@ -121,12 +120,12 @@ class SimulatorGUI(ctk.CTk):
 
         tabs = ctk.CTkTabview(self, width=960, height=620)
         tabs.pack(fill="x", padx=20)
-        tabs.add("Small Networks")
-        pipeline_tab_name = "CNN ➜ SNPS \rPipeline"
+        tabs.add("Example Networks")
+        pipeline_tab_name = "Image Recognition P System"
         tabs.add(pipeline_tab_name)
         self._style_tab_selector(tabs)
 
-        self._build_small_tab(tabs.tab("Small Networks"), ui_font)
+        self._build_small_tab(tabs.tab("Example Networks"), ui_font)
         self._build_pipeline_tab(tabs.tab(pipeline_tab_name), ui_font)
 
     @staticmethod
