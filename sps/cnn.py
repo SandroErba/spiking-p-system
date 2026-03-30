@@ -72,9 +72,8 @@ def test_cnn(x_test, y_test, svm, logreg):
 def ensemble_and_test(x_test, svm_w, logreg_w, svm_imp, logreg_imp):
     snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
     snps.spike_train = x_test
-    snps.labels = []
-    svm_q = quantize_matrix(svm_w.T)
-    logreg_q = quantize_matrix(logreg_w.T)
+    svm_q = ternarize_matrix(svm_w.T)
+    logreg_q = ternarize_matrix(logreg_w.T)
     extended_path = ensemble_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
     snps.load_neurons_from_csv(extended_path)
     snps.start()
@@ -85,44 +84,43 @@ def ensemble_and_test(x_test, svm_w, logreg_w, svm_imp, logreg_imp):
 
 
 def get_importance(w):
-    alpha = compute_neuron_importance(w)
-    if Config.DISCRETIZE_METHOD == 1: multipliers = discretize_percentile(alpha)
-    else: multipliers = discretize_proportional(alpha) #Config.DISCRETIZE == 2
+    imp = compute_neuron_importance(w)
+    if Config.DISCRETIZE_METHOD == 1: multipliers = discretize_percentile(imp)
+    else: multipliers = discretize_proportional(imp) #Config.DISCRETIZE == 2
     return multipliers
 
 def compute_neuron_importance(w):
     #Magnitude: neurons with larger overall weights across classes are considered more influential
-    if Config.IMPORTANCE_METHOD == 1: alpha = np.linalg.norm(w, axis=0) #importance method 1
+    if Config.IMPORTANCE_METHOD == 1: imp = np.linalg.norm(w, axis=0)
     # Weight range: neurons whose weights vary more between classes are considered more discriminative
-    else: alpha = np.max(w, axis=0) - np.min(w, axis=0) #Config.IMPORTANCE_METHOD == 2
-    alpha = alpha / max(alpha.max(), 1e-8) #Normalize in range [0:1]
-    return alpha
+    else: imp = np.max(w, axis=0) - np.min(w, axis=0) #Config.IMPORTANCE_METHOD == 2
+    imp = imp / max(imp.max(), 1e-8) #Normalize in range [0:1]
+    return imp
 
-def discretize_percentile(alpha): #method 1 - percentile based importance
-    p25 = np.percentile(alpha, 25)   # first quartile
-    p75 = np.percentile(alpha, 75)   # third quartile
-    multipliers = np.ones_like(alpha)  # default multiplier = 1 (low importance)
-    multipliers[alpha > p75] = 3       # top 25% most important neurons
-    multipliers[(alpha > p25) & (alpha <= p75)] = 2  # middle 50%
-    multipliers[alpha <= p25] = 1      # bottom 25%
+def discretize_percentile(imp): #method 1 - percentile based importance
+    p25 = np.percentile(imp, 25)   # first quartile
+    p75 = np.percentile(imp, 75)   # third quartile
+    multipliers = np.ones_like(imp)  # default multiplier = 1 (low importance)
+    multipliers[imp > p75] = 3       # top 25% most important neurons
+    multipliers[(imp > p25) & (imp <= p75)] = 2  # middle 50%
+    multipliers[imp <= p25] = 1      # bottom 25%
     return multipliers.astype(int) # convert to integer
 
-def discretize_proportional(alpha): #method 2 - proportional based importance
-    multipliers = 1 + np.round(alpha * Config.DISC_RANGE)
+def discretize_proportional(imp): #method 2 - proportional based importance
+    multipliers = 1 + np.round(imp * Config.DISC_RANGE)
     return multipliers.astype(int) # convert to integer
 
 
 
-
-def quantize_matrix(w):
+def ternarize_matrix(w):
     # matrix quantization for last layer of SNPS: Transform from real values to {-1,0,1}
-    if Config.TERNARIZE_METHOD == 1: q = quantize_percentile(w, Config.M_SPARSITY, Config.M_POSITIVE) # Percentile-based
-    else: q = quantize_threshold(w, Config.M_THRESHOLD) # Threshold-based
+    if Config.TERNARIZE_METHOD == 1: q = ternarize_percentile(w, Config.M_SPARSITY, Config.M_POSITIVE) # Percentile-based
+    else: q = ternarize_threshold(w, Config.M_THRESHOLD) # Threshold-based
     return q
 
 #https://www.emergentmind.com/topics/ternary-weight-networks-twns
 #il link contiene info sulle reti ternarie TWN con pesi {-1,0,1}
-def quantize_percentile(w, p_zero, p_pos):
+def ternarize_percentile(w, p_zero, p_pos):
     """
     Ternary quantization {-1,0,1} using fixed percentiles per column.
     The smallest weights become -1, the largest become +1, the rest are 0.
@@ -143,7 +141,7 @@ def quantize_percentile(w, p_zero, p_pos):
 
     return w_q
 
-def quantize_threshold(w, k):
+def ternarize_threshold(w, k):
     """
     Ternary quantization {-1,0,1} using a column-wise threshold.
     Weights larger than k * mean(|w|) become ±1, others become 0.
@@ -197,8 +195,8 @@ def compare_performance(x_test, y_test, svm, logreg):
 
     #-------------------------Testing the logreg on SNPS-------------------------
     snps_lr_pred, _, lr_scores = extend_and_test(x_test,"lr", logreg.coef_, None)
-    lr_accuracy = np.mean(snps_lr_pred == y_test)
-    print("SNPS logreg accuracy:", lr_accuracy)
+    snps_lr_accuracy = np.mean(snps_lr_pred == y_test)
+    print("SNPS logreg accuracy:", snps_lr_accuracy)
 
     #add importance
     snps_imp_lr_pred, _, lr_imp_scores = extend_and_test(x_test,"lr_imp", logreg.coef_, get_importance(logreg.coef_))
@@ -210,7 +208,7 @@ def compare_performance(x_test, y_test, svm, logreg):
     print("real weights logreg accuracy:", raw_lr_accuracy)
 
     #------------------combined charge------------
-    # sum charge of the models
+    # sum charge of the models without importance
     sum_pred = svm_scores.T + lr_scores.T
     sum_labels = np.argmax(sum_pred, axis=0)
     ens_accuracy = np.mean(sum_labels == y_test)
@@ -227,8 +225,7 @@ def compare_performance(x_test, y_test, svm, logreg):
 def extend_and_test(x_test, method, w, multipliers):
     snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
     snps.spike_train = x_test
-    snps.labels = []
-    q = quantize_matrix(w.T)
+    q = ternarize_matrix(w.T)
     extended_path = extend_csv("csv/" + Config.CSV_NAME, np.array(q), method, multipliers)
     snps.load_neurons_from_csv(extended_path)
     snps.start()

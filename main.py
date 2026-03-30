@@ -9,8 +9,11 @@ from sps.config import Config, database
 #Config.MODE = "generative" #set the mode of the P system: can be cnn (default), generative, halting
 database("digit") #can be digit, flower, tissuemnist, breastmnist, octmnist, bloodmnist, pathmnist,
 Config.compute_k_range()
-
 cnn.launch_mnist_cnn()
+
+
+
+#Test per controllare se l'aumento di *10 del test size conferma le performance maggiori oppure sono solo i primi dati a matchare. farlo sulle due con 0.953 e altre a caso
 
 
 #Config.MODE = "halting"
