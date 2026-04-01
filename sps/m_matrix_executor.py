@@ -4,12 +4,6 @@ from sps.m_snp_system import MSNPSystem
 from sps.snp_system import SNPSystem
 
 class MatrixExecutor:
-    # Da capire per gil spike train
-    def __init__(self, SNPSystem):
-        self.SNPSystem = SNPSystem
-        self.neurons = SNPSystem.neurons
-        self.deterministic = SNPSystem.deterministic
-        self.max_steps = SNPSystem.max_steps
 
     def translate_to_matrix(self,SNPSystem):
         neurons = SNPSystem.neurons
@@ -38,33 +32,5 @@ class MatrixExecutor:
                 rule_idx += 1
                 
         return MSNPSystem(configurationVector, spikingVector, spikingTransitionMatrix, netGainVector, ruleVector, max_steps, deterministic, single_spike_train = SNPSystem.spike_train, input_neurons=input_neurons, targetVector=targetVector)
-    
-    def __str__(self):
-        output = ""
-        for neuron in self.neurons:
-            output += neuron.__str__() + "\n"
-        return output
 
-    @staticmethod
-    def test2():
-        snps = SNPSystem(0, 100, True)
-        snps.load_neurons_from_csv("csv/prova.csv")
-        translatedSystem = MatrixExecutor.translate_to_matrix(snps)
-        print(translatedSystem.spikingTransitionMatrix)
-        print(translatedSystem.applyingRuleVector)
-        print(translatedSystem.spikingVector)
-        translatedSystem.step()
-        print(translatedSystem.spikingVector)
-        # testa il non determinismo
-
-    def test3():
-        snps = SNPSystem(0, 100, False)
-        snps.load_neurons_from_csv("csv/prova.csv")
-        translatedSystem = MatrixExecutor.translate_to_matrix(snps)
-        print(translatedSystem.applyingRuleVector)
-        print(translatedSystem.spikingVector)
-        translatedSystem.configurationVector[1] = 2
-        print(translatedSystem.configurationVector)
-        translatedSystem.update_spiking_vector(verbose=True)
-        print(translatedSystem.spikingVector)
 

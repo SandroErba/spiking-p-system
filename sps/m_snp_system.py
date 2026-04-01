@@ -29,7 +29,11 @@ class MSNPSystem:
                 for row in self.spikingTransitionMatrix
             ])
 
-        self.single_spike_train = single_spike_train
+        if single_spike_train is not None:
+            self.single_spike_train = single_spike_train
+        else:
+            self.single_spike_train = []
+
         if input_neurons is None:
             self.input_neurons = []
         else:
@@ -46,7 +50,7 @@ class MSNPSystem:
     def loadImages(self,img_spike_train):
         self.img_spike_train = img_spike_train
 
-    def step(self):
+    def step(self,verbose=False):
 
         # INPUT DA SPIKE TRAIN (img/boolean)
         if Config.MODE == "CNN":
@@ -56,6 +60,8 @@ class MSNPSystem:
         elif self.single_spike_train and self.t_step < len(self.single_spike_train):
             if self.single_spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
                 self.configurationVector[self.input_neurons] += 1
+                if verbose:
+                    print(f"Applied spike train at step {self.t_step + 1}: added 1 spike to input neurons {self.input_neurons}")
 
         # UPDATE SPIKING VECTOR
         self.update_spiking_vector()
@@ -74,14 +80,14 @@ class MSNPSystem:
         if verbose:
             print("Initial Configuration Vector:", self.configurationVector)
             print("-" * 30)
-        while self.step() and self.t_step < self.max_steps:
+        while self.step(verbose=verbose) and (self.t_step < self.max_steps or self.t_step < len(self.single_spike_train)):
             if verbose:
                 print("Step:", self.t_step + 1)
                 print("Spiking Vector applied:", self.spikingVector)
                 print("Configuration Vector obtained:", self.configurationVector)
                 print("Net Gain Vector in step", self.t_step + 1, ":", self.netGainVector)
                 print("-" * 30)
-            if np.all(self.spikingVector == 0): # devo interrompere se ci sono ancora spike train da processare?
+            if np.all(self.spikingVector == 0) and (self.t_step >= len(self.single_spike_train)): # devo interrompere se ci sono ancora spike train da processare?
                 print("Computation halts because the spiking vector is zero; no more rules can be applied; the input is accepted")
                 return True
             self.t_step += 1
@@ -146,6 +152,8 @@ class MSNPSystem:
                         print(f"Non-deterministic choice at neuron {neuron}: "
                             f"selected rule {chosen_rule} among {rules}")
 
+    def __str__(self):
+        return f"Deterministic: {self.deterministic}\nSpikingTransitionMatrix: {self.spikingTransitionMatrix}\nInputNeurons: {self.input_neurons}\nConfiguration Vector: {self.configurationVector}\nSpiking Vector: {self.spikingVector}\nNet Gain Vector: {self.netGainVector}\nRule Vector: {self.ruleVector}\nTarget Vector: {self.targetVector}"
 
                 
                    
