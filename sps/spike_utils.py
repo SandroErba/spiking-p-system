@@ -11,7 +11,6 @@ class SpikeEvent:
 class TransformationRule:
     """
     # regex are in the form: a^mod (a^div)^*
-    # with source == 0, the rule consumes all the spike
     """
     def __init__(self, div, mod, source, target, delay):
         self.div = div # looped "a" in the regex

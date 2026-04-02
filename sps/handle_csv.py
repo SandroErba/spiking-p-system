@@ -19,7 +19,7 @@ def _build_layer1_qrange_rules():
 
 def _with_negative_forgetting(rules):
     """Ensure anti-spike forgetting rule is present in generated CSV rules."""
-    negative_rule = "[1,-1,0,0,0]"
+    negative_rule = "[-1,-1,0,0,0]"
     if negative_rule in rules:
         return rules
     return rules + [negative_rule]

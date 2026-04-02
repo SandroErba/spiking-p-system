@@ -72,7 +72,6 @@ def test_cnn(x_test, y_test, svm, logreg):
 def ensemble_and_test(x_test, svm_w, logreg_w, svm_imp, logreg_imp):
     snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
     snps.spike_train = x_test
-    snps.labels = []
     svm_q = ternarize_matrix(svm_w.T)
     logreg_q = ternarize_matrix(logreg_w.T)
     extended_path = ensemble_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
@@ -228,7 +227,6 @@ def compare_performance(x_test, y_test, svm, logreg):
 def extend_and_test(x_test, method, w, multipliers):
     snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
     snps.spike_train = x_test
-    snps.labels = []
     q = ternarize_matrix(w.T)
     extended_path = extend_csv("csv/" + Config.CSV_NAME, np.array(q), method, multipliers)
     snps.load_neurons_from_csv(extended_path)
