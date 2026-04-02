@@ -77,3 +77,9 @@ Notes
 -----
 
 The model avoids the use of synaptic weights in order to remain as faithful as possible to the original P system framework. This results in a lightweight computational model, where performance is influenced primarily by structural design choices rather than parameter tuning.
+
+This repository is associated with a research paper currently under review:
+
+- *Towards a lightweight Spiking Neural P system for image recognition*
+- Authors: Erba Sandro et al.
+- Submitted to UCNC 2026.
