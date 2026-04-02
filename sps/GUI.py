@@ -38,6 +38,17 @@ class QueueWriter:
 
 
 class SimulatorGUI(ctk.CTk):
+    DATASET_OPTIONS = [
+        "digit",
+        "bloodmnist",
+        "breastmnist",
+        "tissuemnist",
+        "octmnist",
+        "pathmnist",
+        "dermamnist",
+        "flower",
+    ]
+
     def __init__(self):
         super().__init__()
         self.title("Spiking P System - Simulator")
@@ -49,14 +60,13 @@ class SimulatorGUI(ctk.CTk):
         # Variables connected to GUI widgets.
         self.status = tk.StringVar(value="Ready")
         self.net_var = tk.StringVar(value="Divisible by 3")
-        self.dataset_var = tk.StringVar(value="digit")
-        self.quantize_methods = {
-            "quantize_percentile (1)": 1,
-            "quantize_threshold (2)": 2,
-            "quantize_twn (3)": 3,
-        } #TODO delete twn, is no longer present
-        #TODO now is called "ternarize" instead of "quantized"
-        self.alpha_methods = {
+        default_dataset = Config.DATABASE if Config.DATABASE else "digit"
+        self.dataset_var = tk.StringVar(value=default_dataset)
+        self.TERNARIZE_methods = {
+            "ternarize_percentile (1)": 1,
+            "ternarize_threshold (2)": 2,
+        }
+        self.IMPORTANCE_methods = {
             "magnitude (1)": 1,
             "separability (2)": 2,
         }
@@ -64,36 +74,22 @@ class SimulatorGUI(ctk.CTk):
             "percentile (1)": 1,
             "proportional (2)": 2,
         }
-        default_method = next(
-            (
-                name
-                for name, value in self.quantize_methods.items()
-                if value == Config.TERNARIZE_METHOD
-            ),
-            "quantize_percentile (1)",
-        )
-        default_alpha = next(
-            (
-                name
-                for name, value in self.alpha_methods.items()
-                if value == Config.IMPORTANCE_METHOD
-            ),
-            "magnitude (1)",
-        )
-        default_discretize = next(
-            (
-                name
-                for name, value in self.discretize_methods.items()
-                if value == Config.DISCRETIZE_METHOD
-            ),
-            "percentile (1)",
+        default_method = self._label_from_value(self.TERNARIZE_methods, Config.TERNARIZE_METHOD, "ternarize_percentile (1)")
+        default_IMPORTANCE = self._label_from_value(self.IMPORTANCE_methods, Config.IMPORTANCE_METHOD, "magnitude (1)")
+        default_discretize = self._label_from_value(
+            self.discretize_methods, Config.DISCRETIZE_METHOD, "percentile (1)"
         )
         self.method_var = tk.StringVar(value=default_method)
-        self.alpha_method_var = tk.StringVar(value=default_alpha)
+        self.IMPORTANCE_method_var = tk.StringVar(value=default_IMPORTANCE)
         self.discretize_method_var = tk.StringVar(value=default_discretize)
+        self.track_charges_var = tk.BooleanVar(value=bool(getattr(Config, "TRACK_CHARGES", False)))
+        self.track_mode_var = tk.StringVar(value=str(getattr(Config, "TRACK_MODE", "step_by_step")))
+        self.track_format_var = tk.StringVar(value=str(getattr(Config, "TRACK_FORMAT", "csv")))
         self.train_size_var = tk.StringVar(value=str(Config.TRAIN_SIZE))
         self.test_size_var = tk.StringVar(value=str(Config.TEST_SIZE))
         self.q_range_var = tk.StringVar(value=str(Config.Q_RANGE))
+        self.track_mode_menu = None
+        self.track_format_menu = None
         self._positive_int_vcmd = (self.register(self._validate_positive_int), "%P")
         self.log_textboxes = []
         self.txt = None
@@ -115,9 +111,8 @@ class SimulatorGUI(ctk.CTk):
         ctk.CTkLabel(
             head,
             text=(
-                "Use this interface to test the simulator capabilities. "
-                "You can run simple logic gates or full CNNs without the need "
-                "to modify the config files."
+                "Use this interface to test different SN P systems. "
+                "You can run some example networks or a layered structure."
             ),
             font=("Arial", 14),
             text_color="gray",
@@ -125,12 +120,12 @@ class SimulatorGUI(ctk.CTk):
 
         tabs = ctk.CTkTabview(self, width=960, height=620)
         tabs.pack(fill="x", padx=20)
-        tabs.add("Small Networks")
-        pipeline_tab_name = "CNN ➜ SNPS \rPipeline"
+        tabs.add("Example Networks")
+        pipeline_tab_name = "Image Recognition P System"
         tabs.add(pipeline_tab_name)
         self._style_tab_selector(tabs)
 
-        self._build_small_tab(tabs.tab("Small Networks"), ui_font)
+        self._build_small_tab(tabs.tab("Example Networks"), ui_font)
         self._build_pipeline_tab(tabs.tab(pipeline_tab_name), ui_font)
 
     @staticmethod
@@ -149,6 +144,21 @@ class SimulatorGUI(ctk.CTk):
             dropdown_font=("Arial", 15),
             width=300,
             height=44,
+        ).pack(anchor="w", pady=pady)
+
+    @staticmethod
+    def _label_from_value(mapping, target_value, fallback):
+        return next((name for name, value in mapping.items() if value == target_value), fallback)
+
+    def _labeled_entry(self, parent, label, variable, font, pady=(0, 10)):
+        ctk.CTkLabel(parent, text=label, font=font).pack(anchor="w", pady=(0, 6))
+        ctk.CTkEntry(
+            parent,
+            textvariable=variable,
+            width=180,
+            height=30,
+            validate="key",
+            validatecommand=self._positive_int_vcmd,
         ).pack(anchor="w", pady=pady)
 
     @staticmethod
@@ -205,14 +215,11 @@ class SimulatorGUI(ctk.CTk):
         tab.grid_columnconfigure(1, weight=0)
         tab.grid_rowconfigure(0, weight=1)
         tab.grid_rowconfigure(1, weight=0)
-        tab.grid_rowconfigure(2, weight=1)
-        tab.grid_rowconfigure(3, weight=1)
-        tab.grid_rowconfigure(4, weight=1)
+        for row in (2, 3, 4):
+            tab.grid_rowconfigure(row, weight=1)
 
         left = ctk.CTkFrame(tab, fg_color="transparent")
         left.grid(row=1, column=0, sticky="w", padx=20)
-
-
 
         ctk.CTkLabel(left, text="Choose a network example:", font=ui_font).pack(anchor="w", pady=(0, 10))
         self._menu(left, self.net_var, ["Divisible by 3", "Generate even", "Extended rules"], ui_font, pady=0)
@@ -243,8 +250,8 @@ class SimulatorGUI(ctk.CTk):
         # left column for menus, right column for text entries.
         left_form = ctk.CTkFrame(left, fg_color="transparent")
         left_form.pack(fill="both", expand=True, anchor="nw")
-        left_form.grid_columnconfigure(0, weight=1)
-        left_form.grid_columnconfigure(1, weight=1)
+        for col in (0, 1):
+            left_form.grid_columnconfigure(col, weight=1)
 
         menus_col = ctk.CTkFrame(left_form, fg_color="transparent")
         menus_col.grid(row=0, column=0, sticky="nw", padx=(0, 12))
@@ -267,53 +274,53 @@ class SimulatorGUI(ctk.CTk):
             output_options={"row": 1, "column": 0, "sticky": "nsew", "padx": 0, "pady": (10, 8)},
         )
 
-        ctk.CTkLabel(menus_col, text="Dataset:", font=ui_font).pack(anchor="w", pady=(0, 10))
-        self._menu(menus_col, self.dataset_var, ["digit", "flower"], ui_font, pady=(0, 16))
+        menu_blocks = [
+            ("Dataset:", self.dataset_var, self.DATASET_OPTIONS, (0, 16)),
+            ("Ternarize Method:", self.method_var, list(self.TERNARIZE_methods.keys()), (0, 16)),
+            ("Importance Method:", self.IMPORTANCE_method_var, list(self.IMPORTANCE_methods.keys()), (0, 16)),
+            ("Discretize Method:", self.discretize_method_var, list(self.discretize_methods.keys()), (0, 0)),
+        ]
+        for label, variable, values, pady in menu_blocks:
+            ctk.CTkLabel(menus_col, text=label, font=ui_font).pack(anchor="w", pady=(0, 10))
+            self._menu(menus_col, variable, values, ui_font, pady=pady)
 
-        ctk.CTkLabel(menus_col, text="Quantization Method:", font=ui_font).pack(anchor="w", pady=(0, 10))
-        self._menu(
-            menus_col,
-            self.method_var,
-            list(self.quantize_methods.keys()),
-            ui_font,
-            pady=(0, 16),
+        self._labeled_entry(entries_col, "Train Size:", self.train_size_var, ui_font, pady=(0, 10))
+        self._labeled_entry(entries_col, "Test Size:", self.test_size_var, ui_font, pady=(0, 10))
+        self._labeled_entry(entries_col, "Q Range:", self.q_range_var, ui_font, pady=(0, 10))
+
+        ctk.CTkLabel(entries_col, text="Charge Tracker:", font=ui_font).pack(anchor="w", pady=(0, 6))
+        ctk.CTkCheckBox(
+            entries_col,
+            text="Generate charge output",
+            variable=self.track_charges_var,
+            command=self._toggle_track_controls,
+            font=("Arial", 14),
+        ).pack(anchor="w", pady=(0, 10))
+
+        ctk.CTkLabel(entries_col, text="Tracker Mode:", font=ui_font).pack(anchor="w", pady=(0, 6))
+        self.track_mode_menu = ctk.CTkOptionMenu(
+            entries_col,
+            variable=self.track_mode_var,
+            values=["step_by_step", "all_at_once"],
+            font=ui_font,
+            dropdown_font=("Arial", 15),
+            width=180,
+            height=30,
         )
+        self.track_mode_menu.pack(anchor="w", pady=(0, 10))
 
-        ctk.CTkLabel(menus_col, text="Alpha Method:", font=ui_font).pack(anchor="w", pady=(0, 10))
-        self._menu(menus_col, self.alpha_method_var, list(self.alpha_methods.keys()), ui_font, pady=(0, 16))
-
-        ctk.CTkLabel(menus_col, text="Discretize Method:", font=ui_font).pack(anchor="w", pady=(0, 10))
-        self._menu(menus_col, self.discretize_method_var, list(self.discretize_methods.keys()), ui_font, pady=(0, 0))
-
-        ctk.CTkLabel(entries_col, text="Train Size:", font=ui_font).pack(anchor="w", pady=(0, 6))
-        ctk.CTkEntry(
+        ctk.CTkLabel(entries_col, text="Tracker Format:", font=ui_font).pack(anchor="w", pady=(0, 6))
+        self.track_format_menu = ctk.CTkOptionMenu(
             entries_col,
-            textvariable=self.train_size_var,
+            variable=self.track_format_var,
+            values=["csv", "parquet"],
+            font=ui_font,
+            dropdown_font=("Arial", 15),
             width=180,
             height=30,
-            validate="key",
-            validatecommand=self._positive_int_vcmd,
-        ).pack(anchor="w", pady=(0, 10))
-
-        ctk.CTkLabel(entries_col, text="Test Size:", font=ui_font).pack(anchor="w", pady=(0, 6))
-        ctk.CTkEntry(
-            entries_col,
-            textvariable=self.test_size_var,
-            width=180,
-            height=30,
-            validate="key",
-            validatecommand=self._positive_int_vcmd,
-        ).pack(anchor="w", pady=(0, 10))
-
-        ctk.CTkLabel(entries_col, text="Q Range:", font=ui_font).pack(anchor="w", pady=(0, 6))
-        ctk.CTkEntry(
-            entries_col,
-            textvariable=self.q_range_var,
-            width=180,
-            height=30,
-            validate="key",
-            validatecommand=self._positive_int_vcmd,
-        ).pack(anchor="w", pady=0)
+        )
+        self.track_format_menu.pack(anchor="w", pady=0)
+        self._toggle_track_controls()
 
         ctk.CTkButton(right, text="Run", font=ui_font, width=180, height=48, command=self._run_pipeline).grid(
             row=0, column=0, sticky="e"
@@ -333,26 +340,19 @@ class SimulatorGUI(ctk.CTk):
         return parsed
 
     def _run_small(self):
-        # Small local functions for each option.
-        def run_div3():
-            Config.MODE = "halting"
-            other_networks.compute_divisible_3()
-
-        def run_even():
-            Config.MODE = "generative"
-            other_networks.compute_gen_even()
-
-        def run_extended():
-            Config.MODE = "halting"
-            other_networks.compute_extended()
-
         options = {
-            "Divisible by 3": run_div3,
-            "Generate even": run_even,
-            "Extended rules": run_extended,
+            "Divisible by 3": ("halting", other_networks.compute_divisible_3),
+            "Generate even": ("generative", other_networks.compute_gen_even),
+            "Extended rules": ("halting", other_networks.compute_extended),
         }
         selected = self.net_var.get()
-        self._start_thread(options[selected], f"Small Net: {selected}")
+
+        def task():
+            mode, func = options[selected]
+            Config.MODE = mode
+            func()
+
+        self._start_thread(task, f"Small Net: {selected}")
 
     def _run_pipeline(self):
         dataset_name = self.dataset_var.get()
@@ -366,19 +366,19 @@ class SimulatorGUI(ctk.CTk):
             return
 
         def task():
-            if dataset_name == "digit":
-                database("digit")
-            elif dataset_name == "flower":
-                database("flower")
+            database(dataset_name)
 
             Config.MODE = "cnn"
             Config.CSV_NAME = "SNPS_cnn.csv"
             Config.TRAIN_SIZE = train_size
             Config.TEST_SIZE = test_size
             Config.Q_RANGE = q_range
-            Config.TERNARIZE_METHOD = self.quantize_methods[self.method_var.get()]
-            Config.IMPORTANCE_METHOD = self.alpha_methods[self.alpha_method_var.get()]
+            Config.TERNARIZE_METHOD = self.TERNARIZE_methods[self.method_var.get()]
+            Config.IMPORTANCE_METHOD = self.IMPORTANCE_methods[self.IMPORTANCE_method_var.get()]
             Config.DISCRETIZE_METHOD = self.discretize_methods[self.discretize_method_var.get()]
+            Config.TRACK_CHARGES = bool(self.track_charges_var.get())
+            Config.TRACK_MODE = self.track_mode_var.get()
+            Config.TRACK_FORMAT = self.track_format_var.get()
             Config.compute_k_range()
             cnn.launch_mnist_cnn()
 
@@ -393,6 +393,13 @@ class SimulatorGUI(ctk.CTk):
         self.status.set(f"Running: {name}...")
         self.queue.put(f"\n--- START: {name} ---\n")
         threading.Thread(target=self._exec, args=(func,), daemon=True).start()
+
+    def _toggle_track_controls(self):
+        if self.track_mode_menu is None or self.track_format_menu is None:
+            return
+        state = "normal" if self.track_charges_var.get() else "disabled"
+        self.track_mode_menu.configure(state=state)
+        self.track_format_menu.configure(state=state)
 
     def _exec(self, func):
         writer = QueueWriter(self.queue)

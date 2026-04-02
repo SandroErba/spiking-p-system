@@ -1,4 +1,5 @@
 from keras.src.datasets import mnist
+from keras.src.datasets import mnist
 from matplotlib import pyplot as plt
 import numpy as np
 from sps.config import Config
@@ -11,11 +12,11 @@ def get_mnist_data():
     train_label = train_label[:Config.TRAIN_SIZE]
     test_data = test_data[:Config.TEST_SIZE]
     test_label = test_label[:Config.TEST_SIZE]
-    train_q = ((train_data.astype(np.float32) * Config.Q_RANGE) // 256).astype(np.uint8)
-    test_q = ((test_data.astype(np.float32) * Config.Q_RANGE) // 256).astype(np.uint8)
+    train_q = train_data.astype(np.uint8)
+    test_q = test_data.astype(np.uint8)
     if Config.INVERT:
-        train_q = Config.Q_RANGE - train_q
-        test_q = Config.Q_RANGE - test_q
+        train_q = 255 - train_q
+        test_q = 255 - test_q
     return train_q, train_label, test_q, test_label
 
 
@@ -30,8 +31,12 @@ def show_digit(x, y, train = False):
     if train and Config.TRAIN_SIZE < 30:
         nrows = 2
         ncols = int((Config.TRAIN_SIZE - 1) / 2)
+    if train and Config.TRAIN_SIZE < 30:
+        nrows = 2
+        ncols = int((Config.TRAIN_SIZE - 1) / 2)
 
     fig, axes = plt.subplots(nrows, ncols, figsize=(15, 3))
+
 
 
     for row in range(nrows):

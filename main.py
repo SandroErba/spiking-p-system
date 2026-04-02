@@ -3,7 +3,7 @@ import os
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-from sps import  other_networks, cnn, flower_image, digit_image, handle_csv
+from sps import  other_networks, cnn, flower_image, digit_image, med_image, handle_csv
 from sps.config import Config, database
 
 #Config.MODE = "generative" #set the mode of the P system: can be cnn (default), generative, halting

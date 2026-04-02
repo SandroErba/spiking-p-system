@@ -11,12 +11,12 @@ class Config:
     QUANTIZATION = True
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
 
-    TRAIN_SIZE = 3000
-    TEST_SIZE = 10000
+    TRAIN_SIZE = 5000
+    TEST_SIZE = 1000
 
     #L1 - INPUT IMAGE
     NEURONS_L1 = int(IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
-    Q_RANGE = 11 # the range of quantization, it works on images, rules and tuning #TODO ___tunable___
+    Q_RANGE = 11 # the range of quantization, it works on images, rules and tuning
     #with sparse matrix (M_SPARSITY = 0.8) 10 is the best range
     #L2 - FEATURE EXTRACTION
     KERNELS = [
@@ -28,14 +28,8 @@ class Config:
         [[0, -1, -1], [1, 0, -1], [1, 1, 0]],
         [[1, 0, -1], [1, 0, -1], [1, 0, -1]],
         [[1, 1, 0], [1, 0, -1], [0, -1, -1]]
-    ] #TODO ___tunable___, but with random ones is worse
+    ]
 
-    """KERNELS = [
-        [[1, 1, 1], [0, 0, 0], [-1, -1, -1]],
-        [[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]],
-        [[-1, -1, -1], [0, 0, 0], [1, 1, 1]],
-        [[1, 0, -1], [1, 0, -1], [1, 0, -1]]
-    ] #TODO only 4 main directions"""
 
     KERNEL_NUMBER = len(KERNELS) #number of kernels in layer 2
     KERNEL_SHAPE = len(KERNELS[0]) #size of a single kernel
@@ -57,17 +51,17 @@ class Config:
 
     SVM_C = 3.0
 
-    #MATRIX QUANTIZE #TODO ___tunable___
-    TERNARIZE_METHOD = 2 #can be 1 -> Percentile or 2 -> Threshold #TODO add in GUI
+    #MATRIX TERNARIZE
+    TERNARIZE_METHOD = 2 #can be 1 -> Percentile or 2 -> Threshold
 
     M_SPARSITY = 0.8 #percentage of 0 values in the quantized matrix, used if TERNARIZE_METHOD == 1
     M_POSITIVE = 0.1 #percentage of 1 values in the quantized matrix, used if TERNARIZE_METHOD == 1
 
     M_THRESHOLD = 1.05 #multiplied factor for column values, used if TERNARIZE_METHOD == 2
 
-    #IMPORTANCE #TODO ___tunable___
-    IMPORTANCE_METHOD = 2 #how the model calculate the importance of the weights #TODO add in GUI
-    DISCRETIZE_METHOD = 2 #how the model apply the *3 to rules #TODO add in GUI
+    #IMPORTANCE
+    IMPORTANCE_METHOD = 2 #how the model calculate the magnitude of the weights
+    DISCRETIZE_METHOD = 2 #how the model apply the importance to rules
     DISC_RANGE = 6  #work on discretize method 2
 
     # ENERGY COSTS
@@ -76,6 +70,12 @@ class Config:
     EXPECTED_SPIKE = 0.5
 
     THRESHOLD = 128 # higher Thr -> more spike
+
+    # Charge tracker output integration (Francesca)
+    TRACK_CHARGES = False
+    TRACK_MODE = "step_by_step" # "step_by_step" saves after each image, "all_at_once" saves at the end of the execution
+    TRACK_FORMAT = "csv"      # "csv" or "parquet"
+    TRACK_FILENAME = "output_charges"
 
 
     @classmethod
@@ -114,6 +114,10 @@ def database(database):
         Config.IMG_SHAPE = 28
         Config.CLASSES = 9
 
+    if database == "dermamnist":
+        Config.IMG_SHAPE = 28
+        Config.CLASSES = 7
+
     if database == "flower":
         Config.IMG_SHAPE = 224
         Config.CLASSES = 102
@@ -123,3 +127,14 @@ def database(database):
     if database == "digit":
         Config.IMG_SHAPE = 28
         Config.CLASSES = 10
+
+    # Keep derived architecture fields aligned after dataset-specific changes.
+    Config.KERNEL_NUMBER = len(Config.KERNELS)
+    Config.KERNEL_SHAPE = len(Config.KERNELS[0])
+    Config.SHAPE_FEATURE = int(Config.IMG_SHAPE - Config.KERNEL_SHAPE + 1)
+    Config.NEURONS_FEATURE = int(Config.SHAPE_FEATURE ** 2)
+    Config.NEURONS_L2 = Config.NEURONS_FEATURE * Config.KERNEL_NUMBER
+    Config.SHAPE_POOL = int(Config.SHAPE_FEATURE / Config.POOLING_SIZE)
+    Config.NEURONS_POOL = int(Config.SHAPE_POOL ** 2)
+    Config.NEURONS_L3 = int(Config.KERNEL_NUMBER * Config.NEURONS_POOL)
+
