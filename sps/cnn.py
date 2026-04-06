@@ -1,18 +1,12 @@
 import numpy as np
 import time
-
-from matplotlib import pyplot as plt
 from sklearn.linear_model import LogisticRegression
-
 from sps import handle_csv
 from sps.digit_image import get_mnist_data
-from sps.flower_image import get_flowers102_data
 from sps.handle_csv import cnn_SNPS_csv, extend_csv, ensemble_csv
 from sps.config import Config
-from sps.med_image import get_med_mnist_data
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
-from sklearn.preprocessing import label_binarize
 
 
 
@@ -52,11 +46,11 @@ def train_cnn(x_train, y_train):
 
 def test_cnn(x_test, y_test, svm, logreg):
 
-    compare_performance(x_test, y_test, svm, logreg) #for running and checking performance of other networks
+    #compare_performance(x_test, y_test, svm, logreg) #for running and checking performance of all the other networks
 
     ensemble_pred = ensemble_and_test(x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
     ensemble_accuracy = np.mean(ensemble_pred == y_test)
-    print("SNPS actual ensemble accuracy:", ensemble_accuracy)
+    print("SNPS ensemble accuracy with importance:", ensemble_accuracy)
 
     return ensemble_accuracy
 
@@ -109,8 +103,7 @@ def ternarize_matrix(w):
     else: q = ternarize_threshold(w, Config.M_THRESHOLD) # Threshold-based
     return q
 
-#https://www.emergentmind.com/topics/ternary-weight-networks-twns
-#il link contiene info sulle reti ternarie TWN con pesi {-1,0,1}
+#for more info see https://www.emergentmind.com/topics/ternary-weight-networks-twns
 def ternarize_percentile(w, p_zero, p_pos):
     """
     Ternary quantization {-1,0,1} using fixed percentiles per column.
@@ -166,7 +159,6 @@ def example_direct(x_train, y_train, x_test, y_test):
     print("svm direct accuracy", svm.score(x_test, y_test))
     print("logreg direct accuracy", logreg.score(x_test, y_test))
 
-
 def compare_performance(x_test, y_test, svm, logreg):
     #-------------------------Testing the svm on SNPS-------------------------
     snps_svm_pred, _, svm_scores = extend_and_test(x_test,"svm", svm.coef_, None)
@@ -211,6 +203,9 @@ def compare_performance(x_test, y_test, svm, logreg):
     sum_imp_labels = np.argmax(sum_imp_pred, axis=0)
     ens_imp_accuracy = np.mean(sum_imp_labels == y_test)
     print("SNPS imp ensemble accuracy:", ens_imp_accuracy)
+
+
+    return snps_svm_accuracy, snps_lr_accuracy, snps_imp_svm_accuracy, snps_imp_lr_accuracy, ens_accuracy, ens_imp_accuracy, raw_svm_accuracy, raw_lr_accuracy
 
 
 def extend_and_test(x_test, method, w, multipliers):

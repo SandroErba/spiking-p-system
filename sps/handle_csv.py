@@ -17,6 +17,14 @@ def _build_layer1_qrange_rules():
     return rules
 
 
+def _with_negative_forgetting(rules):
+    """Ensure anti-spike forgetting rule is present in generated CSV rules."""
+    negative_rule = "[-1,-1,0,0,0]"
+    if negative_rule in rules:
+        return rules
+    return rules + [negative_rule]
+
+
 def _build_layer2_rules(k_index):
     """Layer-2 forwarding rules for positive charge range only."""
     rules = []
@@ -24,8 +32,7 @@ def _build_layer2_rules(k_index):
     for i in range(Config.K_RANGE[k_index][1], 0, -1):
         rules.append(f"[0,{i},{i},{i},0]")
 
-    rules.append("[-1,-1,0,0,0]")
-    return rules
+    return _with_negative_forgetting(rules)
 
 
 def cnn_SNPS_csv():
@@ -94,7 +101,7 @@ def cnn_SNPS_csv():
                     0,                       # initial_charge
                     "[]",                    # output_targets
                     1,                       # neuron_type
-                    "[1,1,0,0,0]"            # Send all the spikes
+                    *_with_negative_forgetting(["[1,1,0,0,0]"])  # Send spikes + anti-spike forgetting
                 ])
 
 
@@ -173,12 +180,13 @@ def ensemble_csv(svm_q, logreg_q, svm_imp, logreg_imp):
             writer.writerow(row)
 
         for j in range(Config.CLASSES):
+            output_rules = _with_negative_forgetting(["[1,1,0,0,0]"])
             row = [
                 output_offset + j,   # id
                 0,             # initial charge
                 "[]",          # no output
                 2,             # neuron type (accumulator/output)
-                "[1,1,0,0,0]"  # send all spikes
+                *output_rules   # send spikes + anti-spike forgetting
             ]
             writer.writerow(row)
 
@@ -206,6 +214,8 @@ def build_rows(start_offset, q, multipliers=None):
             k = Config.POOLING_SIZE ** 2 * out_spikes
             multiplied = int(out_spikes * multipliers[i]) if multipliers is not None else out_spikes
             new_rules.append(str([1, k, k, multiplied, 0]))
+
+        new_rules = _with_negative_forgetting(new_rules)
 
         row = [str(start_offset + i), "0", str(new_targets), "1"] + new_rules
         new_rows.append(row)
@@ -248,17 +258,21 @@ def extend_csv(file_path, q, q_name, multipliers):
             multiplied = int(out_spikes * multipliers[i]) if multipliers is not None else out_spikes #rules tuning using importance
             new_rules.append(str([1, k, k, multiplied, 0]))
 
+        new_rules = _with_negative_forgetting(new_rules)
+
         row[:] = row[:4] + new_rules
 
     #add new rows for classes's output neurons 
     for j in range(Config.CLASSES):
+
+        output_rules = _with_negative_forgetting(["[1,1,0,0,0]"])
 
         new_row = [
             output_offset + j - 1,   # id
             0,             # initial charge
             "[]",          # no output
             2,              # neuron type (accumulator/output)
-            "[1,1,0,0,0]"  # send all spikes
+            *output_rules   # send spikes + anti-spike forgetting
         ]
 
         rows.append(new_row)

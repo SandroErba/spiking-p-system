@@ -3,8 +3,6 @@ from matplotlib import pyplot as plt
 import numpy as np
 from sps.config import Config
 
-
-#from tensorflow.keras.datasets import mnist
 def get_mnist_data():
     (train_data, train_label), (test_data, test_label) = mnist.load_data()
     train_data = train_data[:Config.TRAIN_SIZE]

@@ -4,11 +4,26 @@ from .p_neuron import PNeuron
 from .spike_utils import SpikeEvent, TransformationRule, History
 import csv
 
+from .charge_tracker import ChargeTracker
+
 
 class SNPSystem:
     """Spiking Neural P System"""
 
     def __init__(self, input_len, max_steps, deterministic):
+        # Backward compatible constructor:
+        # - (input_len, max_steps, deterministic)
+        # - (max_delay, max_steps, input_type, output_type, deterministic)
+        #if len(args) == 3:
+        #    input_len, max_steps, deterministic = args
+        #    max_delay = 5
+        #    input_type = "images"
+        #    output_type = "images"
+        #elif len(args) == 5:
+        #    max_delay, max_steps, input_type, output_type, deterministic = args
+        #    input_len = max_steps
+        #else:
+        #    raise TypeError("SNPSystem expects 3 or 5 positional arguments")
 
         PNeuron.reset_nid()
         self.input_len = input_len
@@ -18,12 +33,12 @@ class SNPSystem:
 
         self.history = None
 
-
         self.max_delay = 5 # init circular future spiking events based on max_delay
         self.spike_events = [[] for _ in range(self.max_delay)]
 
         self.neurons = []
         self.spike_train = None
+        self.output_neuron_ids = []
 
         # record output
         if Config.MODE == "generative":
@@ -35,12 +50,12 @@ class SNPSystem:
             self.correct = 0
             self.charge_map_prediction = np.zeros((Config.CLASSES, input_len), dtype=int) #values for the last layer of the cnn
 
-
-        self.firing_applied = 0 # record energy used
-        self.forgetting_applied = 0
         self.spike_fired = 0
-        self.inhibition_fired = 0 #those need the energy_tracker
+        self.inhibition_fired = 0
+        self.firing_applied = 0
+        self.forgetting_applied = 0
 
+        self.charge_tracker = None # I initialize the charge tracker 
     def init_history(self):
         """init tick history based on the system's neurons"""
         self.history = History(self.neurons)
@@ -48,7 +63,19 @@ class SNPSystem:
     def start(self):
         """start sending and receiving spikes"""
         self.init_history()
-        while True: # keep on ticking until output condition is met or max number of ticks is exceeded
+        if getattr(Config, "TRACK_CHARGES", False):
+            self.charge_tracker = ChargeTracker(
+                filename=getattr(Config, "TRACK_FILENAME", "output_charges"),
+                mode=getattr(Config, "TRACK_MODE", "step_by_step"),
+                format=getattr(Config, "TRACK_FORMAT", "csv"),
+                num_neurons=len(self.neurons),
+            )
+        else:
+            self.charge_tracker = None
+        # keep on ticking until output condition is met or max number of ticks is exceeded
+        while True:
+            if self.charge_tracker is not None:
+                self.charge_tracker.record_charges(self.t_step, self.neurons) #takes the index of the current image and reads the charge of each neuron and saves it in self.history.
             if not self.tick():
                 # calculate consumed energy
                 """For more info, see latex document and chapter 5.5 of 'Beyond classification: directly training spiking
@@ -57,6 +84,8 @@ class SNPSystem:
                 total_rules = sum(len(neuron.transf_rules) for neuron in self.neurons)
                 w_energy = self.t_step * (total_synapses + total_rules * Config.WORST_REGEX)
                 e_energy = int(self.spike_fired * Config.EXPECTED_SPIKE + (self.firing_applied + self.forgetting_applied) * Config.EXPECTED_REGEX)
+                if self.charge_tracker is not None:
+                    self.charge_tracker.finish()
 
                 if Config.MODE == "generative":
                     print("Spike fired at time step", self.output[0], "and time step", self.output[1], ". The output is", self.output[1] - self.output[0])
@@ -103,12 +132,11 @@ class SNPSystem:
         for spike_event in self.spike_events[self.t_step % self.max_delay]:
             for idx in spike_event.targets:
                 if idx >= 0:
-                    #print("targets", spike_event.targets, "idx", idx)
-                    #print("neurons idx error", idx)
-                    #print("number of neurons:", len(self.neurons))
                     self.neurons[idx].receive(spike_event.charge)
+                    #self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
                 else:
                     self.neurons[-idx].inhibit(spike_event.charge)
+                    #self.history.record_incoming(self.neurons[-idx], spike_event.charge, spike_event.nid)
                 self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
 
         # fill charge maps
@@ -130,12 +158,6 @@ class SNPSystem:
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()
-
-        # set negative charge to 0 for the inhibitor spike
-        #TODO formally, this is not present in papers. add a forgetting rule
-        for neuron in self.neurons:
-            if neuron.charge < 0:
-                neuron.charge = 0
 
         # check for halting computation
         any_in_delay = any(n.refractory > 0 for n in self.neurons)
@@ -188,4 +210,11 @@ class SNPSystem:
                 neuron = PNeuron(snp_system=self, charge = initial_charge, targets=targets, transf_rules=transf_rules, neuron_type=neuron_type)
                 neurons.append(neuron)
         self.neurons = neurons
+        self.output_neuron_ids = [n.nid for n in neurons if n.neuron_type == 2]
+
+        # Keep prediction matrix aligned with current run length.
+        if Config.MODE == "cnn" and self.spike_train is not None:
+            n_samples = len(self.spike_train)
+            self.charge_map_prediction = np.zeros((Config.CLASSES, n_samples), dtype=int)
+
         return neurons
