@@ -110,15 +110,6 @@ class SNPSystem:
                     self.output.append(self.t_step)
             self.history.record_rule(neuron, used_rule)
 
-        # print only if there is activity in Layer 3 (useful for understanding the decision)
-        #if Config.MODE in ("binarized", "quantized") and np.any(self.charge_map_l3):
-        #    print(f"\n=== T_STEP {self.t_step} ===")
-        #    print(f"Activations Layer 3 (mid neurons):")
-        #    print(self.charge_map_l3) # print the array of your 24 neurons
-            
-
-        #self.show_charge() #debug only - for saving the internal charge
-
         input_spike = False # check if there are more input for halting condition
         if Config.MODE == "cnn": # you have an array of images as input
             if self.spike_train.any() and self.t_step < len(self.spike_train):

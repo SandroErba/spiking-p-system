@@ -1,27 +1,12 @@
-#PRIMA: search for an easy CNN and try to recreate it -> https://pythonguides.com/simple-mnist-convnet-keras/
-#LEGGERE DN-SNP: SNP-based lightweight deep network for CT image segmentation of COVID-19 o paper simili con CNN
-#LEGGERE PER STDP: https://www.frontiersin.org/journals/computational-neuroscience/articles/10.3389/fncom.2015.00099/full
-
-
-# for cnn and kernels see https://medium.com/data-science/conv2d-to-finally-understand-what-happens-in-the-forward-pass-1bbaafb0b148
-
 import numpy as np
 import time
-
-from matplotlib import pyplot as plt
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score, classification_report
-
 from sps import handle_csv
 from sps.digit_image import get_mnist_data
-from sps.flower_image import get_flowers102_data
 from sps.handle_csv import cnn_SNPS_csv, extend_csv, ensemble_csv
 from sps.config import Config
-from sps.med_image import get_med_mnist_data
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
-from sklearn.preprocessing import label_binarize
-from sklearn.metrics import roc_auc_score
 
 
 
@@ -65,7 +50,7 @@ def test_cnn(x_test, y_test, svm, logreg):
 
     ensemble_pred = ensemble_and_test(x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
     ensemble_accuracy = np.mean(ensemble_pred == y_test)
-    print("SNPS actual ensemble accuracy:", ensemble_accuracy)
+    print("SNPS ensemble accuracy with importance:", ensemble_accuracy)
 
     return ensemble_accuracy
 
@@ -118,8 +103,7 @@ def ternarize_matrix(w):
     else: q = ternarize_threshold(w, Config.M_THRESHOLD) # Threshold-based
     return q
 
-#https://www.emergentmind.com/topics/ternary-weight-networks-twns
-#il link contiene info sulle reti ternarie TWN con pesi {-1,0,1}
+#for more info see https://www.emergentmind.com/topics/ternary-weight-networks-twns
 def ternarize_percentile(w, p_zero, p_pos):
     """
     Ternary quantization {-1,0,1} using fixed percentiles per column.

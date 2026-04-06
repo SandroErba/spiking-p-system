@@ -77,10 +77,6 @@ def process_flowers102_dataset(dataset, count, split_name="data"):
         if (i + 1) % 20 == 0 or (i + 1) == limit:
             print(f"Flower preprocessing ({split_name}): {i + 1}/{limit}")
 
-    #show_quantized_image(img, red_channel[0], green_channel[0], blue_channel[0]) #Show first image
-    #show_quantized_image(img[1], red_channel[1], green_channel[1], blue_channel[1]) #Show second image
-    #show_quantized_image(img[2], red_channel[2], green_channel[2], blue_channel[2]) #Show third image
-
     return (
         merge_rgb_channels_to_grayscale(red_channel, green_channel, blue_channel),  # (N, H, W)
         np.array(labels)  # (N,)        
