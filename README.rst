@@ -1,92 +1,69 @@
-Spiking Neural P System Simulator
-=================================
+Spiking Neural P Systems for Image Classification
+=================================================
 
-This repository contains a simulator for **Spiking Neural P Systems** (SNPS), developed in collaboration with the **University of Verona**.
+This project implements an extended model of Spiking Neural P Systems (SN P systems) applied to image classification tasks. The framework supports both small example systems and a multilayer architecture designed for processing structured inputs such as images.
 
-The initial fork was taken from `spiking-p-system <https://github.com/a1sabau/spiking-p-system>`_.
+The project has been developed in collaboration between the University of Milano-Bicocca and the University of Verona.
 
-----------------------
+The initial codebase is a fork of:
+https://github.com/a1sabau/spiking-p-system
 
-Features
---------
+The framework includes:
+- Extended SN P systems (multi-spike firing rules)
+- White hole mechanism
+- Inhibitory synapses with anti-spikes
+- Lightweight architecture without synaptic weights
 
-- Generate and load P systems  
-- Run simulations and modify weights/rules  
-- Compute energy costs  
-- Analyze structural and performance aspects  
-- Test different network architectures (image classification, edge detection, and experimental setups)
+It can be used to run small SN P system examples or a multilayer model for image classification, with the structure illustrated below.
 
-----------------------
+.. image:: SNPS_scheme.png
+   :alt: Multilayer SN P system architecture
+   :align: center
+   :width: 600px
 
 Installation
 ------------
 
-1. **Clone the repository**
+Clone the repository:
 
-   .. code-block:: bash
+.. code-block:: bash
 
-      git clone https://github.com/SandroErba/spiking-p-system.git
-      cd spiking-p-system
+   git clone https://github.com/SandroErba/spiking-p-system.git
+   cd spiking-p-system
 
-2. **Set up a Python environment** (recommended: Python 3.9 or newer)
+Create a virtual environment (optional but recommended):
 
-   .. code-block:: bash
+.. code-block:: bash
 
-      python -m venv venv
-      source venv/bin/activate      # On macOS/Linux
-      venv\Scripts\activate         # On Windows
+   python -m venv venv
+   source venv/bin/activate  # Linux / Mac
+   venv\Scripts\activate     # Windows
 
-3. **Install required dependencies**
+Install dependencies:
 
-   All dependencies are listed in the ``requirements.txt`` file.  
-   You can install them with:
+.. code-block:: bash
 
-   .. code-block:: bash
+   pip install -r requirements.txt
 
-      pip install -r requirements.txt 
+Usage
+-----
 
-----------------------
+Run the main simulation using the GUI:
 
-Configuration
--------------
+.. code-block:: bash
 
-Network configurations and parameters can be modified in the ``Config`` module.  
-This allows you to explore and test different P System structures and behaviors.
+   python main_gui.py
 
-Refer to the ``Technical_info.pdf`` document for a detailed explanation of:
-
-- the internal structure and functioning of the simulator
-- how networks are defined
-- how to extend or modify them
-
-----------------------
-
-Running the Simulator
----------------------
-
-To start the simulator, run:
+If a different entry point is used:
 
 .. code-block:: bash
 
    python main.py
 
-From ``main.py``, you can test the main network modules:
-
-- **``MedMnist``** – network for image classification tasks  
-- **``EdgeDetection``** – network that generate edge-based images  
-- **``OtherNetworks``** – small networks from literature and reference papers  
-
-Each module represents a different use case of Spiking Neural P Systems.
-
-----------------------
-
-Documentation
--------------
-
-- `Technical_info.pdf <Technical_info.pdf>`_ – detailed technical and theoretical background.  
-- `Spiking Neural P Systems <https://www.semanticscholar.org/paper/Spiking-Neural-P-Systems-Ionescu-Paun/1db2b443a0fc71a3fae9a66c4ae16905a26baa17>`_  
-  *Ionescu, Mihai, Gheorghe Păun, and Takashi Yokomori.*  
-  *Fundamenta Informaticae*, 71.2–3 (2006): 279–308.
+Experiments can be executed by varying parameters in the GUI or directly in the code.
 
 
-----------------------
+Notes
+-----
+
+The model avoids the use of synaptic weights in order to remain as faithful as possible to the original P system framework. This results in a lightweight computational model, where performance is influenced primarily by structural design choices rather than parameter tuning.
