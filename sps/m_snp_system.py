@@ -51,7 +51,11 @@ class MSNPSystem:
         """
 
     def loadImages(self,img_spike_train):
-        self.img_spike_train = img_spike_train
+        # Reshape da (N, 28, 28) a (N, 784) se necessario
+        if len(img_spike_train.shape) == 3:
+            self.img_spike_train = img_spike_train.reshape(img_spike_train.shape[0], -1)
+        else:
+            self.img_spike_train = img_spike_train
 
     def step(self,verbose=False):
 
@@ -59,8 +63,10 @@ class MSNPSystem:
         if Config.MODE == "CNN":
             if self.t_step < self.img_spike_train.shape[0]:
                 self.configurationVector[self.input_neurons] += self.img_spike_train[self.t_step]
+                if verbose:
+                    print(f"Applied image spike train at step {self.t_step + 1}: added {self.img_spike_train[self.t_step]} spikes to input neurons {self.input_neurons}")
 
-        elif self.single_spike_train and self.t_step < len(self.single_spike_train):
+        elif isinstance(self.single_spike_train, (list, np.ndarray)) and len(self.single_spike_train) > 0 and self.t_step < len(self.single_spike_train):
             if self.single_spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
                 self.configurationVector[self.input_neurons] += 1
                 if verbose:
@@ -83,14 +89,21 @@ class MSNPSystem:
         if verbose:
             print("Initial Configuration Vector:", self.configurationVector)
             print("-" * 30)
-        while self.step(verbose=verbose) and (self.t_step < self.max_steps or self.t_step < len(self.single_spike_train)):
+        
+        # Determina la lunghezza dell'input in base alla modalità
+        if Config.MODE == "CNN":
+            input_length = self.img_spike_train.shape[0]
+        else:
+            input_length = len(self.single_spike_train) if isinstance(self.single_spike_train, (list, np.ndarray)) else 0
+        
+        while self.step(verbose=verbose) and (self.t_step < self.max_steps or self.t_step < input_length):
             if verbose:
                 print("Step:", self.t_step + 1)
                 print("Spiking Vector applied:", self.spikingVector)
                 print("Configuration Vector obtained:", self.configurationVector)
                 print("Net Gain Vector in step", self.t_step + 1, ":", self.netGainVector)
                 print("-" * 30)
-            if np.all(self.spikingVector == 0) and (self.t_step >= len(self.single_spike_train)): # devo interrompere se ci sono ancora spike train da processare?
+            if np.all(self.spikingVector == 0) and (self.t_step >= input_length):
                 print("Computation halts because the spiking vector is zero; no more rules can be applied; the input is accepted")
                 return True
             self.t_step += 1

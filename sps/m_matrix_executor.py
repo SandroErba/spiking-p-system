@@ -2,6 +2,7 @@ import numpy as np
 from sps.spike_utils import TransformationRule  
 from sps.m_snp_system import MSNPSystem  
 from sps.snp_system import SNPSystem
+from sps.config import Config
 
 class MatrixExecutor:
 
@@ -34,6 +35,6 @@ class MatrixExecutor:
                 applyingRuleVector[rule_idx] = neuron.nid
                 rule_idx += 1
 
-        return MSNPSystem(configurationVector, spikingVector, spikingTransitionMatrix, netGainVector, ruleVector, max_steps, deterministic, single_spike_train = SNPSystem.spike_train, input_neurons=input_neurons, targetVector=targetVector, applyingRuleVector=applyingRuleVector)
+        return MSNPSystem(configurationVector, spikingVector, spikingTransitionMatrix, netGainVector, ruleVector, max_steps, deterministic, single_spike_train = SNPSystem.spike_train if Config.MODE != "CNN" else None, input_neurons=input_neurons, targetVector=targetVector, applyingRuleVector=applyingRuleVector)
 
 

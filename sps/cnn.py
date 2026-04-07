@@ -19,9 +19,14 @@ from sklearn.svm import LinearSVC
 from sklearn.preprocessing import label_binarize
 from sklearn.metrics import roc_auc_score
 
+# da cancellare poi
 def test_launch_mnist_cnn():
     x_train, y_train, x_test, y_test = get_mnist_data()
     cnn_SNPS_csv() #use only if the csv was changed
+    snps = SNPSystem(0,100,True)
+    snps.load_neurons_from_csv("csv/" + "SNPS_cnn.csv")
+    snps.spike_train = x_test
+    return snps
 
 def launch_mnist_cnn():
     t=time.time()

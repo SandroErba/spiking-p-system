@@ -1,5 +1,6 @@
 import time
 import os
+import numpy as np
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
@@ -10,14 +11,18 @@ from sps.m_snp_system import MSNPSystem
 from sps.snp_system import SNPSystem
 
 database("digit") #can be digit, flower
-Config.MODE = "halting" #set the mode of the P system: can be cnn (default), generative, halting
+Config.MODE = "CNN" #set the mode of the P system: can be cnn (default), generative, halting
 Config.compute_k_range()
-Config.WHITE_HOLE = True 
-cnn.test_launch_mnist_cnn()
-snps = SNPSystem(0,100,True)
-snps.load_neurons_from_csv("csv/" + "SNPS_cnn.csv")
+Config.WHITE_HOLE = False 
+snps = cnn.test_launch_mnist_cnn()
+
 msnp = MatrixExecutor().translate_to_matrix(snps)
-print(msnp)
+msnp.loadImages(snps.spike_train)
+print(msnp.img_spike_train[0])
+print(msnp.img_spike_train.shape)
+msnp.step(verbose=True)
+print("#"*50)
+print(msnp.configurationVector if np.any(msnp.configurationVector) else "All neurons have zero charge")
 
 #other_networks.compute_extended() #require halting mode
 #other_networks.compute_divisible_3() #require halting mode
