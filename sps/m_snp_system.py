@@ -140,7 +140,9 @@ class MSNPSystem:
         if not self.deterministic:
             neuron_rule_map = {}  # chiave: indice neurone, valore: set di indici regole
         
-        for i in range(len(self.spikingVector)):
+        idxs = [ i for i in range(len(self.spikingVector))]
+
+        for i in idxs:
             self.spikingVector[i] = self.rule_check(
                 self.configurationVector[self.applyingRuleVector[i]], 
                 abs(self.spikingTransitionMatrix[i][self.applyingRuleVector[i]]),
@@ -148,6 +150,14 @@ class MSNPSystem:
                 self.ruleVector[i][1], 
                 self.targetVector[i]
             )
+
+            if deterministic and self.spikingVector[i] == 1:
+                # Se la regola è attiva, disattiva tutte le altre regole per lo stesso neurone
+                neuron = self.applyingRuleVector[i]
+                for j in idxs:
+                    if j != i and self.applyingRuleVector[j] == neuron:
+                        self.spikingVector[j] = 0
+                        idxs.remove(j)  # Rimuovi l'indice j dalla lista degli indici da controllare
             
             if not self.deterministic and self.spikingVector[i] == 1:
                 neuron = self.applyingRuleVector[i]
