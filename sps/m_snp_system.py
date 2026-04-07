@@ -19,6 +19,11 @@ class MSNPSystem:
         else:
             self.applyingRuleVector = applyingRuleVector
 
+        self.rulePerNeuron = {i: [] for i in range(len(configurationVector))}
+        for i in range(len(self.spikingTransitionMatrix)):
+            neuron = self.applyingRuleVector[i]
+            self.rulePerNeuron[neuron].append(i)
+
         """
         il target vector è un vettore monodimensionale di lunghezza n 
         possiede il numero di spike che ogni regola produce, se è una firing rule, 
@@ -142,6 +147,7 @@ class MSNPSystem:
         
         idxs = [ i for i in range(len(self.spikingVector))]
 
+        # da testare
         for i in idxs:
             self.spikingVector[i] = self.rule_check(
                 self.configurationVector[self.applyingRuleVector[i]], 
@@ -151,19 +157,18 @@ class MSNPSystem:
                 self.targetVector[i]
             )
 
-            if deterministic and self.spikingVector[i] == 1:
-                # Se la regola è attiva, disattiva tutte le altre regole per lo stesso neurone
-                neuron = self.applyingRuleVector[i]
-                for j in idxs:
-                    if j != i and self.applyingRuleVector[j] == neuron:
-                        self.spikingVector[j] = 0
-                        idxs.remove(j)  # Rimuovi l'indice j dalla lista degli indici da controllare
-            
-            if not self.deterministic and self.spikingVector[i] == 1:
-                neuron = self.applyingRuleVector[i]
-                if neuron not in neuron_rule_map:
-                    neuron_rule_map[neuron] = set()
-                neuron_rule_map[neuron].add(i)
+            if self.spikingVector[i] == 1:
+                if deterministic:
+                    neuron = self.applyingRuleVector[i]
+                    self.spikingVector[self.rulePerNeuron[neuron]] = 0
+                    self.spikingVector[i] = 1
+                    idxs.remove(self.rulePerNeuron[neuron])
+
+                else: #nondeterministic
+                    neuron = self.applyingRuleVector[i]
+                    if neuron not in neuron_rule_map:
+                        neuron_rule_map[neuron] = set()
+                    neuron_rule_map[neuron].add(i)
         
         if not self.deterministic and neuron_rule_map:
             for neuron, rules in neuron_rule_map.items():
