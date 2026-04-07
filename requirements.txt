@@ -1,4 +1,4 @@
-tensorflow==24.0
+tensorflow==2.21.0
 absl-py==2.4.0
 asttokens==3.0.1
 attrs==26.1.0
@@ -21,7 +21,7 @@ filelock==3.25.2
 fire==0.7.1
 fonttools==4.62.1
 fsspec==2026.3.0
-h5py==3.16.0
+h5py==3.14.0
 idna==3.11
 ImageIO==2.37.3
 ipython==8.12.3
