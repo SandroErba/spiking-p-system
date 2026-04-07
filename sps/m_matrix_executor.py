@@ -16,6 +16,7 @@ class MatrixExecutor:
         spikingTransitionMatrix = np.zeros((len(rules), len(neurons)), dtype=int)
         targetVector = np.zeros((len(rules),), dtype=int)
         ruleVector = np.zeros((len(rules), 2), dtype=int)  # div e mod per ogni regola
+        applyingRuleVector = np.zeros((len(rules),), dtype=int)  
         rule_idx = 0
         input_neurons = []
         for neuron in neurons:
@@ -24,13 +25,15 @@ class MatrixExecutor:
 
             configurationVector[neuron.nid] = neuron.charge
             for rule in neuron.transf_rules:
+                
                 spikingTransitionMatrix[rule_idx, neuron.nid] = -rule.source
                 for target in neuron.targets:
                     spikingTransitionMatrix[rule_idx, target] = rule.target 
                 targetVector[rule_idx] = rule.target
                 ruleVector[rule_idx] = [rule.div, rule.mod]
+                applyingRuleVector[rule_idx] = neuron.nid
                 rule_idx += 1
-                
-        return MSNPSystem(configurationVector, spikingVector, spikingTransitionMatrix, netGainVector, ruleVector, max_steps, deterministic, single_spike_train = SNPSystem.spike_train, input_neurons=input_neurons, targetVector=targetVector)
+
+        return MSNPSystem(configurationVector, spikingVector, spikingTransitionMatrix, netGainVector, ruleVector, max_steps, deterministic, single_spike_train = SNPSystem.spike_train, input_neurons=input_neurons, targetVector=targetVector, applyingRuleVector=applyingRuleVector)
 
 

@@ -6,7 +6,7 @@ from sps.config import Config
 
 
 class MSNPSystem:
-    def __init__(self,configurationVector,spikingVector,spikingTransitionMatrix,netGainVector,ruleVector,max_steps=1000,deterministic=True,single_spike_train=None,input_neurons=None,targetVector=None):
+    def __init__(self,configurationVector,spikingVector,spikingTransitionMatrix,netGainVector,ruleVector,max_steps=1000,deterministic=True,single_spike_train=None,input_neurons=None,targetVector=None, applyingRuleVector=None):
         self.configurationVector = configurationVector
         self.spikingVector = spikingVector
         self.spikingTransitionMatrix = spikingTransitionMatrix
@@ -14,8 +14,11 @@ class MSNPSystem:
         self.ruleVector = ruleVector
         self.max_steps = max_steps
         self.deterministic = deterministic
-        self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingTransitionMatrix))])
-        
+        if applyingRuleVector is None:
+            self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingTransitionMatrix))])
+        else:
+            self.applyingRuleVector = applyingRuleVector
+
         """
         il target vector è un vettore monodimensionale di lunghezza n 
         possiede il numero di spike che ogni regola produce, se è una firing rule, 
