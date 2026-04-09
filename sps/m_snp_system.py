@@ -11,24 +11,38 @@ class MSNPSystem:
         self.spikingVector = spikingVector
         self.spikingTransitionMatrix = spikingTransitionMatrix
         self.netGainVector = netGainVector
+
+        # regex are in the form: a^mod (a^div)^*
+    
+        """
+        rule vector is in format
+        ((div1,mod1),
+        (div2,mod2),
+        ...
+        (divn,modn))
+         """
         self.ruleVector = ruleVector
+
         self.max_steps = max_steps
         self.deterministic = deterministic
+
+        # each entry is the index of the neuron to which the rule applies
         if applyingRuleVector is None:
             self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingTransitionMatrix))])
         else:
             self.applyingRuleVector = applyingRuleVector
 
-        self.rulePerNeuron = {i: [] for i in range(len(configurationVector))}
+        # dictionary that maps each neuron to the list of rules that apply to it
+        # used for efficiently checking the deterministic condition that at most one rule can apply to each neuron
+        self.rulePerNeuron = {i: [] for i in range(len(configurationVector))} 
         for i in range(len(self.spikingTransitionMatrix)):
             neuron = self.applyingRuleVector[i]
             self.rulePerNeuron[neuron].append(i)
 
-        """
-        il target vector è un vettore monodimensionale di lunghezza n 
-        possiede il numero di spike che ogni regola produce, se è una firing rule, 
-        o 0 se è una forgetting rule, e lo prendo dalla spikingTransitionMatrix
-        """
+        # Target Vector: monodimensional vector of length n
+        # where each entry is the number of spikes produced by the rule if it's a firing rule,
+        #  or 0 for forgetting rules, taken from the spikingTransitionMatrix
+        # !!! I assume that for each rule, the target is the same for all the neurons it applies to !!!
         if targetVector is not None:
             self.targetVector = targetVector
         else:
@@ -46,31 +60,33 @@ class MSNPSystem:
             self.input_neurons = []
         else:
             self.input_neurons = input_neurons
+        
+        # Initialize the time step counter
         self.t_step = 0
 
-        """
-        le immagini in input, che sono (per ora) un array monodimensionale,
-        sono nel formato 1xn, dove n è il risultato di altezza x larghezza dell'immagine
-        quindi come input passerò un array di dimensione (m,n) dove m è il numero di immagini 
-        da processare, e n è il numero di pixel (o input neurons) per ogni immagine
-        """
 
+    # Input images as spike trains, in the format (num_images, num_input_neurons)
+    # For example, for 28x28 images, num_input_neurons would be 784 
+    # and each image would be represented as a vector of length 784
     def loadImages(self,img_spike_train):
-        # Reshape da (N, 28, 28) a (N, 784) se necessario
+        # Reshape da (N, 28, 28) a (N, 784) if necessary
         if len(img_spike_train.shape) == 3:
             self.img_spike_train = img_spike_train.reshape(img_spike_train.shape[0], -1)
         else:
             self.img_spike_train = img_spike_train
 
+
     def step(self,verbose=False):
 
-        # INPUT DA SPIKE TRAIN (img/boolean)
+        # SPIKE TRAIN INPUT
+        # CNN -> Images
         if Config.MODE == "CNN":
             if self.t_step < self.img_spike_train.shape[0]:
                 self.configurationVector[self.input_neurons] += self.img_spike_train[self.t_step]
                 if verbose:
                     print(f"Applied image spike train at step {self.t_step + 1}: added {self.img_spike_train[self.t_step]} spikes to input neurons {self.input_neurons}")
-
+        
+        # SINGLE SPIKE TRAIN -> boolean spike train for all input neurons
         elif isinstance(self.single_spike_train, (list, np.ndarray)) and len(self.single_spike_train) > 0 and self.t_step < len(self.single_spike_train):
             if self.single_spike_train[self.t_step] == 1: # one boolean spike train for all the input neurons
                 self.configurationVector[self.input_neurons] += 1
@@ -80,7 +96,7 @@ class MSNPSystem:
         # UPDATE SPIKING VECTOR
         self.update_spiking_vector()
 
-        # CALCOLO STEP -> UPDATE CONFIGURATION VECTOR AND NET GAIN VECTOR
+        # CRUCIAL STEP -> UPDATE CONFIGURATION VECTOR AND NET GAIN VECTOR
         self.configurationVector = self.configurationVector + self.spikingVector @ self.spikingTransitionMatrix
         self.netGainVector = self.spikingVector @ self.spikingTransitionMatrix
 
@@ -89,13 +105,14 @@ class MSNPSystem:
 
         return True
     
+
     def execute(self,verbose=False):
         self.t_step = 0
         if verbose:
             print("Initial Configuration Vector:", self.configurationVector)
             print("-" * 30)
         
-        # Determina la lunghezza dell'input in base alla modalità
+        # determine input length based on mode and available spike trains
         if Config.MODE == "CNN":
             input_length = self.img_spike_train.shape[0]
         else:
@@ -115,6 +132,8 @@ class MSNPSystem:
         print("Computation halts because the maximum number of steps has been reached; the input is rejected")
         return False
 
+
+
     """
     - charge: the current charge of the neuron
     - source: the number of spikes consumed by the rule
@@ -130,20 +149,11 @@ class MSNPSystem:
                 return charge >= source and charge == mod
         return False
 
-        
-        # regex are in the form: a^mod (a^div)^*
-    
-        """
-        rule vector is in format
-        ((div1,mod1),
-        (div2,mod2),
-        ...
-        (divn,modn))
-         """
+
 
     def update_spiking_vector(self, verbose=False):
         if not self.deterministic:
-            neuron_rule_map = {}  # chiave: indice neurone, valore: set di indici regole
+            neuron_rule_map = {}  # key: neuron index, value: set of rule indices that want to fire for this neuron
         
         idxs = [ i for i in range(len(self.spikingVector))]
 
@@ -158,24 +168,27 @@ class MSNPSystem:
             )
 
             if self.spikingVector[i] == 1:
-                if deterministic:
+                if deterministic: # skip the check for multiple rules applying to the same neuron
                     neuron = self.applyingRuleVector[i]
                     self.spikingVector[self.rulePerNeuron[neuron]] = 0
                     self.spikingVector[i] = 1
                     idxs.remove(self.rulePerNeuron[neuron])
 
-                else: #nondeterministic
+                else: #nondeterministic case - build the neuron_rule_map to resolve conflicts later
                     neuron = self.applyingRuleVector[i]
                     if neuron not in neuron_rule_map:
                         neuron_rule_map[neuron] = set()
                     neuron_rule_map[neuron].add(i)
         
+        # In the non-deterministic case, resolve conflicts by randomly choosing 
+        # one rule for each neuron that has multiple applicable rules
+
         if not self.deterministic and neuron_rule_map:
             for neuron, rules in neuron_rule_map.items():
-                if len(rules) > 1:  # più regole attive per lo stesso neurone
-                    # Scegli una regola casuale tra quelle attive
+                if len(rules) > 1:  # more than one rule applyable for this neuron
+                    # Choose one rule randomly
                     chosen_rule = random.choice(list(rules))
-                    # Disattiva tutte le altre regole per questo neurone
+                    # deactivate all other rules for this neuron
                     for rule in rules:
                         if rule != chosen_rule:
                             self.spikingVector[rule] = 0
