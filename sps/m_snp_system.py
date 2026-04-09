@@ -7,10 +7,24 @@ from sps.config import Config
 
 class MSNPSystem:
     def __init__(self,configurationVector,spikingVector,spikingTransitionMatrix,netGainVector,ruleVector,max_steps=1000,deterministic=True,single_spike_train=None,input_neurons=None,targetVector=None, applyingRuleVector=None):
+        if configurationVector is None or spikingTransitionMatrix is None or ruleVector is None:
+            raise ValueError("configurationVector, spikingTransitionMatrix and ruleVector cannot be None")
+        
+        rule_num = len(spikingTransitionMatrix)
+        neuron_num = len(configurationVector)
+
         self.configurationVector = configurationVector
-        self.spikingVector = spikingVector
+        if spikingVector is None:
+            self.spikingVector = np.zeros(rule_num, dtype=int)
+        else:
+            self.spikingVector = spikingVector
+
         self.spikingTransitionMatrix = spikingTransitionMatrix
-        self.netGainVector = netGainVector
+
+        if netGainVector is None:
+            self.netGainVector = np.zeros(neuron_num, dtype=int)
+        else:
+            self.netGainVector = netGainVector
 
         # regex are in the form: a^mod (a^div)^*
     
@@ -23,19 +37,23 @@ class MSNPSystem:
          """
         self.ruleVector = ruleVector
 
+        if max_steps <= 0:
+            raise ValueError("max_steps must be a positive integer")
+
         self.max_steps = max_steps
         self.deterministic = deterministic
 
+        # add antispike check
         # each entry is the index of the neuron to which the rule applies
         if applyingRuleVector is None:
-            self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(len(self.spikingTransitionMatrix))])
+            self.applyingRuleVector = np.array([np.where(self.spikingTransitionMatrix[i] < 0)[0][0] for i in range(rule_num)])
         else:
             self.applyingRuleVector = applyingRuleVector
 
         # dictionary that maps each neuron to the list of rules that apply to it
         # used for efficiently checking the deterministic condition that at most one rule can apply to each neuron
-        self.rulePerNeuron = {i: [] for i in range(len(configurationVector))} 
-        for i in range(len(self.spikingTransitionMatrix)):
+        self.rulePerNeuron = {i: [] for i in range(neuron_num)} 
+        for i in range(rule_num):
             neuron = self.applyingRuleVector[i]
             self.rulePerNeuron[neuron].append(i)
 
@@ -97,8 +115,8 @@ class MSNPSystem:
         self.update_spiking_vector()
 
         # CRUCIAL STEP -> UPDATE CONFIGURATION VECTOR AND NET GAIN VECTOR
-        self.configurationVector = self.configurationVector + self.spikingVector @ self.spikingTransitionMatrix
         self.netGainVector = self.spikingVector @ self.spikingTransitionMatrix
+        self.configurationVector = self.configurationVector + self.netGainVector
 
         if Config.WHITE_HOLE:
             self.configurationVector = np.zeros_like(self.configurationVector)
@@ -106,8 +124,10 @@ class MSNPSystem:
         return True
     
 
-    def execute(self,verbose=False):
-        self.t_step = 0
+    def execute(self,verbose=False,startAgain=True):
+        if startAgain:
+            self.t_step = 0
+            
         if verbose:
             print("Initial Configuration Vector:", self.configurationVector)
             print("-" * 30)
@@ -155,7 +175,7 @@ class MSNPSystem:
         if not self.deterministic:
             neuron_rule_map = {}  # key: neuron index, value: set of rule indices that want to fire for this neuron
         
-        idxs = [ i for i in range(len(self.spikingVector))]
+        idxs = [ i for i in range(rule_num)]
 
         # da testare
         for i in idxs:
