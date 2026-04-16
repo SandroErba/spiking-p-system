@@ -188,18 +188,20 @@ class MSNPSystem:
                 self.targetVector[i]
             )
 
-            if self.spikingVector[i] == 1:
-                if self.deterministic: # skip the check for multiple rules applying to the same neuron
-                    neuron = self.applyingRuleVector[i]
-                    self.spikingVector[self.rulePerNeuron[neuron]] = 0
-                    self.spikingVector[i] = 1
-                    idxs.remove(self.rulePerNeuron[neuron])
+            # if self.spikingVector[i] == 1:
+            #     neuron = self.applyingRuleVector[i]
+            #     if self.deterministic: # skip the check for multiple rules applying to the same neuron
+            #         for rule_idx in self.rulePerNeuron[neuron]:
+            #             if rule_idx != i:
+            #                 self.spikingVector[rule_idx] = 0
+            #                 if rule_idx in idxs:
+            #                     idxs.remove(rule_idx)
+            #             self.spikingVector[i] = 1
 
-                else: #nondeterministic case - build the neuron_rule_map to resolve conflicts later
-                    neuron = self.applyingRuleVector[i]
-                    if neuron not in neuron_rule_map:
-                        neuron_rule_map[neuron] = set()
-                    neuron_rule_map[neuron].add(i)
+            if not self.deterministic: #nondeterministic case - build the neuron_rule_map to resolve conflicts later
+                if neuron not in neuron_rule_map:
+                    neuron_rule_map[neuron] = set()
+                neuron_rule_map[neuron].add(i)
         
         # In the non-deterministic case, resolve conflicts by randomly choosing 
         # one rule for each neuron that has multiple applicable rules
