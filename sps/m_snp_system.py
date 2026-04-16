@@ -112,7 +112,7 @@ class MSNPSystem:
                     print(f"Applied spike train at step {self.t_step + 1}: added 1 spike to input neurons {self.input_neurons}")
 
         # UPDATE SPIKING VECTOR
-        self.update_spiking_vector()
+        self.update_spiking_vector(verbose=verbose)
 
         # CRUCIAL STEP -> UPDATE CONFIGURATION VECTOR AND NET GAIN VECTOR
         self.netGainVector = self.spikingVector @ self.spikingTransitionMatrix
@@ -175,6 +175,7 @@ class MSNPSystem:
         if not self.deterministic:
             neuron_rule_map = {}  # key: neuron index, value: set of rule indices that want to fire for this neuron
         
+        rule_num = len(self.spikingTransitionMatrix)
         idxs = [ i for i in range(rule_num)]
 
         # da testare
@@ -188,7 +189,7 @@ class MSNPSystem:
             )
 
             if self.spikingVector[i] == 1:
-                if deterministic: # skip the check for multiple rules applying to the same neuron
+                if self.deterministic: # skip the check for multiple rules applying to the same neuron
                     neuron = self.applyingRuleVector[i]
                     self.spikingVector[self.rulePerNeuron[neuron]] = 0
                     self.spikingVector[i] = 1
