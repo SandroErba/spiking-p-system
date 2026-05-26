@@ -12,11 +12,11 @@ class Config:
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing
 
     TRAIN_SIZE = 5000
-    TEST_SIZE = 1000
+    TEST_SIZE = 500
 
     #LAYER 1 - INPUT IMAGE
     NEURONS_L1 = int(IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
-    Q_RANGE = 11 # the range of quantization, it works on images, rules and tuning
+    Q_RANGE = 10 # the range of quantization, it works on images, rules and tuning
 
     #LAYER 2 - FEATURE EXTRACTION
     KERNELS = [
@@ -54,7 +54,7 @@ class Config:
     #IMPORTANCE
     IMPORTANCE_METHOD = 2 #how the model calculate the magnitude of the weights
     DISCRETIZE_METHOD = 2 #how the model apply the importance to rules
-    DISC_RANGE = 6  #range of importance values, used if DISCRETIZE_METHOD == 2
+    DISC_RANGE = 4  #range of importance values, used if DISCRETIZE_METHOD == 2
 
     # ENERGY COSTS
     WORST_REGEX = 100
@@ -63,8 +63,9 @@ class Config:
 
     THRESHOLD = 128 # higher Thr -> more spike
 
-    CSV_NAME = "SNPS_cnn.csv"
+    CSV_NAME = "SNPS.csv"
     CSV_ENS_NAME = "SNPS_ens.csv"
+    CSV_CNN_NAME = "SNPS_cnn.csv"
 
     # Charge tracker output integration (Francesca)
     TRACK_CHARGES = False
