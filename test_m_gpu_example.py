@@ -2,6 +2,8 @@ import numpy as np
 from sps.m_gpu import MSNPSystemGPU
 from sps.config import Config
 
+
+Config.WHITE_HOLE = False 
 # Initial configuration: neuron charges
 configurationVector = np.array([5, 2, 2,5,2,2,5,2,2,5,2,2,5,2], dtype=np.int32)
 

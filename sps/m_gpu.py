@@ -91,6 +91,8 @@ class MSNPSystemGPU:
 
         if Config.WHITE_HOLE:
             self.configurationVector = cp.zeros_like(self.configurationVector)
+            if verbose:
+                print("White hole applied: configuration vector reset to zero")
 
         return True
 
@@ -153,12 +155,14 @@ class MSNPSystemGPU:
         config_np = cp.asnumpy(self.configurationVector)
         spiking_np = cp.asnumpy(self.spikingVector)
         netgain_np = cp.asnumpy(self.netGainVector)
-        transition_np = cp.asnumpy(self.spikingTransitionMatrix)
+        sMPi = cp.asnumpy(self.sMpi)
+        applyingRuleVector_np = cp.asnumpy(self.applyingRuleVector)
         
         return (f"Deterministic: {self.deterministic}\n"
-                f"Spiking Transition Matrix:\n{transition_np}\n"
+                f"Synapses Spiking Transition Matrix:\n{sMPi}\n"
                 f"Input Neurons: {self.input_neurons}\n"
                 f"Configuration Vector: {config_np}\n"
                 f"Spiking Vector: {spiking_np}\n"
                 f"Net Gain Vector: {netgain_np}\n"
-                f"Rule Vector: {self.ruleVector}\n")
+                f"Rule Vector: {self.ruleVector}\n"
+                f"Applying Rule Vector: {applyingRuleVector_np}\n")
