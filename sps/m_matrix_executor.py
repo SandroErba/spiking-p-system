@@ -7,6 +7,7 @@ from sps.config import Config
 class MatrixExecutor:
 
     # This class is responsible for translating a SNPSystem from the sps.snp_system format to the MSNPSystem format
+    @staticmethod
     def translate_to_matrix(self,SNPSystem):
         neurons = SNPSystem.neurons
         neurons_num = len(neurons)
@@ -19,10 +20,9 @@ class MatrixExecutor:
         configurationVector = np.zeros(neurons_num, dtype=int)
         spikingVector = np.zeros((rule_num,), dtype=int)
         spikingTransitionMatrix = np.zeros((rule_num, neurons_num), dtype=int) # as explained in the paper
-
+        synapsesMatrix = np.zeros((rule_num, neurons_num), dtype=int)      
         # I implemented these vectors in order to make the system executable
-        targetVector = np.zeros((rule_num,), dtype=int) # how many spikes each rule produces, 0 for forgetting rules
-        ruleVector = np.zeros((rule_num, 2), dtype=int)  # div and mod for each rule
+        ruleVector = np.zeros(rule_num, dtype=int)  # div and mod for each rule
         applyingRuleVector = np.zeros((rule_num,), dtype=int)  # which neuron each rule applies to
 
         rule_idx = 0
@@ -36,25 +36,23 @@ class MatrixExecutor:
 
             for rule in neuron.transf_rules:
                 spikingTransitionMatrix[rule_idx, neuron.nid] = -rule.source
-
+                synapsesMatrix[rule_idx, neuron.nid] = 1
                 for target in neuron.targets:
                     spikingTransitionMatrix[rule_idx, target] = rule.target 
+                    synapsesMatrix[rule_idx,target] = 1 if target > 0 else -1
 
-                targetVector[rule_idx] = rule.target
-                ruleVector[rule_idx] = [rule.div, rule.mod]
+                ruleVector[rule_idx] = [rule.mod] # exact goes in mod - assume div = 0
                 applyingRuleVector[rule_idx] = neuron.nid
                 rule_idx += 1
 
-        return MSNPSystem(  configurationVector, 
+        return MSNPSystemGPU(configurationVector, 
                             spikingVector, 
                             spikingTransitionMatrix, 
-                            netGainVector, 
+                            synapsesMatrix, 
                             ruleVector, 
                             max_steps, 
                             deterministic, 
                             single_spike_train = SNPSystem.spike_train if Config.MODE != "CNN" else None, 
                             input_neurons=input_neurons, 
-                            targetVector=targetVector, 
+                            synapsesMatrix=synapsesMatrix, 
                             applyingRuleVector=applyingRuleVector)
-
-
