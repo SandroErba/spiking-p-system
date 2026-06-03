@@ -17,7 +17,6 @@ class MatrixExecutor:
 
         # Initialize the vectors and matrices
         configurationVector = np.zeros(neurons_num, dtype=int)
-        netGainVector = np.zeros((neurons_num,), dtype=int)
         spikingVector = np.zeros((rule_num,), dtype=int)
         spikingTransitionMatrix = np.zeros((rule_num, neurons_num), dtype=int) # as explained in the paper
 
