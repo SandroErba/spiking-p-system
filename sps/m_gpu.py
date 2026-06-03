@@ -78,7 +78,12 @@ class MSNPSystemGPU:
                 if verbose:
                     print(f"Applied spike train at step {self.t_step + 1}")
         
-        extendedConfigVec = cp.repeat(self.configurationVector, self.ruleCountPerNeuron)
+        extendedConfigVector = cp.zeros(cp.sum(self.ruleCountPerNeuron), dtype=cp.int32)
+        idx = 0
+        for i in range(len(self.configurationVector)):
+            count = self.ruleCountPerNeuron[i]
+            extendedConfigVector[idx:idx+count] = self.configurationVector[i]
+            idx += count
 
         self.spikingVector = cp.ones_like(self.spikingVector) // (cp.ones_like(self.spikingVector) + cp.abs(extendedConfigVector - self.ruleVector))
         self.netGainVector = self.spikingVector @ self.sMpi
