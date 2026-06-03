@@ -34,7 +34,7 @@ class MSNPSystemGPU:
         self.ruleVector = cp.asarray(ruleVector, dtype=cp.int32)  # rule vector is in format (r1, r2, r3, r4, rn)
         # each entry is the index of the neuron to which the rule applies
         self.applyingRuleVector = cp.asarray(applyingRuleVector, dtype=cp.int32)
-        self.sMpi = spikingTransitionMatrix * synapsesMatrix
+        self.sMpi = self.spikingTransitionMatrix * self.synapsesMatrix
         self.ruleCountPerNeuron = cp.bincount(self.applyingRuleVector, minlength=neuron_num)
 
         if spikingVector is None:
@@ -78,7 +78,12 @@ class MSNPSystemGPU:
                 if verbose:
                     print(f"Applied spike train at step {self.t_step + 1}")
         
-        extendedConfigVec = cp.repeat(self.configurationVector, self.ruleCountPerNeuron)
+        extendedConfigVector = cp.zeros_like(self.spikingVector, dtype=cp.int32)
+        idx = 0
+        for i in range(len(self.configurationVector)):
+            count = self.ruleCountPerNeuron[i]
+            extendedConfigVector[idx:idx+count] = self.configurationVector[i]
+            idx += count
 
         self.spikingVector = cp.ones_like(self.spikingVector) // (cp.ones_like(self.spikingVector) + cp.abs(extendedConfigVector - self.ruleVector))
         self.netGainVector = self.spikingVector @ self.sMpi
@@ -156,5 +161,4 @@ class MSNPSystemGPU:
                 f"Configuration Vector: {config_np}\n"
                 f"Spiking Vector: {spiking_np}\n"
                 f"Net Gain Vector: {netgain_np}\n"
-                f"Rule Vector: {self.ruleVector}\n"
-                f"Target Vector: {target_np}")
+                f"Rule Vector: {self.ruleVector}\n")
