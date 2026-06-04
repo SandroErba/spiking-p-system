@@ -22,7 +22,7 @@ class MatrixExecutor:
         spikingTransitionMatrix = np.zeros((rule_num, neurons_num), dtype=int) # as explained in the paper
         synapsesMatrix = np.zeros((rule_num, neurons_num), dtype=int)      
         # I implemented these vectors in order to make the system executable
-        ruleVector = np.zeros(rule_num, dtype=int)  # div and mod for each rule
+        ruleVector = np.zeros(rule_num, dtype=int)  # exact E goes in mod, div is  for all rules in this implementation
         applyingRuleVector = np.zeros((rule_num,), dtype=int)  # which neuron each rule applies to
 
         rule_idx = 0
