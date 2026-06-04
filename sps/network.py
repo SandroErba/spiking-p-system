@@ -2,12 +2,29 @@ import os
 import numpy as np
 import time
 from sklearn.linear_model import LogisticRegression
-from sps import handle_csv
+from sps import handle_csv, exact_csv
 from sps.digit_image import get_mnist_data
 from sps.handle_csv import SNPS_csv, extend_csv, ensemble_csv
 from sps.config import Config
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
+
+
+
+#temporary code for create the csv and the SNPS with exact rules for the GPU
+def create_exact_csv():
+    x_train, y_train, x_test, y_test = get_mnist_data()
+    SNPS_csv() #create the csv for the SNPS
+    svm, logreg = train_SNPS(x_train, y_train)
+
+    snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
+    snps.spike_train = x_test
+    svm_q = ternarize_matrix(svm.coef_.T)
+    logreg_q = ternarize_matrix(logreg.coef_.T)
+    extended_path = exact_csv.ensemble_exact_csv(np.array(svm_q), np.array(logreg_q), get_importance(svm.coef_), get_importance(logreg.coef_))
+    snps.load_neurons_from_csv(extended_path)
+
+    return snps
 
 
 
@@ -24,7 +41,7 @@ def launch_mnist_from_csv(csv_name):
     y_pred = np.argmax(snps.charge_map_prediction, axis=0)
 
     cnn_accuracy = np.mean(y_pred == y_test)
-    print("SNPS trained with csv path:", cnn_accuracy)
+    print("SNPS with csv: ", csv_name, " get accuracy of:", cnn_accuracy)
 
 def launch_mnist():
     t=time.time()
@@ -36,6 +53,9 @@ def launch_mnist():
 
     ensemble_accuracy = test_SNPS(x_test, y_test, svm, logreg)
     handle_csv.save_results(ensemble_accuracy, time.time()-t)
+
+
+
 
 
 def train_SNPS(x_train, y_train):

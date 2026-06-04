@@ -367,6 +367,6 @@ first: 0.344, then i balanced 0.8 zero, 0.1 pos and neg
 0.91/0.912/0.902 con 2 stage approach: prima train completo, ternarizzo e freezo kernel, secondo train su FC
 
 ora: 
-    -utilizzare il freeze train su rete più profonda
+    -utilizzare il freeze train su rete più profonda (vedi deep classes)
     -nuovo dataset
 '''

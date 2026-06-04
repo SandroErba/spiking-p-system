@@ -1,6 +1,7 @@
 class Config:
     MODE = "cnn"
     DATABASE = 'digit'
+    NUM_LAYERS = 4
 
     # IMAGES
     IMG_SHAPE = 28 #ipotizing squared shape images of 28 pixels
@@ -12,7 +13,7 @@ class Config:
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing
 
     TRAIN_SIZE = 5000
-    TEST_SIZE = 500
+    TEST_SIZE = 1000
 
     #LAYER 1 - INPUT IMAGE
     NEURONS_L1 = int(IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
@@ -78,8 +79,8 @@ class Config:
     def compute_k_range(cls):
         cls.K_RANGE = [
             (
-                sum(v == -1 for row in kernel for v in row) * -cls.Q_RANGE,
-                sum(v == 1  for row in kernel for v in row) *  cls.Q_RANGE
+                sum(v == -1 for row in kernel for v in row) * (-cls.Q_RANGE - 1),
+                sum(v == 1  for row in kernel for v in row) *  (cls.Q_RANGE - 1)
             )
             for kernel in cls.KERNELS
         ]

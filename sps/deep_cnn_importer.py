@@ -49,7 +49,7 @@ class DeepConfig:
     kernel_shape: int = 3
     pooling_size: int = 2
     classes: int = 10
-    q_range: int = 8
+    q_range: int = 10
     csv_name: str = "SNPS_deep_cnn.csv"
 
     @property
@@ -160,10 +160,10 @@ def _build_exact_forward_rules(max_charge: int) -> list[str]:
 
 def _build_pooling_rules(max_incoming_charge: int) -> list[str]:
     rules = []
-    for charge in range(max_incoming_charge, 0, -1):
-        out_spikes = charge // 4
-        if out_spikes > 0:
-            rules.append(f"[1,{charge},{charge},{out_spikes},0]")
+    max_out = max_incoming_charge // 4
+    for out_spikes in range(max_out, 0, -1):
+        trigger = out_spikes * 4  # highest charge that gives exactly this output
+        rules.append(f"[1,{trigger},{trigger},{out_spikes},0]")
     return _with_negative_forgetting(rules)
 
 
@@ -330,3 +330,29 @@ if __name__ == "__main__":
     output_dir = os.path.join(project_root, "csv")
 
     SNPS_csv_from_deep_cnn(json_path=json_path, output_dir=output_dir)
+
+
+
+"""
+0.576 primo risultato
+0.394 con train freezato
+0.686 (da mandare a claude) con codice del 26 sera. la val loss finale è ancora troppo alta
+0.794 con codice del 29
+
+---> schema rete: 
+da 0 a 783 -> Layer 1 — input;   784 neurons (28×28);    max charge in: 255 (pixel);     max fired: 10 (q-range = 11)
+---8 balanced kernels 3×3, weight ∈ {-1,0,+1}
+da 784 a 6191 -> Layer 2 — conv1;   5408 neurons (26×26×8); max charge in: 10 × 3 = 30;     max fired: 30 (pass-through)
+---avg pool 2×2
+da 6192 a 7543 -> Layer 3 — pool1;   1352 neurons (13×13×8); max charge in: 30 × 4 = 120;    max fired: floor(120/4) = 30
+---16 kernels 3×3, each sees all 8 input maps
+da 7544 a 9479 -> Layer 4 — conv2;   1936 neurons (11×11×16); max charge in: 8 channels × 3 pos. weights × 30 = 720; max fired: 720 (pass-through)
+---avg pool 2×2. ogni id appare 48 volte nelle sinapsi precedenti: 24 pos e 24 neg
+da 9480 a 9879 -> Layer 5 — pool2;   400 neurons (5×5×16);   max charge in: 720 × 4 = 2880;  max fired: floor(2880/4) = 720;
+---FC weights ∈ {-1,0,+1}, 400→10
+da 9880 a 9889 -> Layer 6 — output;  10 neurons (one per class); max charge in: 400 × 720 = 288 000; argmax → predicted class
+
+da indagare: perchè ci sono 1152 valori da tunare nel secondo blocco di kernel? 16*8*9, quindi ognuno dei 8 channel ha i SUOI 16 kernels
+
+
+"""

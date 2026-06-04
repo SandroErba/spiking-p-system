@@ -26,6 +26,10 @@ Expected by the SNPS CSV generator:
 import json
 import os
 
+
+# Try to disable torch.compile which might be causing issues with _dynamo
+os.environ["TORCH_COMPILE_DISABLE"] = "1"
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -74,17 +78,12 @@ class DeepSNPSTwinCNN(nn.Module):
         return x
 
 
-def train(model, train_loader, val_loader, epochs=EPOCHS, lr=LR, device=DEVICE):
-    model = model.to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
-    history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
 
+def _run_epochs(model, train_loader, val_loader, epochs, optimizer, device, label=""):
+    criterion = nn.CrossEntropyLoss()
     for epoch in range(1, epochs + 1):
         model.train()
         total_loss, correct, total = 0.0, 0, 0
-
         for imgs, labels in train_loader:
             imgs, labels = imgs.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -92,39 +91,73 @@ def train(model, train_loader, val_loader, epochs=EPOCHS, lr=LR, device=DEVICE):
             loss = criterion(logits, labels)
             loss.backward()
             optimizer.step()
-
             total_loss += loss.item() * imgs.size(0)
             correct += (logits.argmax(1) == labels).sum().item()
             total += imgs.size(0)
-
         train_loss = total_loss / total
         train_acc = correct / total
 
         model.eval()
-        val_loss_sum, val_correct, val_total = 0.0, 0, 0
+        v_loss, v_correct, v_total = 0.0, 0, 0
         with torch.no_grad():
             for imgs, labels in val_loader:
                 imgs, labels = imgs.to(device), labels.to(device)
                 logits = model(imgs)
                 loss = criterion(logits, labels)
-                val_loss_sum += loss.item() * imgs.size(0)
-                val_correct += (logits.argmax(1) == labels).sum().item()
-                val_total += imgs.size(0)
-
-        val_loss = val_loss_sum / val_total
-        val_acc = val_correct / val_total
-        scheduler.step()
-
-        history["train_loss"].append(train_loss)
-        history["train_acc"].append(train_acc)
-        history["val_loss"].append(val_loss)
-        history["val_acc"].append(val_acc)
-
-        print(f"Epoch {epoch:02d}/{epochs} | "
+                v_loss += loss.item() * imgs.size(0)
+                v_correct += (logits.argmax(1) == labels).sum().item()
+                v_total += imgs.size(0)
+        val_loss = v_loss / v_total
+        val_acc = v_correct / v_total
+        print(f"{label}Epoch {epoch:02d}/{epochs} | "
               f"Train Loss: {train_loss:.4f}  Acc: {train_acc*100:.2f}% | "
               f"Val Loss: {val_loss:.4f}  Acc: {val_acc*100:.2f}%")
 
-    return history
+
+def _freeze(layer):
+    for p in layer.parameters():
+        p.requires_grad = False
+
+def _ternarize_inplace(layer_weight_np, model_layer, device):
+    """Snap a conv layer to ternary in-place and freeze it."""
+    q = ternarize_conv_balanced(layer_weight_np).astype(np.float32)
+    with torch.no_grad():
+        model_layer.weight.copy_(torch.tensor(q, device=device))
+    _freeze(model_layer)
+
+def train_progressive(model, train_loader, val_loader, device=DEVICE):
+    """
+    Progressive freeze training:
+      Stage 1 (20 ep): train everything in float
+      Stage 2 ( 5 ep): freeze+ternarize conv1, re-train conv2+FC
+      Stage 3 ( 5 ep): freeze+ternarize conv2, re-init and train FC only (re-init FC)
+    """
+    model = model.to(device)
+
+    # ── Stage 1: full float ──
+    print("\n" + "─"*55)
+    print("Stage 1: full float training (all layers)")
+    print("─"*55)
+    opt = optim.Adam(model.parameters(), lr=LR)
+    _run_epochs(model, train_loader, val_loader, EPOCHS, opt, device, "[S1] ")
+
+    # ── Stage 2: freeze+ternarize conv1, train conv2+FC ──
+    print("\n" + "─"*55)
+    print("Stage 2: conv1 frozen+ternary, train conv2+FC")
+    print("─"*55)
+    _ternarize_inplace(model.conv1.weight.detach().cpu().numpy(), model.conv1, device)
+    opt = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=LR)
+    _run_epochs(model, train_loader, val_loader, 5, opt, device, "[S2] ")
+
+    # ── Stage 3: freeze+ternarize conv2, re-init and train FC only ──
+    print("\n" + "─"*55)
+    print("Stage 3: conv1+conv2 frozen+ternary, re-train FC")
+    print("─"*55)
+    _ternarize_inplace(model.conv2.weight.detach().cpu().numpy(), model.conv2, device)
+    nn.init.kaiming_uniform_(model.fc.weight, a=0)  # fresh start for FC
+    opt = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3)
+    _run_epochs(model, train_loader, val_loader, 10, opt, device, "[S3] ")
+
 
 
 def ternarize_fc(w: np.ndarray, k: float = K_THRESHOLD) -> np.ndarray:
@@ -240,8 +273,8 @@ def main():
     print(model)
     print(f"\nTotal trainable parameters: {sum(p.numel() for p in model.parameters()):,}\n")
 
-    print("-- Phase 1: Float training --")
-    history = train(model, train_loader, val_loader)
+    print("-- Phase 1: Progressive training --")
+    train_progressive(model, train_loader, val_loader, device=DEVICE)
 
     save_model(model, "deep_snps_twin_cnn.pth")
     save_float_weights(model, "deep_snps_weights_float.npz")
@@ -249,16 +282,59 @@ def main():
     print("\n-- Phase 2: Ternarization --")
     print("  Conv strategy: balanced per-output-filter")
     print(f"  FC strategy:   adaptive row-wise threshold (k={K_THRESHOLD})")
-    ternary_weights = ternarize_weights(model, k=K_THRESHOLD)
+    ternary_weights = {
+        "conv1_kernels": model.conv1.weight.detach().cpu().numpy().astype(np.int8),
+        "conv2_kernels": model.conv2.weight.detach().cpu().numpy().astype(np.int8),
+        "fc_weights":    ternarize_fc(model.fc.weight.detach().cpu().numpy(), k=K_THRESHOLD),
+    }
+
+    print("\n-- Ternarization results --")
+    for key, w in ternary_weights.items():
+        total = w.size
+        pos = int((w == 1).sum())
+        neg = int((w == -1).sum())
+        zero = int((w == 0).sum())
+        print(f"  {key}: +1={pos} ({pos/total*100:.1f}%), "
+              f"-1={neg} ({neg/total*100:.1f}%), "
+              f"0={zero} ({zero/total*100:.1f}%)")
+
+
     save_quantized_weights(ternary_weights, "deep_snps_weights.json")
 
-    print("\nDone. Files saved:")
-    print("  deep_snps_twin_cnn.pth")
-    print("  deep_snps_weights_float.npz")
-    print("  deep_snps_weights.json")
 
-    return model, ternary_weights, history
+    # ── Diagnostics ──
+    float_data = np.load("deep_snps_weights_float.npz")
+    fc_float = torch.tensor(float_data["fc_weights"].astype(np.float32)).to(DEVICE)
+
+    with torch.no_grad():
+        model.conv1.weight.copy_(torch.tensor(ternary_weights["conv1_kernels"].astype(np.float32)).to(DEVICE))
+        model.conv2.weight.copy_(torch.tensor(ternary_weights["conv2_kernels"].astype(np.float32)).to(DEVICE))
+        model.fc.weight.copy_(fc_float)
+
+    model.eval()
+    correct, total = 0, 0
+    with torch.no_grad():
+        for imgs, labels in val_loader:
+            imgs, labels = imgs.to(DEVICE), labels.to(DEVICE)
+            correct += (model(imgs).argmax(1) == labels).sum().item()
+            total += imgs.size(0)
+    print(f"Ternary conv + float FC accuracy: {correct/total:.4f}")
+
+    with torch.no_grad():
+        model.fc.weight.copy_(torch.tensor(ternary_weights["fc_weights"].astype(np.float32)).to(DEVICE))
+
+    correct, total = 0, 0
+    with torch.no_grad():
+        for imgs, labels in val_loader:
+            imgs, labels = imgs.to(DEVICE), labels.to(DEVICE)
+            correct += (model(imgs).argmax(1) == labels).sum().item()
+            total += imgs.size(0)
+    print(f"Fully ternary PyTorch accuracy: {correct/total:.4f}")
+
+    return model, ternary_weights,
 
 
 if __name__ == "__main__":
-    model, weights, history = main()
+    model, weights = main()
+
+
