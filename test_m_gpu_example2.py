@@ -1,11 +1,11 @@
 import os
 import sys
 
-# Forza la variabile d'ambiente
-os.environ['CUDA_PATH'] = r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3'
+# # Forza la variabile d'ambiente
+# os.environ['CUDA_PATH'] = r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3'
 
-# Aggiungi anche al PATH di sistema se necessario
-os.environ['PATH'] = r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3\bin;' + os.environ.get('PATH', '')
+# # Aggiungi anche al PATH di sistema se necessario
+# os.environ['PATH'] = r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3\bin;' + os.environ.get('PATH', '')
 
 import numpy as np
 import cupy as cp

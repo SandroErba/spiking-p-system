@@ -129,15 +129,6 @@ class MSNPSystemGPU:
         print("Computation halts: maximum number of steps reached, input is rejected")
         return False
 
-    def rule_check(self, charge, source, div, mod, target):
-        """Check if a rule can be applied based on neuron charge and rule parameters"""
-        if charge > 0 and charge >= mod and charge >= target:
-            if div > 0:
-                return charge >= source and (charge - mod) % div == 0
-            if div == 0:
-                return charge >= source and charge == mod
-        return False
-
     def get_configuration_vector(self):
         """Return configuration vector as NumPy array (copy from GPU)"""
         return cp.asnumpy(self.configurationVector)
