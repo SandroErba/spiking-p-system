@@ -10,19 +10,36 @@ import time
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score, classification_report
 
-from sps import handle_csv
+from sps import handle_csv, exact_csv
 from sps.digit_image import get_mnist_data
-from sps.handle_csv import cnn_SNPS_csv, extend_csv
+from sps.handle_csv import SNPS_csv, extend_csv
 from sps.config import Config
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
 from sklearn.preprocessing import label_binarize
 from sklearn.metrics import roc_auc_score
 
+
+#temporary code for create the csv and the SNPS with exact rules for the GPU
+def create_exact_csv():
+    x_train, y_train, x_test, y_test = get_mnist_data()
+    SNPS_csv() #create the csv for the SNPS
+    svm, logreg = train_cnn(x_train, y_train)
+
+    snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
+    snps.spike_train = x_test
+    svm_q = quantize_matrix(svm.coef_.T)
+    logreg_q = quantize_matrix(logreg.coef_.T)
+    extended_path = exact_csv.ensemble_exact_csv(np.array(svm_q), np.array(logreg_q), get_importance(svm.coef_), get_importance(logreg.coef_))
+    snps.load_neurons_from_csv(extended_path)
+
+    return snps
+
+
 # da cancellare poi
 def test_launch_mnist_cnn():
     x_train, y_train, x_test, y_test = get_mnist_data()
-    cnn_SNPS_csv() #use only if the csv was changed
+    SNPS_csv() #use only if the csv was changed
     snps = SNPSystem(0,100,True)
     snps.load_neurons_from_csv("csv/" + "SNPS_cnn.csv")
     snps.spike_train = x_test
@@ -31,7 +48,7 @@ def test_launch_mnist_cnn():
 def launch_mnist_cnn():
     t=time.time()
     x_train, y_train, x_test, y_test = get_mnist_data()
-    cnn_SNPS_csv() #use only if the csv was changed
+    SNPS_csv() #use only if the csv was changed
     svm, logreg = train_cnn(x_train, y_train)
     train_time = time.time() - t
 

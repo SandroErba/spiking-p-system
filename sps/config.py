@@ -11,8 +11,8 @@ class Config:
     QUANTIZATION = True
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing/consuming
 
-    TRAIN_SIZE = 5000
-    TEST_SIZE = 1000
+    TRAIN_SIZE = 500
+    TEST_SIZE = 100
 
     #L1 - INPUT IMAGE
     NEURONS_L1 = int(IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
@@ -54,6 +54,7 @@ class Config:
     CLASSES = 10
 
     CSV_NAME = "SNPS_cnn.csv"
+    CSV_ENS_NAME = "SNPS_ens.csv"
 
     SVM_C = 1.0
 

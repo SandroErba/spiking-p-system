@@ -10,10 +10,16 @@ from sps.m_matrix_executor import MatrixExecutor
 from sps.m_snp_system import MSNPSystem
 from sps.snp_system import SNPSystem
 
-# database("digit") #can be digit, flower
+
+
+
+
+database("digit") #can be digit, flower
 # Config.MODE = "CNN" #set the mode of the P system: can be cnn (default), generative, halting
-# Config.compute_k_range()
-Config.WHITE_HOLE = False 
+Config.compute_k_range()
+snps = cnn.create_exact_csv()
+
+# Config.WHITE_HOLE = False
 # snps = cnn.test_launch_mnist_cnn()
 
 # msnp = MatrixExecutor().translate_to_matrix(snps)
