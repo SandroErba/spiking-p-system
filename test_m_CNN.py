@@ -25,20 +25,24 @@ snps = cnn.test_launch_mnist_cnn()
 print(f"Modello caricato: {len(snps.neurons)} neuroni")
 
 # ============================================
-# TEST SU CPU
+# TEST SU CPU (forzato all'inizio)
 # ============================================
 print("\n" + "="*60)
 print("TEST SU CPU")
 print("="*60)
 
-# Crea sistema (di default potrebbe usare GPU)
-msnp_cpu = MatrixExecutor.translate_to_matrix(snps)
+# Disabilita GPU temporaneamente per il test CPU
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-# Forza spostamento su CPU di TUTTI i tensori
-msnp_cpu.to('cpu')
+# Ricarica i moduli per applicare la modifica (opzionale)
+import importlib
+import sps.m_gpu
+importlib.reload(sps.m_gpu)
+
+# Crea sistema per CPU (ora non dovrebbe vedere la GPU)
+msnp_cpu = MatrixExecutor.translate_to_matrix(snps)
 msnp_cpu.loadImages(snps.spike_train)
 
-# Esecuzione CPU
 start_cpu = time.perf_counter()
 msnp_cpu.step(verbose=False)
 end_cpu = time.perf_counter()
@@ -53,18 +57,17 @@ print("\n" + "="*60)
 print("TEST SU GPU")
 print("="*60)
 
+# Riabilita GPU
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+# Forza ricaricamento per rilevare la GPU
+importlib.reload(sps.m_gpu)
+
 if torch.cuda.is_available():
-    # Crea sistema
     msnp_gpu = MatrixExecutor.translate_to_matrix(snps)
-    
-    # Forza spostamento su GPU
-    msnp_gpu.to('cuda')
     msnp_gpu.loadImages(snps.spike_train)
     
-    # Sincronizza GPU prima dell'esecuzione
     torch.cuda.synchronize()
-    
-    # Esecuzione GPU
     start_gpu = time.perf_counter()
     msnp_gpu.step(verbose=False)
     torch.cuda.synchronize()
@@ -77,7 +80,7 @@ else:
     gpu_time = None
 
 # ============================================
-# CONFRONTO FINALE
+# CONFRONTO
 # ============================================
 print("\n" + "="*60)
 print("CONFRONTO PERFORMANCE")
@@ -92,9 +95,7 @@ if gpu_time:
     speedup = cpu_time / gpu_time
     if speedup > 1:
         print(f"\nGPU e {speedup:.2f}x piu veloce della CPU")
-        print(f"   Tempo risparmiato: {(1 - 1/speedup) * 100:.1f}%")
     else:
         print(f"\nCPU e {1/speedup:.2f}x piu veloce della GPU")
-        print(f"   (problema troppo piccolo per GPU)")
 
 print("\n" + "="*60)
