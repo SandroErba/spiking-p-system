@@ -45,11 +45,7 @@ class MatrixExecutor:
                     spikingTransitionMatrix[rule_idx, target] = rule.target 
                     synapsesMatrix[rule_idx, target] = 1 if target > 0 else -1
 
-                # Handle rule.mod - potrebbe essere lista o singolo valore
-                if isinstance(rule.mod, list):
-                    ruleVector[rule_idx] = rule.mod[0] if rule.mod else 0
-                else:
-                    ruleVector[rule_idx] = rule.mod  # exact goes in mod - assume div = 0
+                ruleVector[rule_idx] = rule.mod  # exact goes in mod - assume div = 0
                     
                 applyingRuleVector[rule_idx] = neuron.nid
                 rule_idx += 1
