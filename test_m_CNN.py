@@ -10,96 +10,91 @@ from sps.config import Config, database
 from sps.m_matrix_executor_pytorch import MatrixExecutor
 
 print("="*60)
-print("CONFRONTO CPU vs GPU - MULTIPLE ESECUZIONI")
+print("CONFRONTO CPU vs GPU - MSNPSystemGPU")
 print("="*60)
 
-# Configurazione
+# Configurazione comune
 database("digit")
 Config.MODE = "CNN"
 Config.compute_k_range()
 Config.WHITE_HOLE = True 
 
-# Carica modello
-print("\nCaricamento modello...")
+# Carica il modello una volta sola
+print("\nCaricamento modello SNPS...")
 snps = cnn.test_launch_mnist_cnn()
 print(f"Modello caricato: {len(snps.neurons)} neuroni")
 
-# Numero di esecuzioni per la media
-N_ITERATIONS = 5
+# ============================================
+# TEST SU CPU
+# ============================================
+print("\n" + "="*60)
+print("TEST SU CPU")
+print("="*60)
+
+# Crea sistema (di default potrebbe usare GPU)
+msnp_cpu = MatrixExecutor.translate_to_matrix(snps)
+
+# Forza spostamento su CPU di TUTTI i tensori
+msnp_cpu.to('cpu')
+msnp_cpu.loadImages(snps.spike_train)
+
+# Esecuzione CPU
+start_cpu = time.perf_counter()
+msnp_cpu.step(verbose=False)
+end_cpu = time.perf_counter()
+cpu_time = (end_cpu - start_cpu) * 1000
+
+print(f"CPU completato in {cpu_time:.2f} ms")
 
 # ============================================
-# TEST CPU
+# TEST SU GPU
 # ============================================
-print(f"\nTEST SU CPU ({N_ITERATIONS} esecuzioni)")
-print("-" * 40)
+print("\n" + "="*60)
+print("TEST SU GPU")
+print("="*60)
 
-cpu_times = []
-for i in range(N_ITERATIONS):
-    msnp_cpu = MatrixExecutor.translate_to_matrix(snps)
-    msnp_cpu.device = torch.device('cpu')
-    msnp_cpu.loadImages(snps.spike_train)
-    
-    start = time.perf_counter()
-    msnp_cpu.step(verbose=False)
-    end = time.perf_counter()
-    
-    cpu_time = (end - start) * 1000
-    cpu_times.append(cpu_time)
-    print(f"  Esecuzione {i+1}: {cpu_time:.2f} ms")
-
-cpu_avg = np.mean(cpu_times)
-cpu_std = np.std(cpu_times)
-print(f"\nCPU: media = {cpu_avg:.2f} +- {cpu_std:.2f} ms")
-
-# ============================================
-# TEST GPU
-# ============================================
 if torch.cuda.is_available():
-    print(f"\nTEST SU GPU ({N_ITERATIONS} esecuzioni)")
-    print("-" * 40)
+    # Crea sistema
+    msnp_gpu = MatrixExecutor.translate_to_matrix(snps)
     
-    gpu_times = []
-    for i in range(N_ITERATIONS):
-        msnp_gpu = MatrixExecutor.translate_to_matrix(snps)
-        msnp_gpu.device = torch.device('cuda')
-        msnp_gpu.loadImages(snps.spike_train)
-        
-        torch.cuda.synchronize()
-        start = time.perf_counter()
-        msnp_gpu.step(verbose=False)
-        torch.cuda.synchronize()
-        end = time.perf_counter()
-        
-        gpu_time = (end - start) * 1000
-        gpu_times.append(gpu_time)
-        print(f"  Esecuzione {i+1}: {gpu_time:.2f} ms")
+    # Forza spostamento su GPU
+    msnp_gpu.to('cuda')
+    msnp_gpu.loadImages(snps.spike_train)
     
-    gpu_avg = np.mean(gpu_times)
-    gpu_std = np.std(gpu_times)
-    print(f"\nGPU: media = {gpu_avg:.2f} +- {gpu_std:.2f} ms")
+    # Sincronizza GPU prima dell'esecuzione
+    torch.cuda.synchronize()
     
-    # ============================================
-    # CONFRONTO
-    # ============================================
-    print("\n" + "="*60)
-    print("CONFRONTO FINALE")
-    print("="*60)
+    # Esecuzione GPU
+    start_gpu = time.perf_counter()
+    msnp_gpu.step(verbose=False)
+    torch.cuda.synchronize()
+    end_gpu = time.perf_counter()
+    gpu_time = (end_gpu - start_gpu) * 1000
     
-    print(f"\n{'Metrica':<20} {'CPU':>15} {'GPU':>15}")
-    print("-" * 50)
-    print(f"{'Tempo medio (ms)':<20} {cpu_avg:>15.2f} {gpu_avg:>15.2f}")
-    print(f"{'Deviazione std (ms)':<20} {cpu_std:>15.2f} {gpu_std:>15.2f}")
-    
-    speedup = cpu_avg / gpu_avg
-    print(f"\n{'Speedup':<20} {1:>15.1f}x {speedup:>15.2f}x")
-    
+    print(f"GPU completato in {gpu_time:.2f} ms")
+else:
+    print("GPU non disponibile")
+    gpu_time = None
+
+# ============================================
+# CONFRONTO FINALE
+# ============================================
+print("\n" + "="*60)
+print("CONFRONTO PERFORMANCE")
+print("="*60)
+
+print(f"\n{'Dispositivo':<15} {'Tempo (ms)':<15} {'Velocita':<15}")
+print("-" * 45)
+print(f"{'CPU':<15} {cpu_time:<15.2f} {'baseline':<15}")
+
+if gpu_time:
+    print(f"{'GPU':<15} {gpu_time:<15.2f} {'':<15}")
+    speedup = cpu_time / gpu_time
     if speedup > 1:
         print(f"\nGPU e {speedup:.2f}x piu veloce della CPU")
         print(f"   Tempo risparmiato: {(1 - 1/speedup) * 100:.1f}%")
     else:
         print(f"\nCPU e {1/speedup:.2f}x piu veloce della GPU")
         print(f"   (problema troppo piccolo per GPU)")
-else:
-    print("\nGPU non disponibile")
 
 print("\n" + "="*60)
