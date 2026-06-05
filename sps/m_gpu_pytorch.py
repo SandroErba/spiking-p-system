@@ -46,8 +46,8 @@ class MSNPSystemGPU:
         self.ruleVector = torch.tensor(ruleVector, dtype=torch.int32, device=self.device)
         self.applyingRuleVector = torch.tensor(applyingRuleVector, dtype=torch.int32, device=self.device)
         
-        # Operazioni matriciali con PyTorch
-        self.sMpi = self.spikingTransitionMatrix * self.synapsesMatrix
+        # ⚠️ FIX: Converti sMpi a float32 UNA VOLTA SOLA all'inizio (evita bottleneck)
+        self.sMpi = (self.spikingTransitionMatrix * self.synapsesMatrix).to(torch.float32)
         
         self.ruleCountPerNeuron = torch.bincount(self.applyingRuleVector, minlength=neuron_num)
         
@@ -95,18 +95,19 @@ class MSNPSystemGPU:
         extendedConfigVector = torch.zeros_like(self.spikingVector, dtype=torch.int32, device=self.device)
         idx = 0
         for i in range(len(self.configurationVector)):
-            count = self.ruleCountPerNeuron[i].item()  # .item() per scalar
+            count = self.ruleCountPerNeuron[i].item()
             extendedConfigVector[idx:idx+count] = self.configurationVector[i]
             idx += count
         
-        # Rule application (equivalente alla formula CuPy)
-        # self.spikingVector = 1 // (1 + |extendedConfigVector - ruleVector|)
+        # Rule application
         diff = torch.abs(extendedConfigVector - self.ruleVector)
         denominator = 1 + diff
         self.spikingVector = torch.div(1, denominator, rounding_mode='floor')
-        # torch.div con rounding_mode='floor' fa la divisione intera come // in numpy/cupy
         
-        self.netGainVector = self.spikingVector @ self.sMpi
+        # ⚠️ FIX: conversione a float solo per la moltiplicazione (sMpi è già float32)
+        # La conversione to(float32) è veloce perché crea una view, non copia
+        net_gain_float = self.spikingVector.to(torch.float32) @ self.sMpi
+        self.netGainVector = net_gain_float.to(torch.int32)
         self.configurationVector = self.configurationVector + self.netGainVector
         
         if Config.WHITE_HOLE:
