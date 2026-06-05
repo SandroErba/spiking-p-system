@@ -115,6 +115,9 @@ class MSNPSystemGPU:
             if verbose:
                 print("White hole applied: configuration vector reset to zero")
         
+        if verbose:
+            print(self)
+
         return True
     
     def execute(self, verbose=False, startAgain=True):
