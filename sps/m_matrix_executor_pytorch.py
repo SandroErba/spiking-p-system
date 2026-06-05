@@ -70,5 +70,6 @@ class MatrixExecutor:
             deterministic=deterministic,
             single_spike_train=single_spike_train,
             input_neurons=input_neurons,
-            applyingRuleVector=applyingRuleVector
+            applyingRuleVector=applyingRuleVector,
+            device='gpu'  
         )
