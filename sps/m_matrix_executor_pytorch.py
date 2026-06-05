@@ -4,6 +4,7 @@ from sps.spike_utils import TransformationRule
 from sps.m_snp_system import MSNPSystem  
 from sps.snp_system import SNPSystem
 from sps.config import Config
+from sps.m_gpu_pytorch import MSNPSystemGPU
 
 
 class MatrixExecutor:
