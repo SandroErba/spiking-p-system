@@ -12,7 +12,7 @@ from sps.config import Config, database
 database("digit") #can be digit, flower, tissuemnist, breastmnist, octmnist, bloodmnist, pathmnist,
 Config.compute_k_range()
 
-snps = network.create_exact_csv()
+#snps = network.create_exact_csv()
 network.launch_mnist()
 
 #network.launch_mnist_from_csv("SNPS_cnn_external.csv")

@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from sps.config import Config
 from .p_neuron import PNeuron
@@ -92,6 +93,7 @@ class SNPSystem:
 
     def tick(self):
         """at each time step, first evolve and then receive spikes, cant do both in the same step, refractory will prevent it"""
+        t=time.time()
         self.history.add_new_tick()
 
         any_rule_applied = False
@@ -169,6 +171,8 @@ class SNPSystem:
             return False # end computation
 
         self.t_step += 1 # advance time
+        elapsed_t = time.time()-t
+        print("Time step", self.t_step, "required ", elapsed_t*1000, "ms")
         if self.t_step > self.max_steps:
             if Config.MODE == "halting":
                 print("The system did not halt naturally within the given step bound; the input is rejected")
