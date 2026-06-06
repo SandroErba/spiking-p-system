@@ -12,12 +12,49 @@ from sklearn.metrics import f1_score, classification_report
 
 from sps import handle_csv, exact_csv
 from sps.digit_image import get_mnist_data
-from sps.handle_csv import SNPS_csv, extend_csv
+from sps.handle_csv import SNPS_csv, extend_csv, ensemble_csv
 from sps.config import Config
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
 from sklearn.preprocessing import label_binarize
 from sklearn.metrics import roc_auc_score
+
+
+#code for calculate the elapsed time
+def launch_mnist():
+    x_train, y_train, x_test, y_test = get_mnist_data()
+
+    SNPS_csv() #create the csv for the SNPS
+    svm, logreg = train_cnn(x_train, y_train)
+
+    ensemble_accuracy = test_SNPS(x_test, y_test, svm, logreg)
+
+def test_SNPS(x_test, y_test, svm, logreg):
+
+    ensemble_pred, t = ensemble_and_test(x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
+    ensemble_accuracy = np.mean(ensemble_pred == y_test)
+    print("SNPS ensemble accuracy with importance:", ensemble_accuracy)
+    print("Required time:", t*1000, "ms")
+
+    return ensemble_accuracy
+
+def ensemble_and_test(x_test, svm_w, logreg_w, svm_imp, logreg_imp):
+    snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
+    snps.spike_train = x_test
+    svm_q = quantize_matrix(svm_w.T)
+    logreg_q = quantize_matrix(logreg_w.T)
+    extended_path = ensemble_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
+    snps.load_neurons_from_csv(extended_path)
+
+    t=time.time()
+    snps.start()
+    elapsed_t = time.time()-t
+
+    y_pred = np.argmax(snps.charge_map_prediction, axis=0)
+
+    return y_pred, elapsed_t
+
+
 
 
 #temporary code for create the csv and the SNPS with exact rules for the GPU

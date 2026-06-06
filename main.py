@@ -17,8 +17,8 @@ from sps.snp_system import SNPSystem
 database("digit") #can be digit, flower
 # Config.MODE = "CNN" #set the mode of the P system: can be cnn (default), generative, halting
 Config.compute_k_range()
-snps = cnn.create_exact_csv()
-
+#snps = cnn.create_exact_csv()
+cnn.launch_mnist()
 # Config.WHITE_HOLE = False
 # snps = cnn.test_launch_mnist_cnn()
 
