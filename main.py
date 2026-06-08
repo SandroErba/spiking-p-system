@@ -18,7 +18,7 @@ database("digit") #can be digit, flower
 # Config.MODE = "CNN" #set the mode of the P system: can be cnn (default), generative, halting
 Config.compute_k_range()
 #snps = cnn.create_exact_csv()
-cnn.launch_mnist()
+cnn.launch_mnist_cnn()
 # Config.WHITE_HOLE = False
 # snps = cnn.test_launch_mnist_cnn()
 
