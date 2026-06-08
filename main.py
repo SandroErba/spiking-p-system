@@ -8,9 +8,9 @@ from datetime import datetime
 
 from sps import  other_networks, network, flower_image, digit_image, med_image, handle_csv
 from sps.config import Config, database
-from sps.m_matrix_executor import MatrixExecutor
-from sps.m_snp_system import MSNPSystem
-from sps.snp_system import SNPSystem
+#from sps.m_matrix_executor import MatrixExecutor
+#from sps.m_snp_system import MSNPSystem
+#from sps.snp_system import SNPSystem
 
 
 
@@ -21,7 +21,9 @@ database("digit") #can be digit, flower
 Config.compute_k_range()
 
 #snps = network.create_exact_csv()
-network.launch_mnist()
+system = "SNPSystem"
+network.launch_mnist(system)
+#MSNPSystemDivModGPU, MSNPSystemExactGPU, SNPSystem
 
 #network.launch_mnist_from_csv("SNPS_cnn_external.csv")
 

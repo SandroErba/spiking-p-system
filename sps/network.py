@@ -6,9 +6,12 @@ from sps import handle_csv, exact_csv
 from sps.digit_image import get_mnist_data
 from sps.handle_csv import SNPS_csv, extend_csv, ensemble_csv
 from sps.config import Config
+from sps.m_snp_pytorch_div_mod_GPU_and_CPU import MSNPSystemDivModGPU
+from sps.m_snp_pytorch_exact_GPU_and_CPU import MSNPSystemExactGPU
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
-
+from sps.m_matrix_executor_div_mod import MatrixExecutor as MatrixExecutorDivMod
+from sps.m_matrix_executor_exact import MatrixExecutor as MatrixExecutorExact
 
 
 #temporary code for create the csv and the SNPS with exact rules for the GPU
@@ -43,12 +46,12 @@ def launch_mnist_from_csv(csv_name):
     cnn_accuracy = np.mean(y_pred == y_test)
     print("SNPS with csv: ", csv_name, " get accuracy of:", cnn_accuracy)
 
-def launch_mnist():
+def launch_mnist(system):
     x_train, y_train, x_test, y_test = get_mnist_data()
-    example_direct(x_train, y_train, x_test, y_test) #compare with models baseline, launched directly on input images
+    #example_direct(x_train, y_train, x_test, y_test) #compare with models baseline, launched directly on input images
 
     SNPS_csv() #create the csv for the SNPS
-    svm, logreg = train_SNPS(x_train, y_train)
+    svm, logreg = train_SNPS(system, x_train, y_train)
 
     t=time.time()
     ensemble_accuracy = test_SNPS(x_test, y_test, svm, logreg)
@@ -58,23 +61,40 @@ def launch_mnist():
 
 
 
-def train_SNPS(x_train, y_train):
+def train_SNPS(system, x_train, y_train):
+
     snps = SNPSystem(Config.TRAIN_SIZE, Config.TRAIN_SIZE + 5, True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = x_train
-    snps.labels = y_train
-    snps.start()
 
+    if system == "MSNPSystemDivModGPU":
+        msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps)
+        msnpsDivMod.loadImages(x_train)
+        msnpsDivMod.execute()
+    elif system == "MSNPSystemExactGPU":
+        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps)
+        msnpsExact.loadImages(x_train)
+        msnpsExact.execute()
+
+    #snps.labels = y_train
+    if system == "SNPSystem":
+        snps.start()
+
+    return train_external_models(snps.pooling_image.T, y_train)
+
+
+
+def train_external_models(charges, y_train):
     #Support Vector Machine
     svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
-    svm.fit(snps.pooling_image.T, y_train)
+    svm.fit(charges, y_train)
 
     #Logistic Regression
     logreg = LogisticRegression(
         solver="lbfgs",
         max_iter=10000
     )
-    logreg.fit(snps.pooling_image.T, y_train)
+    logreg.fit(charges, y_train)
 
     return svm, logreg
 
