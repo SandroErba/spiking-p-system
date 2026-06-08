@@ -28,7 +28,7 @@ def _with_negative_forgetting(rules):
 def _build_layer2_rules(k_index):
     """Layer-2 forwarding rules for positive charge range only."""
     rules = []
-    
+
     for i in range(Config.K_RANGE[k_index][1], 0, -1):
         rules.append(f"[0,{i},{i},{i},0]")
 
@@ -240,7 +240,7 @@ def extend_csv(file_path, q, q_name, multipliers):
         for j in range(n_classes):
 
             weight = q[i, j]
-            j = j + output_offset 
+            j = j + output_offset
 
             if weight == 1:
                 new_targets.append(j)
@@ -262,7 +262,7 @@ def extend_csv(file_path, q, q_name, multipliers):
 
         row[:] = row[:4] + new_rules
 
-    #add new rows for classes's output neurons 
+    #add new rows for classes's output neurons
     for j in range(Config.CLASSES):
 
         output_rules = _with_negative_forgetting(["[1,1,0,0,0]"])
