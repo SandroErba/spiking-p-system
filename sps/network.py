@@ -48,13 +48,13 @@ def launch_mnist_from_csv(csv_name):
 
 def launch_mnist(system):
     x_train, y_train, x_test, y_test = get_mnist_data()
+    t=time.time()
     #example_direct(x_train, y_train, x_test, y_test) #compare with models baseline, launched directly on input images
 
     SNPS_csv() #create the csv for the SNPS
     svm, logreg = train_SNPS(system, x_train, y_train)
 
-    t=time.time()
-    ensemble_accuracy = test_SNPS(x_test, y_test, svm, logreg)
+    ensemble_accuracy = test_SNPS(system, x_test, y_test, svm, logreg)
     handle_csv.save_results(ensemble_accuracy, time.time()-t)
 
 
@@ -80,6 +80,7 @@ def train_SNPS(system, x_train, y_train):
     if system == "SNPSystem":
         snps.start()
 
+    #TODO extract same info from GPU models
     return train_external_models(snps.pooling_image.T, y_train)
 
 
@@ -99,18 +100,19 @@ def train_external_models(charges, y_train):
     return svm, logreg
 
 
-def test_SNPS(x_test, y_test, svm, logreg):
+def test_SNPS(system, x_test, y_test, svm, logreg):
 
-    compare_performance(x_test, y_test, svm, logreg) #for running and checking performance of all the other networks
+    #compare_performance(x_test, y_test, svm, logreg) #for running and checking performance of all the other networks
 
-    ensemble_pred, t = ensemble_and_test(x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
+    ensemble_pred, t = ensemble_and_test(system, x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
     ensemble_accuracy = np.mean(ensemble_pred == y_test)
     print("SNPS ensemble accuracy with importance:", ensemble_accuracy)
     print("Required time:", t*1000, "ms")
 
     return ensemble_accuracy
 
-def ensemble_and_test(x_test, svm_w, logreg_w, svm_imp, logreg_imp):
+def ensemble_and_test(system, x_test, svm_w, logreg_w, svm_imp, logreg_imp):
+
     snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
     snps.spike_train = x_test
     svm_q = ternarize_matrix(svm_w.T)
@@ -118,10 +120,22 @@ def ensemble_and_test(x_test, svm_w, logreg_w, svm_imp, logreg_imp):
     extended_path = ensemble_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
     snps.load_neurons_from_csv(extended_path)
 
-    t=time.time()
-    snps.start()
-    elapsed_t = time.time()-t
+    t=0
+    if system == "MSNPSystemDivModGPU":
+        msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps)
+        msnpsDivMod.loadImages(x_test)
+        t=time.time()
+        msnpsDivMod.execute()
+    elif system == "MSNPSystemExactGPU":
+        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps)
+        msnpsExact.loadImages(x_test)
+        t=time.time()
+        msnpsExact.execute()
+    elif system == "SNPSystem":
+        t=time.time()
+        snps.start()
 
+    elapsed_t = time.time()-t
     y_pred = np.argmax(snps.charge_map_prediction, axis=0)
 
     return y_pred, elapsed_t
