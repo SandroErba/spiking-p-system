@@ -1,6 +1,7 @@
 class Config:
     MODE = "cnn"
     DATABASE = 'digit'
+    NUM_LAYERS = 4
 
     # IMAGES
     IMG_SHAPE = 28 #ipotizing squared shape images of 28 pixels
@@ -54,7 +55,7 @@ class Config:
     #IMPORTANCE
     IMPORTANCE_METHOD = 2 #how the model calculate the magnitude of the weights
     DISCRETIZE_METHOD = 2 #how the model apply the importance to rules
-    DISC_RANGE = 6  #range of importance values, used if DISCRETIZE_METHOD == 2
+    DISC_RANGE = 4  #range of importance values, used if DISCRETIZE_METHOD == 2
 
     # ENERGY COSTS
     WORST_REGEX = 100
@@ -63,8 +64,9 @@ class Config:
 
     THRESHOLD = 128 # higher Thr -> more spike
 
-    CSV_NAME = "SNPS_cnn.csv"
+    CSV_NAME = "SNPS.csv"
     CSV_ENS_NAME = "SNPS_ens.csv"
+    CSV_CNN_NAME = "SNPS_cnn.csv"
 
     # Charge tracker output integration (Francesca)
     TRACK_CHARGES = False
@@ -77,8 +79,8 @@ class Config:
     def compute_k_range(cls):
         cls.K_RANGE = [
             (
-                sum(v == -1 for row in kernel for v in row) * -cls.Q_RANGE,
-                sum(v == 1  for row in kernel for v in row) *  cls.Q_RANGE
+                sum(v == -1 for row in kernel for v in row) * (-cls.Q_RANGE - 1),
+                sum(v == 1  for row in kernel for v in row) *  (cls.Q_RANGE - 1)
             )
             for kernel in cls.KERNELS
         ]

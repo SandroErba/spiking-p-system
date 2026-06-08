@@ -13,7 +13,7 @@ import traceback
 import tkinter as tk
 from contextlib import redirect_stderr, redirect_stdout
 import customtkinter as ctk
-from sps import cnn, other_networks
+from sps import network, other_networks
 from sps.config import Config, database
 
 ctk.set_appearance_mode("System")
@@ -380,7 +380,7 @@ class SimulatorGUI(ctk.CTk):
             Config.TRACK_MODE = self.track_mode_var.get()
             Config.TRACK_FORMAT = self.track_format_var.get()
             Config.compute_k_range()
-            cnn.launch_mnist_cnn()
+            network.launch_mnist()
 
         self._start_thread(task, f"Pipeline: {dataset_name}")
 

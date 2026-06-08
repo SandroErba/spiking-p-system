@@ -2,14 +2,14 @@ import unittest
 import csv
 import os
 
-from sps.handle_csv import cnn_SNPS_csv
-from sps.config import Config, configure
+from sps.handle_csv import SNPS_csv
+from sps.config import Config
 
 class TestCNNSNPSCSV(unittest.TestCase):
 
     def test_cnn_snps_structure(self):
-        configure("cnn")
-        cnn_SNPS_csv()
+        Config.MODE = "cnn"
+        SNPS_csv()
         csv_path = "csv/" + Config.CSV_NAME
         self.assertTrue(os.path.exists(csv_path))
 

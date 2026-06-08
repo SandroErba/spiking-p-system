@@ -4,7 +4,9 @@ import numpy as np
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-from sps import  other_networks, cnn, flower_image, digit_image, med_image, handle_csv
+from datetime import datetime
+
+from sps import  other_networks, network, flower_image, digit_image, med_image, handle_csv
 from sps.config import Config, database
 from sps.m_matrix_executor import MatrixExecutor
 from sps.m_snp_system import MSNPSystem
@@ -17,10 +19,14 @@ from sps.snp_system import SNPSystem
 database("digit") #can be digit, flower
 # Config.MODE = "CNN" #set the mode of the P system: can be cnn (default), generative, halting
 Config.compute_k_range()
-#snps = cnn.create_exact_csv()
-cnn.launch_mnist_cnn()
-# Config.WHITE_HOLE = False
-# snps = cnn.test_launch_mnist_cnn()
+
+#snps = network.create_exact_csv()
+network.launch_mnist()
+
+#network.launch_mnist_from_csv("SNPS_cnn_external.csv")
+
+#Config.NUM_LAYERS = 6
+#network.launch_mnist_from_csv("SNPS_deep_cnn.csv")
 
 # msnp = MatrixExecutor().translate_to_matrix(snps)
 # msnp.loadImages(snps.spike_train)

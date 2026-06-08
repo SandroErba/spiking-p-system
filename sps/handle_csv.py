@@ -35,7 +35,7 @@ def _build_layer2_rules(k_index):
     return _with_negative_forgetting(rules)
 
 
-def cnn_SNPS_csv():
+def SNPS_csv():
     """Generate the SN P system to replicate the cnn structure"""
     os.makedirs("csv", exist_ok=True)
     with open("csv/" + Config.CSV_NAME, mode='w', newline='') as csv_file:

@@ -1,5 +1,4 @@
 import time
-
 import numpy as np
 from sps.config import Config
 from .p_neuron import PNeuron
@@ -46,7 +45,6 @@ class SNPSystem:
         if Config.MODE == "generative":
             self.output = [] # time between two spikes in the output neuron
         elif Config.MODE == "cnn":
-            self.feature_image = np.zeros((Config.NEURONS_FEATURE * Config.KERNEL_NUMBER, input_len), dtype=int)
             self.pooling_image = np.zeros((Config.NEURONS_L3, input_len), dtype=int)
             self.labels = []
             self.correct = 0
@@ -144,20 +142,20 @@ class SNPSystem:
 
         # fill charge maps
         if Config.MODE == "cnn":
-            if 0 < self.t_step <= len(self.spike_train):
-                for input_id in range(Config.NEURONS_L2): #generate feature images
-                    offset = input_id + Config.NEURONS_L1
-                    self.feature_image[input_id][self.t_step - 1] = self.neurons[offset].charge
-            if 1 < self.t_step <= len(self.spike_train) + 1:
+            if Config.NUM_LAYERS - 3 < self.t_step <= len(self.spike_train) + Config.NUM_LAYERS - 3:
                 for input_id in range(Config.NEURONS_L3): #generate pooling images
                     offset = input_id + Config.NEURONS_L1 + Config.NEURONS_L2
-                    self.pooling_image[input_id][self.t_step - 2] = self.neurons[offset].charge
-            if 2 < self.t_step <= len(self.spike_train) + 2:
+                    self.pooling_image[input_id][self.t_step - Config.NUM_LAYERS + 2] = self.neurons[offset].charge
+            if Config.NUM_LAYERS - 2 < self.t_step <= len(self.spike_train) + Config.NUM_LAYERS - 2:
                 if len(self.labels) == 0: #check if this is the test phase
-                    offset = Config.NEURONS_L1 + Config.NEURONS_L2 + Config.NEURONS_L3 #output for SNPS without ensemble
-                    if self.neurons[offset].neuron_type != 2: offset = offset + Config.NEURONS_L3 #output for SNPS with ensemble
-                    for input_id in range(Config.CLASSES): #generate output charge
-                        self.charge_map_prediction[input_id][self.t_step - 3] = self.neurons[offset + input_id].charge
+                    class_id = 0
+                    for neuron in self.neurons:
+                        if neuron.neuron_type == 2:
+                            self.charge_map_prediction[class_id][self.t_step - Config.NUM_LAYERS + 1] = neuron.charge
+                            class_id += 1
+                            if class_id == Config.CLASSES:
+                                break
+
 
         # clear current spiking events
         self.spike_events[self.t_step % self.max_delay].clear()

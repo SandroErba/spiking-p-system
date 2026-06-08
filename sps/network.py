@@ -1,29 +1,64 @@
+import os
 import numpy as np
 import time
 from sklearn.linear_model import LogisticRegression
-from sps import handle_csv
+from sps import handle_csv, exact_csv
 from sps.digit_image import get_mnist_data
-from sps.handle_csv import cnn_SNPS_csv, extend_csv, ensemble_csv
+from sps.handle_csv import SNPS_csv, extend_csv, ensemble_csv
 from sps.config import Config
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
 
 
 
-
-def launch_mnist_cnn():
-    t=time.time()
+#temporary code for create the csv and the SNPS with exact rules for the GPU
+def create_exact_csv():
     x_train, y_train, x_test, y_test = get_mnist_data()
-    #example_direct(x_train, y_train, x_test, y_test) #compare with models baseline, launched directly on input images
+    SNPS_csv() #create the csv for the SNPS
+    svm, logreg = train_SNPS(x_train, y_train)
 
-    cnn_SNPS_csv() #create the csv for the SNPS
-    svm, logreg = train_cnn(x_train, y_train)
+    snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
+    snps.spike_train = x_test
+    svm_q = ternarize_matrix(svm.coef_.T)
+    logreg_q = ternarize_matrix(logreg.coef_.T)
+    extended_path = exact_csv.ensemble_exact_csv(np.array(svm_q), np.array(logreg_q), get_importance(svm.coef_), get_importance(logreg.coef_))
+    snps.load_neurons_from_csv(extended_path)
 
-    ensemble_accuracy = test_cnn(x_test, y_test, svm, logreg)
+    return snps
+
+
+
+def launch_mnist_from_csv(csv_name):
+    x_train, y_train, x_test, y_test = get_mnist_data()
+
+    snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
+    snps.spike_train = x_test
+
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # folder where this .py file lives
+    csv_path = os.path.join(project_root, "csv", csv_name)
+    snps.load_neurons_from_csv(csv_path)
+    snps.start()
+    y_pred = np.argmax(snps.charge_map_prediction, axis=0)
+
+    cnn_accuracy = np.mean(y_pred == y_test)
+    print("SNPS with csv: ", csv_name, " get accuracy of:", cnn_accuracy)
+
+def launch_mnist():
+    x_train, y_train, x_test, y_test = get_mnist_data()
+    example_direct(x_train, y_train, x_test, y_test) #compare with models baseline, launched directly on input images
+
+    SNPS_csv() #create the csv for the SNPS
+    svm, logreg = train_SNPS(x_train, y_train)
+
+    t=time.time()
+    ensemble_accuracy = test_SNPS(x_test, y_test, svm, logreg)
     handle_csv.save_results(ensemble_accuracy, time.time()-t)
 
 
-def train_cnn(x_train, y_train):
+
+
+
+def train_SNPS(x_train, y_train):
     snps = SNPSystem(Config.TRAIN_SIZE, Config.TRAIN_SIZE + 5, True)
     snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
     snps.spike_train = x_train
@@ -44,13 +79,14 @@ def train_cnn(x_train, y_train):
     return svm, logreg
 
 
-def test_cnn(x_test, y_test, svm, logreg):
+def test_SNPS(x_test, y_test, svm, logreg):
 
-    #compare_performance(x_test, y_test, svm, logreg) #for running and checking performance of all the other networks
+    compare_performance(x_test, y_test, svm, logreg) #for running and checking performance of all the other networks
 
-    ensemble_pred = ensemble_and_test(x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
+    ensemble_pred, t = ensemble_and_test(x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
     ensemble_accuracy = np.mean(ensemble_pred == y_test)
     print("SNPS ensemble accuracy with importance:", ensemble_accuracy)
+    print("Required time:", t*1000, "ms")
 
     return ensemble_accuracy
 
@@ -61,10 +97,14 @@ def ensemble_and_test(x_test, svm_w, logreg_w, svm_imp, logreg_imp):
     logreg_q = ternarize_matrix(logreg_w.T)
     extended_path = ensemble_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
     snps.load_neurons_from_csv(extended_path)
+
+    t=time.time()
     snps.start()
+    elapsed_t = time.time()-t
+
     y_pred = np.argmax(snps.charge_map_prediction, axis=0)
 
-    return y_pred
+    return y_pred, elapsed_t
 
 
 
@@ -101,6 +141,9 @@ def ternarize_matrix(w):
     # matrix quantization for last layer of SNPS: Transform from real values to {-1,0,1}
     if Config.TERNARIZE_METHOD == 1: q = ternarize_percentile(w, Config.M_SPARSITY, Config.M_POSITIVE) # Percentile-based
     else: q = ternarize_threshold(w, Config.M_THRESHOLD) # Threshold-based
+
+    np.save("ternary_matrix.npy", q)
+
     return q
 
 #for more info see https://www.emergentmind.com/topics/ternary-weight-networks-twns
