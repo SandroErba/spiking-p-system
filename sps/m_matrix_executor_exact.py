@@ -32,6 +32,8 @@ class MatrixExecutor:
         for neuron in neurons:
             if neuron.neuron_type == 0:  # if it's an input neuron, add it to the list of input neurons
                 input_neurons.append(neuron.nid)
+            elif neuron.neuron_type == 2:  # if it's an output neuron, add it to the list of output neurons
+                output_neurons.append(neuron.nid)
 
             configurationVector[neuron.nid] = neuron.charge
 
@@ -64,6 +66,7 @@ class MatrixExecutor:
             deterministic=deterministic,
             single_spike_train=single_spike_train,
             input_neurons=input_neurons,
+            output_neurons=output_neurons,
             applyingRuleVector=applyingRuleVector,
             device='gpu'  
         )

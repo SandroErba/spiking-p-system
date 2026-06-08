@@ -19,14 +19,18 @@ class MatrixExecutor:
         spikingTransitionMatrix = np.zeros((rule_num, neurons_num), dtype=int)
         synapsesMatrix = np.zeros((rule_num, neurons_num), dtype=int)      
         ruleVector = np.zeros((rule_num, 2), dtype=int)
+        targetVector = np.zeros((rule_num,), dtype=int)
         applyingRuleVector = np.zeros((rule_num,), dtype=int)
 
         rule_idx = 0
         input_neurons = []
+        output_neurons = []
 
         for neuron in neurons:
             if neuron.neuron_type == 0:
                 input_neurons.append(neuron.nid)
+            elif neuron.neuron_type == 2:
+                output_neurons.append(neuron.nid)
 
             configurationVector[neuron.nid] = neuron.charge
 
@@ -37,7 +41,8 @@ class MatrixExecutor:
                 for target in neuron.targets:
                     spikingTransitionMatrix[rule_idx, target] = rule.target 
                     synapsesMatrix[rule_idx, target] = 1 if target > 0 else -1
-
+                
+                targetVector[rule_idx] = rule.target
                 ruleVector[rule_idx] = [rule.div, rule.mod]
                     
                 applyingRuleVector[rule_idx] = neuron.nid
@@ -57,5 +62,7 @@ class MatrixExecutor:
             deterministic=deterministic,
             single_spike_train=single_spike_train,
             input_neurons=input_neurons,
+            output_neurons=output_neurons,
+            targetVector=targetVector,
             applyingRuleVector=applyingRuleVector
         )

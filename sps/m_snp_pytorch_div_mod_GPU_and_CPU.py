@@ -9,8 +9,8 @@ from sps.config import Config
 class MSNPSystemDivModGPU:
     def __init__(self, configurationVector, spikingVector, spikingTransitionMatrix, 
                  ruleVector, synapsesMatrix, max_steps=1000, deterministic=True, 
-                 single_spike_train=None, input_neurons=None, targetVector=None, 
-                 applyingRuleVector=None, device='cpu'):
+                 single_spike_train=None, input_neurons=None, output_neurons=None, targetVector=None, 
+                 applyingRuleVector=None, device='cpu',testsize=1):
         
         # Set device and dtype based on device
         if device == 'gpu' or device == 'cuda':
@@ -38,7 +38,8 @@ class MSNPSystemDivModGPU:
         rule_num = len(spikingTransitionMatrix)
         neuron_num = len(configurationVector)
         
-        self.max_steps = max_steps
+        self.testsize = testsize
+        self.pooling_image = torch.zeros((len(output_neurons), testsize), dtype=self.dtype, device='cpu') if output_neurons is not None else None
         self.deterministic = deterministic
         
         # Convert to PyTorch tensors with appropriate dtype
@@ -55,11 +56,6 @@ class MSNPSystemDivModGPU:
             self.spikingVector = torch.zeros(rule_num, dtype=self.dtype, device=self.device)
         else:
             self.spikingVector = torch.tensor(spikingVector, dtype=self.dtype, device=self.device)
-        
-        if input_neurons is None:
-            self.input_neurons = torch.tensor([], dtype=torch.int32, device=self.device)
-        else:
-            self.input_neurons = torch.tensor(input_neurons, dtype=torch.int32, device=self.device)
         
         if single_spike_train is not None:
             self.single_spike_train = torch.tensor(single_spike_train, dtype=self.dtype, device=self.device)
@@ -121,7 +117,9 @@ class MSNPSystemDivModGPU:
         #     self.configurationVector.zero_()
         #     if verbose:
         #         print("White hole applied: configuration vector reset to zero")
-        
+        if self.pooling_image is not None:
+            self.pooling_image[self.t_step] = self.configurationVector[self.output_neurons]
+        self.t_step += 1
         return True
     
     def execute(self, verbose=False, startAgain=True):
@@ -151,9 +149,7 @@ class MSNPSystemDivModGPU:
             if torch.all(self.spikingVector == 0) and (self.t_step >= input_length):
                 print("Computation halts because the spiking vector is zero; no more rules can be applied; the input is accepted")
                 return True
-            
-            self.t_step += 1
-        
+                    
         print("Computation halts because the maximum number of steps has been reached; the input is rejected")
         return False
     

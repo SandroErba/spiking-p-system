@@ -10,8 +10,8 @@ class MSNPSystemExactGPU:
     
     def __init__(self, configurationVector, spikingVector, spikingTransitionMatrix, 
                  synapsesMatrix, ruleVector, max_steps=1000, deterministic=True, 
-                 single_spike_train=None, input_neurons=None, 
-                 applyingRuleVector=None, device='cpu'):
+                 single_spike_train=None, input_neurons=None, output_neurons=None,
+                 applyingRuleVector=None, device='cpu',testsize=1):
         
         # Set device (GPU if available, CPU otherwise) and dtype based on device
         # For CPU, int32 is often more efficient for this type of computation; 
@@ -41,6 +41,10 @@ class MSNPSystemExactGPU:
         rule_num = len(spikingTransitionMatrix)
         neuron_num = len(configurationVector)
         
+        self.testsize = testsize
+        self.pooling_image = torch.zeros((len(output_neurons), self.testsize), dtype=self.dtype, device='cpu') if output_neurons is not None else None
+        
+
         self.max_steps = max_steps
         self.deterministic = deterministic
         
@@ -61,11 +65,6 @@ class MSNPSystemExactGPU:
             self.spikingVector = torch.zeros(rule_num, dtype=self.dtype, device=self.device)
         else:
             self.spikingVector = torch.tensor(spikingVector, dtype=self.dtype, device=self.device)
-        
-        if input_neurons is None:
-            self.input_neurons = torch.tensor([], dtype=torch.int32, device=self.device)
-        else:
-            self.input_neurons = torch.tensor(input_neurons, dtype=torch.int32, device=self.device)
         
         if single_spike_train is not None:
             self.single_spike_train = torch.tensor(single_spike_train, dtype=self.dtype, device=self.device)
@@ -122,9 +121,12 @@ class MSNPSystemExactGPU:
         #     if verbose:
         #         print("White hole applied: configuration vector reset to zero")
         
+        
         if verbose:
             print(self)
-
+        if self.pooling_image is not None:
+            self.pooling_image[self.t_step] = self.configurationVector[self.output_neurons]
+        self.t_step += 1
         return True
     
     def execute(self, verbose=False, startAgain=True):
@@ -155,7 +157,6 @@ class MSNPSystemExactGPU:
                 print("Computation halts: spiking vector is zero, input is accepted")
                 return True
             
-            self.t_step += 1
         
         print("Computation halts: maximum number of steps reached, input is rejected")
         return False
