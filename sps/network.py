@@ -68,11 +68,14 @@ def train_SNPS(system, x_train, y_train):
     snps.spike_train = x_train
 
     if system == "MSNPSystemDivModGPU":
+        # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
+        #msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device="gpu")
         msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps)
         msnpsDivMod.loadImages(x_train)
         msnpsDivMod.execute()
         return train_external_models(msnpsDivMod.pooling_image.t(), y_train)
     elif system == "MSNPSystemExactGPU":
+        # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
         msnpsExact = MatrixExecutorExact.translate_to_matrix(snps)
         msnpsExact.loadImages(x_train)
         msnpsExact.execute()
@@ -127,6 +130,7 @@ def ensemble_and_test(system, x_test, svm_w, logreg_w, svm_imp, logreg_imp):
     t=0
     if system == "MSNPSystemDivModGPU":
         msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps)
+        
         msnpsDivMod.loadImages(x_test)
         t=time.time()
         msnpsDivMod.execute()

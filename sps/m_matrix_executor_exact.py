@@ -9,7 +9,7 @@ class MatrixExecutor:
 
     # This class is responsible for translating a SNPSystem from the sps.snp_system format to the MSNPSystem format
     @staticmethod
-    def translate_to_matrix(SNPSystem):
+    def translate_to_matrix(SNPSystem,device="cpu"):
         neurons = SNPSystem.neurons
         neurons_num = len(neurons)
         rule_num = sum(len(neuron.transf_rules) for neuron in neurons)
@@ -69,6 +69,6 @@ class MatrixExecutor:
             input_neurons=input_neurons,
             output_neurons=output_neurons,
             applyingRuleVector=applyingRuleVector,
-            device='gpu',
+            device=device,
             testsize = SNPSystem.input_len
         )
