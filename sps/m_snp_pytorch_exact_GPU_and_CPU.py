@@ -12,9 +12,6 @@ class MSNPSystemExactGPU:
                  synapsesMatrix, ruleVector, max_steps=1000, deterministic=True, 
                  single_spike_train=None, input_neurons=None, output_neurons=None,
                  applyingRuleVector=None, device='cpu',testsize=1):
-
-        self.output_neurons = None
-        self.input_neurons = None
         
         # Set device (GPU if available, CPU otherwise) and dtype based on device
         # For CPU, int32 is often more efficient for this type of computation; 
@@ -47,6 +44,9 @@ class MSNPSystemExactGPU:
         self.testsize = testsize
         self.pooling_image = torch.zeros((len(output_neurons), self.testsize), dtype=self.dtype, device='cpu') if output_neurons is not None else None
         
+        # Numpy arrays
+        self.input_neurons = input_neurons
+        self.output_neurons = output_neurons
 
         self.max_steps = max_steps
         self.deterministic = deterministic
@@ -127,6 +127,7 @@ class MSNPSystemExactGPU:
         
         if verbose:
             print(self)
+
         if self.pooling_image is not None:
             self.pooling_image[self.t_step] = self.configurationVector[self.output_neurons]
         self.t_step += 1
@@ -185,9 +186,6 @@ class MSNPSystemExactGPU:
     def get_applying_rule_vector(self):
         return self.applyingRuleVector.cpu().numpy()
 
-    def get_input_neurons(self):
-        return self.input_neurons.cpu().numpy()
-
     def to(self, device):
         """Sposta l'intero sistema su un device specifico (CPU o GPU) con dtype appropriato"""
         new_device = torch.device(device)
@@ -225,9 +223,7 @@ class MSNPSystemExactGPU:
             if hasattr(self, 'img_spike_train'):
                 self.img_spike_train = self.img_spike_train.to(new_device)
         
-        self.applyingRuleVector = self.applyingRuleVector.to(new_device)
-        self.input_neurons = self.input_neurons.to(new_device)
-        
+        self.applyingRuleVector = self.applyingRuleVector.to(new_device)        
         self.device = new_device
         return self
     
@@ -236,7 +232,8 @@ class MSNPSystemExactGPU:
         return (f"Device: {self.device} (dtype: {self.dtype})\n"
                 f"Deterministic: {self.deterministic}\n"
                 f"Synapses Spiking Transition Matrix:\n{self.get_spiking_transition_matrix()}\n"
-                f"Input Neurons: {self.get_input_neurons()}\n"
+                f"Input Neurons: {self.input_neurons}\n"
+                f"Output Neurons: {self.output_neurons}\n"
                 f"Configuration Vector: {self.get_configuration_vector()}\n"
                 f"Spiking Vector: {self.get_spiking_vector()}\n"
                 f"Net Gain Vector: {self.get_net_gain_vector()}\n"

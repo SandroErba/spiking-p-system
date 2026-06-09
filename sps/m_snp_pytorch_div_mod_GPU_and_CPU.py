@@ -13,8 +13,10 @@ class MSNPSystemDivModGPU:
                  applyingRuleVector=None, device='cpu',testsize=1):
 
         self.max_steps = max_steps #TODO check this 3 attributes
-        self.output_neurons = None
-        self.input_neurons = None
+        self.output_neurons = output_neurons
+        self.input_neurons = input_neurons
+
+        print("input neurons", self.input_neurons, "output neurons", self.output_neurons)
 
         # Set device and dtype based on device
         if device == 'gpu' or device == 'cuda':
@@ -93,8 +95,8 @@ class MSNPSystemDivModGPU:
         # CNN -> Images
         if Config.MODE == "CNN":
             if self.t_step < self.img_spike_train.shape[0]:
-                #self.configurationVector[self.input_neurons] += self.img_spike_train[self.t_step] #TODO old line, check the following
-                self.configurationVector[self.input_neurons, :784] += self.img_spike_train[self.t_step]
+                self.configurationVector[self.input_neurons] += self.img_spike_train[self.t_step] #TODO lasciato questa linea, it should work :X
+                #self.configurationVector[self.input_neurons, :784] += self.img_spike_train[self.t_step]
                 if verbose:
                     print(f"Applied image spike train at step {self.t_step + 1}: added {self.img_spike_train[self.t_step]} spikes to input neurons {self.input_neurons.cpu().numpy()}")
         
@@ -256,10 +258,6 @@ class MSNPSystemDivModGPU:
         """Return applying rule vector as NumPy array"""
         return self.applyingRuleVector.cpu().numpy()
     
-    def get_input_neurons(self):
-        """Return input neurons as NumPy array"""
-        return self.input_neurons.cpu().numpy()
-    
     def get_target_vector(self):
         """Return target vector as NumPy array"""
         return self.targetVector.cpu().numpy()
@@ -306,8 +304,6 @@ class MSNPSystemDivModGPU:
         
         # These always stay as int32
         self.applyingRuleVector = self.applyingRuleVector.to(new_device)
-        self.input_neurons = self.input_neurons.to(new_device)
-        self.output_neurons = self.output_neurons.to(new_device)
         
         self.device = new_device
         return self
@@ -317,7 +313,8 @@ class MSNPSystemDivModGPU:
         return (f"Device: {self.device} (dtype: {self.dtype})\n"
                 f"Deterministic: {self.deterministic}\n"
                 f"SpikingTransitionMatrix:\n{self.get_spiking_transition_matrix()}\n"
-                f"Input Neurons: {self.get_input_neurons()}\n"
+                f"Input Neurons: {self.input_neurons}\n"
+                f"Output Neurons: {self.output_neurons}\n"
                 f"Configuration Vector: {self.get_configuration_vector()}\n"
                 f"Spiking Vector: {self.get_spiking_vector()}\n"
                 f"Net Gain Vector: {self.get_net_gain_vector()}\n"
