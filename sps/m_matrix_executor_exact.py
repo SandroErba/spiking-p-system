@@ -68,5 +68,6 @@ class MatrixExecutor:
             input_neurons=input_neurons,
             output_neurons=output_neurons,
             applyingRuleVector=applyingRuleVector,
-            device='gpu'  
+            device='gpu',
+            testsize = SNPSystem.input_len
         )

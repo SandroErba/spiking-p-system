@@ -64,5 +64,6 @@ class MatrixExecutor:
             input_neurons=input_neurons,
             output_neurons=output_neurons,
             targetVector=targetVector,
-            applyingRuleVector=applyingRuleVector
+            applyingRuleVector=applyingRuleVector,
+            testsize = SNPSystem.input_len
         )
