@@ -84,10 +84,11 @@ def train_SNPS(system, x_train, y_train):
     #snps.labels = y_train
     if system == "SNPSystem":
         snps.start()
+        return train_external_models(snps.pooling_image.T, y_train)
 
     #TODO extract same info from GPU models
     #DOVREI averlo fatto
-    return train_external_models(snps.pooling_image.T, y_train)
+
 
 
 

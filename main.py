@@ -21,9 +21,9 @@ database("digit") #can be digit, flower
 Config.compute_k_range()
 
 #snps = network.create_exact_csv()
-system = "SNPSystem"
+system = "MSNPSystemDivModGPU"
 network.launch_mnist(system)
-print(network.snps.spike_train)
+
 #MSNPSystemDivModGPU, MSNPSystemExactGPU, SNPSystem
 
 #network.launch_mnist_from_csv("SNPS_cnn_external.csv")
