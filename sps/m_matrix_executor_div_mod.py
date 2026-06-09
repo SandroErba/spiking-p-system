@@ -6,7 +6,7 @@ from sps.m_snp_pytorch_div_mod_GPU_and_CPU import MSNPSystemDivModGPU
 class MatrixExecutor:
 
     @staticmethod
-    def translate_to_matrix(SNPSystem):
+    def translate_to_matrix(SNPSystem,device="cpu"):
         neurons = SNPSystem.neurons
         neurons_num = len(neurons)
         rule_num = sum(len(neuron.transf_rules) for neuron in neurons)
@@ -65,5 +65,6 @@ class MatrixExecutor:
             output_neurons=output_neurons,
             targetVector=targetVector,
             applyingRuleVector=applyingRuleVector,
-            testsize = SNPSystem.input_len
+            testsize = SNPSystem.input_len,
+            device=device
         )
