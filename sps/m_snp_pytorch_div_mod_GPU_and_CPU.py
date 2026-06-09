@@ -43,7 +43,7 @@ class MSNPSystemDivModGPU:
         neuron_num = len(configurationVector)
         
         self.testsize = testsize
-        self.pooling_image = torch.zeros((Config.NEURONS_L3, testsize), dtype=self.dtype, device='cpu') if output_neurons is not None else None
+        self.pooling_image = torch.zeros((len(output_neurons), self.testsize), dtype=self.dtype, device='cpu') if output_neurons is not None else None
         self.deterministic = deterministic
         
         # Convert to PyTorch tensors with appropriate dtype
@@ -123,8 +123,8 @@ class MSNPSystemDivModGPU:
         #     if verbose:
         #         print("White hole applied: configuration vector reset to zero")
         if self.pooling_image is not None and Config.NUM_LAYERS - 3 < self.t_step <= self.testsize + Config.NUM_LAYERS - 3:
-            #self.pooling_image[self.t_step] = self.configurationVector[self.output_neurons] TODO check this, fix hardcoded values
-            self.pooling_image[:, self.t_step - Config.NUM_LAYERS + 2] = self.configurationVector[6192:7544] #see "self.pooling_image" in snp_system.py
+            self.pooling_image[self.t_step] = self.configurationVector[self.output_neurons] #TODO check this, fix hardcoded values
+            #self.pooling_image[:, self.t_step - Config.NUM_LAYERS + 2] = self.configurationVector[6192:7544] #see "self.pooling_image" in snp_system.py
         self.t_step += 1
         print("time step", self.t_step) #TODo delete
         return True

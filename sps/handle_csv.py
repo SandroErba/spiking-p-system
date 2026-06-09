@@ -100,7 +100,7 @@ def SNPS_csv():
                     layer3_offset + i,       # id
                     0,                       # initial_charge
                     "[]",                    # output_targets
-                    1,                       # neuron_type
+                    2,                       # neuron_type
                     *_with_negative_forgetting(["[1,1,0,0,0]"])  # Send spikes + anti-spike forgetting
                 ])
 
