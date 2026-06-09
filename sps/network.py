@@ -71,20 +71,21 @@ def train_SNPS(system, x_train, y_train):
         msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps)
         msnpsDivMod.loadImages(x_train)
         msnpsDivMod.execute()
-        return train_external_models(msnpsDivMod.pooling_image.T, y_train)
+        return train_external_models(msnpsDivMod.pooling_image.t(), y_train)
     elif system == "MSNPSystemExactGPU":
         msnpsExact = MatrixExecutorExact.translate_to_matrix(snps)
         msnpsExact.loadImages(x_train)
         msnpsExact.execute()
-        return train_external_models(msnpsExact.pooling_image.T, y_train)
+        return train_external_models(msnpsExact.pooling_image.t(), y_train)
 
     #snps.labels = y_train
     if system == "SNPSystem":
         snps.start()
+        return train_external_models(snps.pooling_image.T, y_train)
 
     #TODO extract same info from GPU models
     #DOVREI averlo fatto
-    return train_external_models(snps.pooling_image.T, y_train)
+
 
 
 

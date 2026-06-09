@@ -28,6 +28,7 @@ class MatrixExecutor:
 
         rule_idx = 0
         input_neurons = []  # index of input neurons, to which the spike train will be applied
+        output_neurons = []  # index of output neurons, to which the output will be read from
 
         for neuron in neurons:
             if neuron.neuron_type == 0:  # if it's an input neuron, add it to the list of input neurons
