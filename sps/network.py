@@ -75,7 +75,7 @@ def train_SNPS(system, x_train, y_train):
         msnpsDivMod.loadImages(x_train)
         msnpsDivMod.execute()
         print("execution done")
-        return train_external_models(msnpsDivMod.pooling_image.t(), y_train)
+        return train_external_models(msnpsDivMod.pooling_image.cpu().numpy().T, y_train) #TODO temporary casted in numpy()
     elif system == "MSNPSystemExactGPU":
         # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
         msnpsExact = MatrixExecutorExact.translate_to_matrix(snps)
@@ -96,15 +96,21 @@ def train_SNPS(system, x_train, y_train):
 
 def train_external_models(charges, y_train):
     #Support Vector Machine
+    print("charge shape:", charges.shape)
+    print("first charge:" , charges[0])
     svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
     svm.fit(charges, y_train)
+
+    print("SVM done")
 
     #Logistic Regression
     logreg = LogisticRegression(
         solver="lbfgs",
-        max_iter=10000
+        max_iter=100000
     )
     logreg.fit(charges, y_train)
+
+    print("logreg done")
 
     return svm, logreg
 
