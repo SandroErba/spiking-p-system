@@ -8,7 +8,7 @@ from sps.config import Config
 class TestCNNSNPSCSV(unittest.TestCase):
 
     def test_cnn_snps_structure(self):
-        Config.MODE = "cnn"
+        Config.MODE = "CNN"
         SNPS_csv()
         csv_path = "csv/" + Config.CSV_NAME
         self.assertTrue(os.path.exists(csv_path))

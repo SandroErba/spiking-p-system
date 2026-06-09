@@ -1,5 +1,5 @@
 class Config:
-    MODE = "cnn"
+    MODE = "CNN"
     DATABASE = 'digit'
     NUM_LAYERS = 4
 

@@ -368,7 +368,7 @@ class SimulatorGUI(ctk.CTk):
         def task():
             database(dataset_name)
 
-            Config.MODE = "cnn"
+            Config.MODE = "CNN"
             Config.CSV_NAME = "SNPS_cnn.csv"
             Config.TRAIN_SIZE = train_size
             Config.TEST_SIZE = test_size

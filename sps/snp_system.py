@@ -44,7 +44,7 @@ class SNPSystem:
         # record output
         if Config.MODE == "generative":
             self.output = [] # time between two spikes in the output neuron
-        elif Config.MODE == "cnn":
+        elif Config.MODE == "CNN":
             self.pooling_image = np.zeros((Config.NEURONS_L3, input_len), dtype=int)
             self.labels = []
             self.correct = 0
@@ -111,7 +111,7 @@ class SNPSystem:
             self.history.record_rule(neuron, used_rule)
 
         input_spike = False # check if there are more input for halting condition
-        if Config.MODE == "cnn": # you have an array of images as input
+        if Config.MODE == "CNN": # you have an array of images as input
             if self.spike_train.any() and self.t_step < len(self.spike_train):
                 input_spike = True
                 input_vector = self.spike_train[self.t_step].flatten() # input_vector should be a list with len = input neurons
@@ -141,7 +141,7 @@ class SNPSystem:
                 self.history.record_incoming(self.neurons[idx], spike_event.charge, spike_event.nid)
 
         # fill charge maps
-        if Config.MODE == "cnn":
+        if Config.MODE == "CNN":
             if Config.NUM_LAYERS - 3 < self.t_step <= len(self.spike_train) + Config.NUM_LAYERS - 3:
                 for input_id in range(Config.NEURONS_L3): #generate pooling images
                     offset = input_id + Config.NEURONS_L1 + Config.NEURONS_L2
@@ -218,7 +218,7 @@ class SNPSystem:
         self.output_neuron_ids = [n.nid for n in neurons if n.neuron_type == 2]
 
         # Keep prediction matrix aligned with current run length.
-        if Config.MODE == "cnn" and self.spike_train is not None:
+        if Config.MODE == "CNN" and self.spike_train is not None:
             n_samples = len(self.spike_train)
             self.charge_map_prediction = np.zeros((Config.CLASSES, n_samples), dtype=int)
 
