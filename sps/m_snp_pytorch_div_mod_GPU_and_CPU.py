@@ -11,7 +11,11 @@ class MSNPSystemDivModGPU:
                  ruleVector, synapsesMatrix, max_steps=1000, deterministic=True, 
                  single_spike_train=None, input_neurons=None, output_neurons=None, targetVector=None, 
                  applyingRuleVector=None, device='cpu',testsize=1):
-        
+
+        self.max_steps = max_steps #TODO check this 3 attributes
+        self.output_neurons = None
+        self.input_neurons = None
+
         # Set device and dtype based on device
         if device == 'gpu' or device == 'cuda':
             if torch.cuda.is_available():
@@ -39,7 +43,7 @@ class MSNPSystemDivModGPU:
         neuron_num = len(configurationVector)
         
         self.testsize = testsize
-        self.pooling_image = torch.zeros((len(output_neurons), testsize), dtype=self.dtype, device='cpu') if output_neurons is not None else None
+        self.pooling_image = torch.zeros((Config.NEURONS_L3, testsize), dtype=self.dtype, device='cpu') if output_neurons is not None else None
         self.deterministic = deterministic
         
         # Convert to PyTorch tensors with appropriate dtype
@@ -89,7 +93,8 @@ class MSNPSystemDivModGPU:
         # CNN -> Images
         if Config.MODE == "CNN":
             if self.t_step < self.img_spike_train.shape[0]:
-                self.configurationVector[self.input_neurons] += self.img_spike_train[self.t_step]
+                #self.configurationVector[self.input_neurons] += self.img_spike_train[self.t_step] #TODO old line, check the following
+                self.configurationVector[self.input_neurons, :784] += self.img_spike_train[self.t_step]
                 if verbose:
                     print(f"Applied image spike train at step {self.t_step + 1}: added {self.img_spike_train[self.t_step]} spikes to input neurons {self.input_neurons.cpu().numpy()}")
         
@@ -117,9 +122,11 @@ class MSNPSystemDivModGPU:
         #     self.configurationVector.zero_()
         #     if verbose:
         #         print("White hole applied: configuration vector reset to zero")
-        if self.pooling_image is not None:
-            self.pooling_image[self.t_step] = self.configurationVector[self.output_neurons]
+        if self.pooling_image is not None and Config.NUM_LAYERS - 3 < self.t_step <= self.testsize + Config.NUM_LAYERS - 3:
+            #self.pooling_image[self.t_step] = self.configurationVector[self.output_neurons] TODO check this, fix hardcoded values
+            self.pooling_image[:, self.t_step - Config.NUM_LAYERS + 2] = self.configurationVector[6192:7544] #see "self.pooling_image" in snp_system.py
         self.t_step += 1
+        print("time step", self.t_step) #TODo delete
         return True
     
     def execute(self, verbose=False, startAgain=True):
@@ -300,6 +307,7 @@ class MSNPSystemDivModGPU:
         # These always stay as int32
         self.applyingRuleVector = self.applyingRuleVector.to(new_device)
         self.input_neurons = self.input_neurons.to(new_device)
+        self.output_neurons = self.output_neurons.to(new_device)
         
         self.device = new_device
         return self

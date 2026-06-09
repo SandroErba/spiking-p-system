@@ -53,6 +53,7 @@ def launch_mnist(system):
 
     SNPS_csv() #create the csv for the SNPS
     svm, logreg = train_SNPS(system, x_train, y_train)
+    print("Done the training procedure")
 
     ensemble_accuracy = test_SNPS(system, x_test, y_test, svm, logreg)
     handle_csv.save_results(ensemble_accuracy, time.time()-t)
@@ -73,6 +74,7 @@ def train_SNPS(system, x_train, y_train):
         msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps)
         msnpsDivMod.loadImages(x_train)
         msnpsDivMod.execute()
+        print("execution done")
         return train_external_models(msnpsDivMod.pooling_image.t(), y_train)
     elif system == "MSNPSystemExactGPU":
         # come secondo parametro a translate_to_matrix passa il device, cpu o gpu

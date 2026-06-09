@@ -12,6 +12,9 @@ class MSNPSystemExactGPU:
                  synapsesMatrix, ruleVector, max_steps=1000, deterministic=True, 
                  single_spike_train=None, input_neurons=None, output_neurons=None,
                  applyingRuleVector=None, device='cpu',testsize=1):
+
+        self.output_neurons = None
+        self.input_neurons = None
         
         # Set device (GPU if available, CPU otherwise) and dtype based on device
         # For CPU, int32 is often more efficient for this type of computation; 
