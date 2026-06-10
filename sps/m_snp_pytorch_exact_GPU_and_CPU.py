@@ -63,7 +63,9 @@ class MSNPSystemExactGPU:
         
         # bincount requires int32
         self.ruleCountPerNeuron = torch.bincount(self.applyingRuleVector, minlength=neuron_num)
-        
+        self.repeat_indices = torch.repeat_interleave(torch.arange(neuron_num, device=self.device),self.ruleCountPerNeuron)
+        # Pre-calcola la lunghezza target
+
         if spikingVector is None:
             self.spikingVector = torch.zeros(rule_num, dtype=self.dtype, device=self.device)
         else:
@@ -107,22 +109,16 @@ class MSNPSystemExactGPU:
                     print(f"Applied spike train at step {self.t_step + 1}")
         
         # 2. Calculate extended configuration vector
-        extendedConfigVector = torch.zeros_like(self.spikingVector, dtype=self.dtype, device=self.device)
-        idx = 0
-        for i in range(len(self.configurationVector)):
-            count = self.ruleCountPerNeuron[i].item()
-            extendedConfigVector[idx:idx+count] = self.configurationVector[i]
-            idx += count
-        
-        diff = torch.abs(extendedConfigVector - self.ruleVector)
-        
-        self.spikingVector = torch.div(1, 1 + diff, rounding_mode='floor') if self.dtype == torch.int32 else torch.floor(1.0 / (1.0 + diff))
-        
+        extendedConfigVector = self.configurationVector[self.repeat_indices]
+
+        if self.dtype == torch.int32:
+            self.spikingVector = 1 // (1 + diff)
+        else:
+            diff_int = diff.to(torch.int32)
+            self.spikingVector = (1 // (1 + diff_int)).to(self.dtype)
         self.netGainVector = self.spikingVector @ self.sMpi
         self.configurationVector = self.configurationVector + self.netGainVector
 
-        if verbose:
-            print(self)
 
         if self.pooling_image is not None and Config.NUM_LAYERS - 3 < self.t_step <= self.testsize + Config.NUM_LAYERS - 3:
             self.pooling_image[:, self.t_step - Config.NUM_LAYERS + 2] = self.configurationVector[self.output_neurons]
@@ -134,10 +130,6 @@ class MSNPSystemExactGPU:
         if startAgain:
             self.t_step = 0
         
-        if verbose:
-            print("Initial Configuration Vector:", self.configurationVector.cpu().numpy())
-            print("-" * 30)
-        
         # determine input length based on mode
         if Config.MODE == "CNN":
             input_length = self.img_spike_train.shape[0]
@@ -145,12 +137,6 @@ class MSNPSystemExactGPU:
             input_length = len(self.single_spike_train) if hasattr(self.single_spike_train, '__len__') else 0
         
         while self.step(verbose=verbose) and (self.t_step < self.max_steps or self.t_step < input_length):
-            if verbose:
-                print("Step:", self.t_step + 1)
-                print("Spiking Vector applied:", self.spikingVector.cpu().numpy())
-                print("Configuration Vector obtained:", self.configurationVector.cpu().numpy())
-                print("Net Gain Vector in step", self.t_step + 1, ":", self.netGainVector.cpu().numpy())
-                print("-" * 30)
             
             # Check halt condition (spikingVector == 0 in modo appropriato al dtype)
             if torch.all(self.spikingVector == 0) and (self.t_step >= input_length):
