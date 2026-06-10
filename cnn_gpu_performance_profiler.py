@@ -465,6 +465,10 @@ def main():
     """
     Funzione principale per eseguire la diagnostica GPU
     """
+
+    database("digit") #can be digit, flower
+    Config.MODE = "CNN" 
+    Config.compute_k_range()
     # Load your data here - ADAPT THIS TO YOUR CODE
     print("Loading data...")
     
