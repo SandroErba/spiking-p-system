@@ -94,26 +94,8 @@ def train_SNPS(system, x_train, y_train):
         snps.load_neurons_from_csv("csv/" + Config.CSV_EXACT_NAME)
         print("csv loading complete")
 
-        import faulthandler
-        import signal
-
-        # Attiva il traceback sui segnali
-        faulthandler.enable()
-        faulthandler.register(signal.SIGALRM)
-
-        # Imposta un segnale che interrompe dopo 10 secondi
-        signal.alarm(10)
-
-        try:
-                    # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
-            msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device="gpu")
-            print("Successo!")
-        except Exception as e:
-            print(f"ERRORE: {type(e).__name__}: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            signal.alarm(0)  # Disabilita alarm
+        # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
+        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device="gpu")
         print("translation to matrix complete")
         msnpsExact.loadImages(x_train)
         msnpsExact.execute()
