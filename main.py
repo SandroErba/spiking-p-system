@@ -15,22 +15,6 @@ import torch
 import gc
 
 
-# Usalo all'inizio del tuo script
-reset_gpu_for_rerun()
-
-database("digit") #can be digit, flower
-# Config.MODE = "CNN" #set the mode of the P system: can be cnn (default), generative, halting
-Config.compute_k_range()
-
-#snps = network.create_exact_csv()
-system = "SNPSystem"
-network.launch_mnist(system)
-
-system = "MSNPSystemExactGPU"
-network.launch_mnist(system)
-
-
-
 def reset_gpu_for_rerun():
     """Prepara la GPU per una nuova esecuzione."""
     
@@ -49,6 +33,22 @@ def reset_gpu_for_rerun():
     # Sincronizza GPU
     if torch.cuda.is_available():
         torch.cuda.synchronize()
+
+
+# Usalo all'inizio del tuo script
+reset_gpu_for_rerun()
+
+database("digit") #can be digit, flower
+# Config.MODE = "CNN" #set the mode of the P system: can be cnn (default), generative, halting
+Config.compute_k_range()
+
+#snps = network.create_exact_csv()
+system = "SNPSystem"
+network.launch_mnist(system)
+
+system = "MSNPSystemExactGPU"
+network.launch_mnist(system)
+
 
 #MSNPSystemDivModGPU, MSNPSystemExactGPU, SNPSystem
 
