@@ -95,7 +95,7 @@ def train_SNPS(system, x_train, y_train):
         print("csv loading complete")
 
         # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
-        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device="cpu")
+        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device="gpu")
         print("translation to matrix complete")
         msnpsExact.loadImages(x_train)
         msnpsExact.execute()
