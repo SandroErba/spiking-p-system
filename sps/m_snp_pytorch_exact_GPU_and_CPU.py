@@ -86,9 +86,11 @@ class MSNPSystemExactGPU:
     def step(self, verbose=False):
         """Execute one step of the system"""
         
-        # SPIKE TRAIN INPUT
+        # 1. Image Input
+        # Checks on CPU
+        # Sum on GPU (if possible)
         if Config.MODE == "CNN":
-            if self.t_step < self.img_spike_train.shape[0]:
+            if self.t_step < self.img_spike_train.shape[0]: 
                 self.configurationVector[self.input_neurons] += self.img_spike_train[self.t_step]
                 if verbose:
                     print(f"Applied image spike train at step {self.t_step + 1}")
@@ -104,6 +106,7 @@ class MSNPSystemExactGPU:
                 if verbose:
                     print(f"Applied spike train at step {self.t_step + 1}")
         
+        # 2. Calculate extended configuration vector 
         extendedConfigVector = torch.zeros_like(self.spikingVector, dtype=self.dtype, device=self.device)
         idx = 0
         for i in range(len(self.configurationVector)):
@@ -118,18 +121,11 @@ class MSNPSystemExactGPU:
         self.netGainVector = self.spikingVector @ self.sMpi
         self.configurationVector = self.configurationVector + self.netGainVector
         
-        # White hole not used in this implementation
-        # if Config.WHITE_HOLE:
-        #     self.configurationVector = torch.zeros_like(self.configurationVector, device=self.device)
-        #     if verbose:
-        #         print("White hole applied: configuration vector reset to zero")
-        
-        
         if verbose:
             print(self)
 
         if self.pooling_image is not None:
-            self.pooling_image[self.t_step] = self.configurationVector[self.output_neurons]
+            self.pooling_image[:, self.t_step - Config.NUM_LAYERS + 2] = self.configurationVector[self.output_neurons]
         self.t_step += 1
         return True
     
