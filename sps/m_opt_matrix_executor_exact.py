@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from sps.snp_system import SNPSystem
 from sps.config import Config
-from sps.m_snp_pytorch_exact_GPU_and_CPU import MSNPSystemExactGPU
+from sps.m_opt_snp_pytorch_exact_GPU_and_CPU import MSNPSystemExactGPU
 
 
 class MatrixExecutor:
