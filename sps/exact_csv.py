@@ -5,6 +5,81 @@ from sps.config import Config
 from sps.handle_csv import _with_negative_forgetting, _build_layer2_rules
 
 
+
+
+def SNPS_exact_csv():
+    """Generate the SN P system with exact rules"""
+    os.makedirs("csv", exist_ok=True)
+    with open("csv/" + Config.CSV_EXACT_NAME, mode='w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
+
+        # Layer 1: Input a 28x28 grayscale image
+        l1_firing_rules = _build_layer1_exact_rules()
+        for neuron_id in range(Config.NEURONS_L1):
+            i_row = neuron_id // Config.IMG_SHAPE
+            i_col = neuron_id % Config.IMG_SHAPE
+            output_targets = []
+
+            for k_index, kernel in enumerate(Config.KERNELS):
+                layer2_offset = Config.NEURONS_L1 + k_index * Config.NEURONS_FEATURE
+
+                for ki in range(Config.KERNEL_SHAPE):
+                    for kj in range(Config.KERNEL_SHAPE):
+                        o_row = i_row - ki
+                        o_col = i_col - kj
+
+                        if 0 <= o_row < Config.SHAPE_FEATURE and 0 <= o_col < Config.SHAPE_FEATURE:
+                            output_idx = o_row * Config.SHAPE_FEATURE + o_col
+                            target_id = layer2_offset + output_idx
+                            weight = kernel[ki][kj]
+                            if weight == 1:
+                                output_targets.append(target_id)
+                            elif weight == -1:
+                                output_targets.append(-target_id)
+
+            writer.writerow([
+                neuron_id,                     # id
+                0,                             # initial_charge
+                str(output_targets),           # output_targets
+                0,                             # neuron_type
+                *l1_firing_rules               # firing rules
+            ])
+
+        # Layer 2: Accumulate spikes from the kernels and extract features
+        for k_index in range(len(Config.KERNELS)):
+            l2_firing_rules = _build_layer2_exact_rules(k_index)
+
+            layer2_offset = Config.NEURONS_L1 + k_index * Config.NEURONS_FEATURE
+
+            for i in range(Config.NEURONS_FEATURE):
+                output_targets = [] # Target definition
+                j = ((i // Config.SHAPE_FEATURE) // Config.POOLING_SIZE) * Config.SHAPE_POOL + ((i % Config.SHAPE_FEATURE) // Config.POOLING_SIZE) # position in next pooling layer
+                output_targets.append(Config.NEURONS_L1 + Config.NEURONS_L2 + (k_index * Config.NEURONS_POOL) + j)
+                writer.writerow([
+                    layer2_offset + i,       # id
+                    0,                       # initial_charge
+                    str(output_targets),     # output_targets
+                    1,                       # neuron_type
+                    *l2_firing_rules         # Send all the spikes
+                ])
+
+        # Layer 3: Apply an average pooling on previous layer
+        for k_index in range(Config.KERNEL_NUMBER):
+            layer3_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + k_index * Config.NEURONS_POOL
+            k_range_max = Config.K_RANGE[k_index][1]
+            all_rules = _build_layer3_exact_rules(k_range_max, None)
+            global_i = k_index * Config.NEURONS_POOL + i
+            for i in range(Config.NEURONS_POOL):
+                writer.writerow([
+                    layer3_offset + i,       # id
+                    0,                       # initial_charge
+                    "[]",                    # output_targets
+                    2,                       # neuron_type
+                    *all_rules[global_i]  # Send spikes + anti-spike forgetting
+                ])
+
+
 def ensemble_exact_csv(svm_q, logreg_q, svm_imp, logreg_imp):
     """Generate the SN P system with the ensemble of two models"""
     os.makedirs("csv", exist_ok=True)
