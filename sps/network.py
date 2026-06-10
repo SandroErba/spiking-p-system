@@ -90,21 +90,17 @@ def train_SNPS(system, x_train, y_train):
         return train_external_models(pooling, y_train) #TODO temporary casted in numpy()
 
     elif system == "MSNPSystemExactGPU":
-        print("inside elif MSNPSystemExactGPU")
-        #TODO NEED EXACT CSV
         SNPS_exact_csv()
-        print("done SNPS_exact_csv")
         snps.load_neurons_from_csv("csv/" + Config.CSV_EXACT_NAME)
-        print("loading complete")
+        print("csv loading complete")
 
         # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
         msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device="cpu")
-        print("transaltion complete")
+        print("translation to matrix complete")
         msnpsExact.loadImages(x_train)
-        #msnpsExact.execute()
-        print("STOP HERE!")
-        return None
-    '''pooling = msnpsExact.pooling_image.cpu().numpy().T
+        msnpsExact.execute()
+
+        pooling = msnpsExact.pooling_image.cpu().numpy().T
         print("=== MSNPSystemDivModGPU DEBUG ===")
         print("pooling_image shape:", pooling.shape)
         print("pooling_image dtype:", pooling.dtype)
@@ -116,7 +112,7 @@ def train_SNPS(system, x_train, y_train):
         np.save("/tmp/pooling_gpu.npy", pooling)
         print("saved to /tmp/pooling_gpu.npy")
 
-        return train_external_models(pooling, y_train)'''
+        return REAL_train_external_models(pooling, y_train)
 
 
     #snps.labels = y_train
@@ -136,7 +132,7 @@ def train_SNPS(system, x_train, y_train):
         print("non-zero count:", np.count_nonzero(pooling))
         np.save("/tmp/pooling_snp.npy", pooling)
         print("saved to /tmp/pooling_snp.npy")
-        return train_external_models(pooling, y_train)
+        return REAL_train_external_models(pooling, y_train)
 
     #TODO extract same info from GPU models
     #DOVREI averlo fatto
@@ -151,7 +147,7 @@ def train_external_models(charges, y_train):
     print("first charge:", charges[0])
     print("last charge:", charges[-1])
     print("unique values count:", len(np.unique(charges)))
-    print("zero rows:", np.sum(np.all(charges == 0, axis=1)))
+    print("zero rows:", np.sum(np.all(charges == 0, axis=1))) #TODO zero rows: 1 for "MSNPSystemExactGPU"
 
     #Support Vector Machine
     print("charge shape:", charges.shape)

@@ -128,9 +128,11 @@ class MSNPSystemExactGPU:
         if verbose:
             print(self)
 
-        if self.pooling_image is not None:
-            self.pooling_image[self.t_step] = self.configurationVector[self.output_neurons]
+        if self.pooling_image is not None and Config.NUM_LAYERS - 3 < self.t_step <= self.testsize + Config.NUM_LAYERS - 3:
+            self.pooling_image[:, self.t_step - Config.NUM_LAYERS + 2] = self.configurationVector[self.output_neurons]
         self.t_step += 1
+
+
         return True
     
     def execute(self, verbose=False, startAgain=True):

@@ -5,7 +5,12 @@ from sps.config import Config
 from sps.handle_csv import _with_negative_forgetting, _build_layer2_rules
 
 
-
+'''Number of exact rules:
+* layer 1 : 784 neuroni * 255 regole = 200k
+* layer 2 : 5408 neuroni * (q range-1)*6 regole = 32k * q range
+* layer 3 : 1532 neuroni * (q range-1)*24 regole = 32k * q range
+---> total 200k + 64k * q range
+'''
 
 def SNPS_exact_csv():
     """Generate the SN P system with exact rules"""
