@@ -8,11 +8,11 @@ from sps.exact_csv import SNPS_exact_csv
 from sps.handle_csv import SNPS_csv, extend_csv, ensemble_csv
 from sps.config import Config
 from sps.m_snp_pytorch_div_mod_GPU_and_CPU import MSNPSystemDivModGPU
-from sps.m_opt_snp_pytorch_exact_GPU_and_CPU import MSNPSystemExactGPU
+from sps.m_snp_pytorch_exact_GPU_and_CPU import MSNPSystemExactGPU
 from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
 from sps.m_matrix_executor_div_mod import MatrixExecutor as MatrixExecutorDivMod
-from sps.m_opt_matrix_executor_exact import MatrixExecutor as MatrixExecutorExact
+from sps.m_matrix_executor_exact import MatrixExecutor as MatrixExecutorExact
 
 
 #temporary code for create the csv and the SNPS with exact rules for the GPU
@@ -101,7 +101,7 @@ def train_SNPS(system, x_train, y_train):
         msnpsExact.execute()
 
         pooling = msnpsExact.pooling_image.cpu().numpy().T
-        print("=== MSNPSystemDivModGPU DEBUG ===")
+        print("=== MSNPSystemExactGPU DEBUG ===")
         print("pooling_image shape:", pooling.shape)
         print("pooling_image dtype:", pooling.dtype)
         print("pooling_image min/max:", pooling.min(), pooling.max())
