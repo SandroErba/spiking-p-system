@@ -7,7 +7,7 @@ from sps.config import Config
 from sps.m_opt_snp_pytorch_exact_GPU_and_CPU import MSNPSystemExactGPU
 
 
-class MatrixExecutorExact:
+class MatrixExecutor:
     
     @staticmethod
     def translate_to_matrix(snp_system, device="cpu"):
