@@ -81,7 +81,7 @@ class MSNPSystemExactGPU:
             self.synapsesMatrix = synapsesMatrix.to(device=self.device)
             
             # Calcola sMpi per tensori sparsi
-            if self.spikingTransitionMatrix._indices().equal(self.synapsesMatrix._indices()):
+            if torch.equal(self.spikingTransitionMatrix._indices(), self.synapsesMatrix._indices()):
                 # Stessa struttura sparsa: moltiplica solo i valori
                 self.sMpi = torch.sparse_coo_tensor(
                     self.spikingTransitionMatrix._indices(),
@@ -117,7 +117,7 @@ class MSNPSystemExactGPU:
         
         # Spiking vector
         self.spikingVector = self._to_tensor(
-            spikingVector if spikingVector is not None else torch.zeros(self.rule_num), 
+            spikingVector if spikingVector is not None else np.zeros(self.rule_num, dtype=np.int32), 
             self.dtype
         )
         
@@ -139,9 +139,18 @@ class MSNPSystemExactGPU:
             self._pooling_start = Config.NUM_LAYERS - 2
             self._pooling_end = Config.NUM_LAYERS - 2 + self.testsize
         
-        # Disabilita controlli sparse invariants per performance
+        # CORREZIONE: Disabilita controlli sparse invariants (API corretta)
         if self._is_sparse:
-            torch.sparse.check_sparse_tensor_invariants.enable(False)
+            try:
+                # Nuova API (PyTorch >= 2.0)
+                torch.sparse.check_sparse_tensor_invariants.enable(False)
+            except TypeError:
+                # Vecchia API (PyTorch < 2.0)
+                try:
+                    torch.sparse.set_sparse_tensor_invariant_checks(False)
+                except AttributeError:
+                    # Fallback: ignora
+                    pass
     
     def _to_tensor(self, data, dtype):
         """Converte dati in tensore PyTorch, gestendo più formati"""
