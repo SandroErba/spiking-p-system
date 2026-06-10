@@ -65,6 +65,7 @@ class Config:
     THRESHOLD = 128 # higher Thr -> more spike
 
     CSV_NAME = "SNPS.csv"
+    CSV_EXACT_NAME = "SNPS_exact.csv"
     CSV_ENS_NAME = "SNPS_ens.csv"
     CSV_CNN_NAME = "SNPS_cnn.csv"
 
@@ -79,7 +80,7 @@ class Config:
     def compute_k_range(cls):
         cls.K_RANGE = [
             (
-                sum(v == -1 for row in kernel for v in row) * (-cls.Q_RANGE - 1),
+                sum(v == -1 for row in kernel for v in row) * (-cls.Q_RANGE + 1),
                 sum(v == 1  for row in kernel for v in row) *  (cls.Q_RANGE - 1)
             )
             for kernel in cls.KERNELS

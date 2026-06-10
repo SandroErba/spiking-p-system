@@ -4,6 +4,7 @@ import time
 from sklearn.linear_model import LogisticRegression
 from sps import handle_csv, exact_csv
 from sps.digit_image import get_mnist_data
+from sps.exact_csv import SNPS_exact_csv
 from sps.handle_csv import SNPS_csv, extend_csv, ensemble_csv
 from sps.config import Config
 from sps.m_snp_pytorch_div_mod_GPU_and_CPU import MSNPSystemDivModGPU
@@ -55,8 +56,8 @@ def launch_mnist(system):
     svm, logreg = train_SNPS(system, x_train, y_train)
     print("Done the training procedure")
 
-    ensemble_accuracy = test_SNPS(system, x_test, y_test, svm, logreg)
-    handle_csv.save_results(ensemble_accuracy, time.time()-t)
+    #ensemble_accuracy = test_SNPS(system, x_test, y_test, svm, logreg)
+    #handle_csv.save_results(ensemble_accuracy, time.time()-t)
 
 
 
@@ -65,36 +66,106 @@ def launch_mnist(system):
 def train_SNPS(system, x_train, y_train):
 
     snps = SNPSystem(Config.TRAIN_SIZE, Config.TRAIN_SIZE + 5, True)
-    snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
-    snps.spike_train = x_train
+
 
     if system == "MSNPSystemDivModGPU":
+        snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
         # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
         #msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device="gpu")
-        msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device="gpu")
+        msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device="cpu")
         msnpsDivMod.loadImages(x_train)
         msnpsDivMod.execute()
-        print("execution done")
-        return train_external_models(msnpsDivMod.pooling_image.cpu().numpy().T, y_train) #TODO temporary casted in numpy()
+        pooling = msnpsDivMod.pooling_image.cpu().numpy().T
+        print("=== MSNPSystemDivModGPU DEBUG ===")
+        print("pooling_image shape:", pooling.shape)
+        print("pooling_image dtype:", pooling.dtype)
+        print("pooling_image min/max:", pooling.min(), pooling.max())
+        print("pooling_image mean:", pooling.mean())
+        print("pooling_image first row:", pooling[0])
+        print("pooling_image last row:", pooling[-1])
+        print("non-zero count:", np.count_nonzero(pooling))
+        np.save("/tmp/pooling_gpu.npy", pooling)
+        print("saved to /tmp/pooling_gpu.npy")
+
+        return train_external_models(pooling, y_train) #TODO temporary casted in numpy()
+
     elif system == "MSNPSystemExactGPU":
+        print("inside elif MSNPSystemExactGPU")
+        #TODO NEED EXACT CSV
+        SNPS_exact_csv()
+        print("done SNPS_exact_csv")
+        snps.load_neurons_from_csv("csv/" + Config.CSV_EXACT_NAME)
+        print("loading complete")
+
         # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
-        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device="gpu")
+        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device="cpu")
+        print("transaltion complete")
         msnpsExact.loadImages(x_train)
-        msnpsExact.execute()
-        return train_external_models(msnpsExact.pooling_image.t(), y_train)
+        #msnpsExact.execute()
+        print("STOP HERE!")
+        return None
+    '''pooling = msnpsExact.pooling_image.cpu().numpy().T
+        print("=== MSNPSystemDivModGPU DEBUG ===")
+        print("pooling_image shape:", pooling.shape)
+        print("pooling_image dtype:", pooling.dtype)
+        print("pooling_image min/max:", pooling.min(), pooling.max())
+        print("pooling_image mean:", pooling.mean())
+        print("pooling_image first row:", pooling[0])
+        print("pooling_image last row:", pooling[-1])
+        print("non-zero count:", np.count_nonzero(pooling))
+        np.save("/tmp/pooling_gpu.npy", pooling)
+        print("saved to /tmp/pooling_gpu.npy")
+
+        return train_external_models(pooling, y_train)'''
+
 
     #snps.labels = y_train
     if system == "SNPSystem":
+        snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
+        snps.spike_train = x_train
         snps.start()
-        return train_external_models(snps.pooling_image.T, y_train)
+        pooling = snps.pooling_image.T
+
+        print("=== SNPSystem DEBUG ===")
+        print("pooling_image shape:", pooling.shape)
+        print("pooling_image dtype:", pooling.dtype)
+        print("pooling_image min/max:", pooling.min(), pooling.max())
+        print("pooling_image mean:", pooling.mean())
+        print("pooling_image first row:", pooling[0])
+        print("pooling_image last row:", pooling[-1])
+        print("non-zero count:", np.count_nonzero(pooling))
+        np.save("/tmp/pooling_snp.npy", pooling)
+        print("saved to /tmp/pooling_snp.npy")
+        return train_external_models(pooling, y_train)
 
     #TODO extract same info from GPU models
     #DOVREI averlo fatto
 
 
-
-
 def train_external_models(charges, y_train):
+    print("=== train_external_models DEBUG ===")
+    print("charge shape:", charges.shape)
+    print("charge dtype:", charges.dtype)
+    print("charge min/max:", charges.min(), charges.max())
+    print("charge mean:", charges.mean())
+    print("first charge:", charges[0])
+    print("last charge:", charges[-1])
+    print("unique values count:", len(np.unique(charges)))
+    print("zero rows:", np.sum(np.all(charges == 0, axis=1)))
+
+    #Support Vector Machine
+    print("charge shape:", charges.shape)
+    print("first charge:" , charges[0])
+    svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
+    svm.fit(charges, y_train)
+
+    print("SVM done")
+    print("logreg: same as SVM")
+
+    return svm, svm
+
+
+def REAL_train_external_models(charges, y_train):
     #Support Vector Machine
     print("charge shape:", charges.shape)
     print("first charge:" , charges[0])
@@ -138,7 +209,7 @@ def ensemble_and_test(system, x_test, svm_w, logreg_w, svm_imp, logreg_imp):
     t=0
     if system == "MSNPSystemDivModGPU":
         msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps)
-        
+
         msnpsDivMod.loadImages(x_test)
         t=time.time()
         msnpsDivMod.execute()
