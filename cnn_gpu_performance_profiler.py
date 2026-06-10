@@ -468,9 +468,8 @@ def main():
     # Load your data here - ADAPT THIS TO YOUR CODE
     print("Loading data...")
     
-    # Example - replace with your actual data loading
     from sps.digit_image import get_mnist_data
-    _, x_train, _, _, _, _ = get_mnist_data()
+    x_train, y_train, x_test, y_test = get_mnist_data()
     
     # Create diagnostic instance
     diagnostic = MSNPGPUDiagnostic(x_train)
