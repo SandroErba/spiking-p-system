@@ -263,7 +263,7 @@ class MSNPGPUDiagnostic:
             
             # Rebuild system
             SNPS_exact_csv()
-            snps = SNPSystem()
+            snps = SNPSystem(Config.TRAIN_SIZE, Config.TRAIN_SIZE + 5, True)
             snps.load_neurons_from_csv("csv/" + Config.CSV_EXACT_NAME)
             
             # Measure translation
@@ -384,7 +384,7 @@ class MSNPGPUDiagnostic:
         # Build system
         print("Building GPU system...")
         SNPS_exact_csv()
-        snps = SNPSystem()
+        snps = SNPSystem(Config.TRAIN_SIZE, Config.TRAIN_SIZE + 5, True)
         snps.load_neurons_from_csv("csv/" + Config.CSV_EXACT_NAME)
         
         msnps = MatrixExecutorExact.translate_to_matrix(snps, device='gpu')
