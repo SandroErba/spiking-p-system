@@ -11,10 +11,12 @@ from sps.config import Config, database
 #from sps.m_matrix_executor import MatrixExecutor
 #from sps.m_snp_system import MSNPSystem
 #from sps.snp_system import SNPSystem
+import torch
+import gc
 
 
-
-
+# Usalo all'inizio del tuo script
+reset_gpu_for_rerun()
 
 database("digit") #can be digit, flower
 # Config.MODE = "CNN" #set the mode of the P system: can be cnn (default), generative, halting
@@ -27,6 +29,26 @@ network.launch_mnist(system)
 system = "MSNPSystemExactGPU"
 network.launch_mnist(system)
 
+
+
+def reset_gpu_for_rerun():
+    """Prepara la GPU per una nuova esecuzione."""
+    
+    # Elimina variabili globali se necessario
+    for obj in gc.get_objects():
+        try:
+            if torch.is_tensor(obj) and obj.is_cuda:
+                del obj
+        except:
+            pass
+    
+    # Pulizia aggressiva
+    gc.collect()
+    torch.cuda.empty_cache()
+    
+    # Sincronizza GPU
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
 
 #MSNPSystemDivModGPU, MSNPSystemExactGPU, SNPSystem
 
