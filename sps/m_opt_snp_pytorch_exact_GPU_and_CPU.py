@@ -139,17 +139,16 @@ class MSNPSystemExactGPU:
             self._pooling_start = Config.NUM_LAYERS - 2
             self._pooling_end = Config.NUM_LAYERS - 2 + self.testsize
         
-        # CORREZIONE: Disabilita controlli sparse invariants (API corretta)
+        # Disabilita controlli sparse invariants (API corretta)
         if self._is_sparse:
             try:
                 # Nuova API (PyTorch >= 2.0)
                 torch.sparse.check_sparse_tensor_invariants.enable(False)
             except TypeError:
-                # Vecchia API (PyTorch < 2.0)
+                # Vecchia API
                 try:
                     torch.sparse.set_sparse_tensor_invariant_checks(False)
                 except AttributeError:
-                    # Fallback: ignora
                     pass
     
     def _to_tensor(self, data, dtype):
@@ -204,12 +203,19 @@ class MSNPSystemExactGPU:
             self.spikingVector.mul_(1.0)
         
         # 4. Net gain vector
+        # CORREZIONE: sMpi ha forma (rule_num, neuron_num)
+        # spikingVector ha forma (rule_num,)
+        # netGainVector deve avere forma (neuron_num,)
+        # Quindi: netGainVector = spikingVector @ sMpi  (1 x rule_num @ rule_num x neuron_num = 1 x neuron_num)
         if self._is_sparse:
-            # Moltiplicazione sparse matrix - dense vector
-            self.netGainVector = torch.mv(self.sMpi, self.spikingVector)
+            # Per sparse: mv fa M @ v, quindi dobbiamo trasporre
+            # sMpi.t() ha forma (neuron_num, rule_num)
+            # spikingVector ha forma (rule_num,)
+            # mv(sMpi.t(), spikingVector) -> (neuron_num,)
+            torch.mv(self.sMpi.t(), self.spikingVector, out=self.netGainVector)
         else:
-            # Moltiplicazione densa
-            self.netGainVector = self.spikingVector @ self.sMpi
+            # Versione densa: spikingVector @ sMpi
+            torch.mv(self.sMpi.t(), self.spikingVector, out=self.netGainVector)
         
         # 5. Aggiornamento configurazione
         self.configurationVector.add_(self.netGainVector)
