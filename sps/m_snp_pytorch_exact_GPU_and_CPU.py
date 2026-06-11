@@ -111,6 +111,8 @@ class MSNPSystemExactGPU:
         # 2. Calculate extended configuration vector
         extendedConfigVector = self.configurationVector[self.repeat_indices]
 
+        diff = torch.abs(extendedConfigVector - self.ruleVector)
+
         if self.dtype == torch.int32:
             self.spikingVector = 1 // (1 + diff)
         else:
