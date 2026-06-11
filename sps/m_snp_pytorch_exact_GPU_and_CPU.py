@@ -159,8 +159,11 @@ class MSNPSystemExactGPU:
         """Return net gain vector as NumPy array (copy from device)"""
         return self.netGainVector.cpu().numpy()
     
-    def get_spiking_transition_matrix(self):
+    def get_sMpi(self):
         return self.sMpi.cpu().numpy()
+    
+    def get_spiking_transition_matrix(self):
+        return self.spikingTransitionMatrix.cpu().numpy()
 
     def get_rule_vector(self):
         return self.ruleVector.cpu().numpy()
@@ -211,14 +214,13 @@ class MSNPSystemExactGPU:
     
     def __str__(self):
         """String representation of the system state"""
-        return (f"Device: {self.device} (dtype: {self.dtype})\n"
-                f"Deterministic: {self.deterministic}\n"
-                f"Synapses Spiking Transition Matrix:\n{self.get_spiking_transition_matrix()}\n"
-                f"Input Neurons: {self.input_neurons}\n"
-                f"Output Neurons: {self.output_neurons}\n"
-                f"Configuration Vector: {self.get_configuration_vector()}\n"
-                f"Spiking Vector: {self.get_spiking_vector()}\n"
-                f"Net Gain Vector: {self.get_net_gain_vector()}\n"
-                f"Rule Vector: {self.get_rule_vector()}\n"
-                f"Applying Rule Vector: {self.get_applying_rule_vector()}\n")
+        return (f"Device: {self.device}, Dtype: {self.dtype}\n"
+                f"Spiking Transition Matrix:\n{self.get_spiking_transition_matrix()}\n"
+                f"Synapses Matrix:\n{self.synapsesMatrix.cpu().numpy()}\n"
+                f"sMpi:\n{self.get_sMpi()}\n"
+                f"ruleVector:\n{self.get_rule_vector()}\n"
+                f"applyingRuleVector:\n{self.get_applying_rule_vector()}\n"
+                f"configurationVector:\n{self.get_configuration_vector()}\n"
+                f"img_spike_train:\n{self.img_spike_train.cpu().numpy() if hasattr(self, 'img_spike_train') else 'N/A'}\n"
+               )
 
