@@ -4,7 +4,7 @@ import torch
 from sps.spike_utils import TransformationRule
 from sps.snp_system import SNPSystem  
 from sps.config import Config
-
+from sps.timersnp import TimerSNP
 
 class MSNPSystemExactGPU:
     
@@ -38,6 +38,7 @@ class MSNPSystemExactGPU:
         if max_steps <= 0:
             raise ValueError("max_steps must be a positive integer")
         
+
         rule_num = len(spikingTransitionMatrix)
         neuron_num = len(configurationVector)
         
@@ -51,6 +52,8 @@ class MSNPSystemExactGPU:
         self.max_steps = max_steps
         self.deterministic = deterministic
         
+        self.timer = TimerSNP(self.max_steps,"time_MSNPSystem.csv")
+
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
         self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
         self.synapsesMatrix = torch.tensor(synapsesMatrix, dtype=self.dtype, device=self.device)
@@ -88,6 +91,7 @@ class MSNPSystemExactGPU:
     def step(self, verbose=False):
         """Execute one step of the system"""
         
+        self.timer.start_step(self.t_step)
         # 1. Image Input
         # Checks on CPU
         # Sum on GPU (if possible)
@@ -124,6 +128,8 @@ class MSNPSystemExactGPU:
 
         if self.pooling_image is not None and Config.NUM_LAYERS - 3 < self.t_step <= self.testsize + Config.NUM_LAYERS - 3:
             self.pooling_image[:, self.t_step - Config.NUM_LAYERS + 2] = self.configurationVector[self.output_neurons]
+        
+        self.timer.end_step()
         self.t_step += 1
         return True
     
@@ -143,9 +149,10 @@ class MSNPSystemExactGPU:
             # Check halt condition (spikingVector == 0 in modo appropriato al dtype)
             if torch.all(self.spikingVector == 0) and (self.t_step >= input_length):
                 print("Computation halts: spiking vector is zero, input is accepted")
+                self.timer.export_to_csv()
                 return True
             
-        
+        self.timer.export_to_csv()
         print("Computation halts: maximum number of steps reached, input is rejected")
         return False
     
