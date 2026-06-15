@@ -11,7 +11,7 @@ from .timersnp import TimerSNP
 class SNPSystem:
     """Spiking Neural P System"""
 
-    def __init__(self, input_len, max_steps, deterministic):
+    def __init__(self, input_len, max_steps, deterministic, debugMode=""):
         # Backward compatible constructor:
         # - (input_len, max_steps, deterministic)
         # - (max_delay, max_steps, input_type, output_type, deterministic)
@@ -27,7 +27,7 @@ class SNPSystem:
         #    raise TypeError("SNPSystem expects 3 or 5 positional arguments")
 
         # TIMER FOR PERFORMANCE MEASUREMENT
-        self.timer = TimerSNP(max_steps,"time_SPNSystem")
+        self.timer = TimerSNP(max_steps,debugMode+"time_SPNSystem")
 
         PNeuron.reset_nid()
         self.input_len = input_len

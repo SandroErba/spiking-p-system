@@ -65,7 +65,7 @@ def launch_mnist(system, device):
 
 def train_SNPS(system, device, x_train, y_train):
 
-    snps = SNPSystem(Config.TRAIN_SIZE, Config.TRAIN_SIZE + 5, True)
+    snps = SNPSystem(Config.TRAIN_SIZE, Config.TRAIN_SIZE + 5, True,"TRAIN")
 
 
     if system == "MSNPSystemDivModGPU":
@@ -165,7 +165,7 @@ def test_SNPS(system, device, x_test, y_test, svm, logreg):
 
 def ensemble_and_test(system, device, x_test, svm_w, logreg_w, svm_imp, logreg_imp):
 
-    snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
+    snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True,"TEST")
     svm_q = ternarize_matrix(svm_w.T)
     logreg_q = ternarize_matrix(logreg_w.T)
 
