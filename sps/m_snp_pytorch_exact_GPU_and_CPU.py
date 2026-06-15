@@ -58,8 +58,12 @@ class MSNPSystemExactGPU:
         self.max_steps = max_steps
         self.deterministic = deterministic
 
-        self.timerInStep = TimerSNP(self.max_steps*10,debugMode+"_time_InStep_MSNPSystem")
-        self.timerPerStep = TimerSNP(self.max_steps,debugMode+"_time_PerStep_MSNPSystem")
+        if self.device == torch.device('cuda'):
+            self.timerInStep = TimerSNP(self.max_steps*10,debugMode+"_time_InStep_MSNPSystem_GPU")
+            self.timerPerStep = TimerSNP(self.max_steps,debugMode+"_time_PerStep_MSNPSystem_GPU")
+        else:    
+            self.timerInStep = TimerSNP(self.max_steps*10,debugMode+"_time_InStep_MSNPSystem_CPU")
+            self.timerPerStep = TimerSNP(self.max_steps,debugMode+"_time_PerStep_MSNPSystem_CPU")
 
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
         #self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
