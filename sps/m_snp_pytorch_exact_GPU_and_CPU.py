@@ -25,6 +25,8 @@ class MSNPSystemExactGPU:
             self.dtype = torch.int32
             print(f"MSNPSystemGPU using device: CPU with dtype={self.dtype}")
 
+        self._needs_float_conversion = (self.device.type == 'cpu' and self.dtype == torch.int32)
+
         if applyingRuleVector is None or configurationVector is None or ruleVector is None:
             raise ValueError("ApplyingRuleVector, configurationVector and ruleVector cannot be None")
 
@@ -68,8 +70,16 @@ class MSNPSystemExactGPU:
 
         #self.sMpi = self.spikingTransitionMatrix * self.synapsesMatrix
         self.sMpi = sMpi_sparse.to(self.device)
-        if self.sMpi.layout == torch.sparse_coo:
-            self.sMpi = self.sMpi.to_sparse_csr()
+
+        if self._needs_float_conversion:
+            # Per CPU int32: tieni sMpi in COO (o formato originale) 
+            # e crea versione float CSR per la moltiplicazione
+            self._sMpi_float = self.sMpi.float().to_sparse_csr()
+        else:
+            # Per GPU float o CPU float: converti a CSR direttamente
+            if self.sMpi.layout == torch.sparse_coo:
+                self.sMpi = self.sMpi.to_sparse_csr()
+            self._sMpi_float = None
 
         self.ruleCountPerNeuron = torch.bincount(self.applyingRuleVector, minlength=neuron_num)
         self.neuron_idx_expanded = torch.repeat_interleave(
@@ -121,7 +131,10 @@ class MSNPSystemExactGPU:
         # 4. Update configuration
         #self.netGainVector = self.spikingVector @ self.sMpi #dense
         self.timerInStep.start_step(f"{self.t_step}> NetGain Vector update: smpi @ spikingVec")
-        self.netGainVector = self.spikingVector @ self.sMpi
+        if self._needs_float_conversion:
+            self.netGainVector = (self.spikingVector.float() @ self._sMpi_float).to(torch.int32)
+        else:
+            self.netGainVector = self.spikingVector @ self.sMpi
         self.timerInStep.end_step()
 
         self.timerInStep.start_step(f"{self.t_step}>Configuration Vector update")
