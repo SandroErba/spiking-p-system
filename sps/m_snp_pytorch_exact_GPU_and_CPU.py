@@ -40,8 +40,8 @@ class MSNPSystemExactGPU:
         
         if self.pooling_image is not None:
             self._pooling_offset = 1 if len(output_neurons) == Config.CLASSES else 0
-            self._pooling_start = Config.NUM_LAYERS - 4 + self._pooling_offset
-            self._pooling_end = self._pooling_start + self.testsize
+            self._pooling_lower_bound = Config.NUM_LAYERS - 4  # bound inferiore originale
+            self._pooling_upper_bound = self.testsize + Config.NUM_LAYERS - 4  # bound superiore originale
             self._output_neurons_tensor = torch.tensor(output_neurons, device=self.device)
             self._is_classification = len(output_neurons) == Config.CLASSES
         else:
@@ -142,10 +142,10 @@ class MSNPSystemExactGPU:
 
         # ++++ Metodo Ottimizzato !!!
         if self.pooling_image is not None:
-            t_effective = self.t_step - self._pooling_offset 
+            t_effective = self.t_step - self._pooling_offset
             
-            if self._pooling_start < t_effective <= self._pooling_end: 
-                col = t_effective - self._pooling_start - 1 
+            if self._pooling_lower_bound < t_effective <= self._pooling_upper_bound:
+                col = t_effective - Config.NUM_LAYERS + 3  # Formula originale invariata
                 self.pooling_image[:, col] = self.configurationVector[self._output_neurons_tensor].cpu()
                 
                 if self._is_classification:
