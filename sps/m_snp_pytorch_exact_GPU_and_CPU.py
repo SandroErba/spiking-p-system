@@ -43,7 +43,8 @@ class MSNPSystemExactGPU:
         self.max_steps = max_steps
         self.deterministic = deterministic
 
-        self.timer = TimerSNP(self.max_steps,"time_MSNPSystem.csv")
+        self.timerInStep = TimerSNP(self.max_steps,"time_InStep_MSNPSystem")
+        self.timerPerStep = TimerSNP(self.max_steps,"time_PerStep_MSNPSystem")
 
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
         #self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
@@ -79,7 +80,8 @@ class MSNPSystemExactGPU:
     def step(self, verbose=False):
         """Execute one step of the system"""
 
-        self.timer.start_step(self.t_step)
+        self.timerInStep.start_step(self.t_step+"> Image Input")
+        self.timerPerStep.start_step(self.t_step)
         # 1. Input
         if Config.MODE == "CNN":
             if self.t_step < self.img_spike_train.shape[0]:
@@ -88,7 +90,9 @@ class MSNPSystemExactGPU:
             spike_value = 1 if self.dtype == torch.int32 else 1.0
             if self.single_spike_train[self.t_step] == spike_value:
                 self.configurationVector[self.input_neurons] += spike_value
+        self.timerInStep.end_step()
 
+        self.timerInStep.start_step(self.t_step+"> Extended Config Vector construction")
         # 2. Extended config vector
         extendedConfigVector = torch.zeros_like(self.spikingVector, dtype=self.dtype, device=self.device)
         idx = 0
@@ -96,22 +100,28 @@ class MSNPSystemExactGPU:
             count = self.ruleCountPerNeuron[i].item()
             extendedConfigVector[idx:idx+count] = self.configurationVector[i]
             idx += count
+        self.timerInStep.end_step()
 
+        self.timerInStep.start_step(self.t_step+"> Spiking Vector update")
         # 3. Spiking vector
         diff = torch.abs(extendedConfigVector - self.ruleVector)
         self.spikingVector = torch.div(1, 1 + diff, rounding_mode='floor') if self.dtype == torch.int32 \
             else torch.floor(1.0 / (1.0 + diff))
+        
+        self.timerInStep.end_step()
 
-        # Debug (first 5 steps only)
-        #self._print_step_debug()
 
         # 4. Update configuration
         #self.netGainVector = self.spikingVector @ self.sMpi #dense
+        self.timerInStep.start_step(self.t_step+"> NetGain Vector update: smpi @ spikingVec")
         self.netGainVector = torch.mv(self.sMpi.t(), self.spikingVector.float()).to(self.dtype) #sparse method
+        self.timerInStep.end_step()
+
+        self.timerInStep.start_step(self.t_step+"Configuration Vector update")
         self.configurationVector = self.configurationVector + self.netGainVector
+        self.timerInStep.end_step()
 
-
-
+        self.timerInStep.start_step(self.t_step+"Pooling image update")
         # 5. Save pooling
         if self.pooling_image is not None:
             # Nel test (10 classi) la propagazione richiede 1 step in più
@@ -122,9 +132,9 @@ class MSNPSystemExactGPU:
                 self.pooling_image[:, col] = self.configurationVector[self.output_neurons]
                 if len(self.output_neurons) == Config.CLASSES:
                     self.configurationVector[self.output_neurons] = 0
+        self.timerInStep.end_step()
 
-
-        self.timer.end_step()
+        self.timerPerStep.end_step()
         self.t_step += 1
         return True
 
@@ -142,10 +152,12 @@ class MSNPSystemExactGPU:
                 print("Computation halts: spiking vector is zero, input is accepted")
                 np.save("/tmp/charge_map_gpu.npy", self.pooling_image.cpu().numpy())
                 print(f"Saved charge_map_gpu: {self.pooling_image.shape}")
-                self.timer.export_to_csv()
+                self.timerInStep.export_to_csv()
+                self.timerPerStep.export_to_csv()
                 return True
 
-        self.timer.export_to_csv()
+        self.timerInStep.export_to_csv()
+        self.timerPerStep.export_to_csv()
         print("Computation halts: maximum number of steps reached, input is rejected")
         return False
 

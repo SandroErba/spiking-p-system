@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 import csv
 from pathlib import Path
 from contextlib import contextmanager
@@ -26,7 +27,8 @@ class TimerSNP:
     
     def export_to_csv(self):
         base_dir = Path(__file__).parent.parent 
-        csv_path = base_dir / self.DIR_NAME / self.FILENAME  # ← self.DIR_NAME
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_path = base_dir / self.DIR_NAME / f"{self.FILENAME}_{timestamp}.csv"
         csv_path.parent.mkdir(parents=True, exist_ok=True)
         with open(csv_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)

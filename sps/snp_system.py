@@ -27,7 +27,7 @@ class SNPSystem:
         #    raise TypeError("SNPSystem expects 3 or 5 positional arguments")
 
         # TIMER FOR PERFORMANCE MEASUREMENT
-        self.timer = TimerSNP(max_steps,"time_SPNSystem.csv")
+        self.timer = TimerSNP(max_steps,"time_SPNSystem")
 
         PNeuron.reset_nid()
         self.input_len = input_len
