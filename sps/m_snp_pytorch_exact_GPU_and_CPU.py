@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from sps.config import Config
-
+from sps.timersnp import TimerSNP
 
 class MSNPSystemExactGPU:
 
@@ -43,6 +43,8 @@ class MSNPSystemExactGPU:
         self.max_steps = max_steps
         self.deterministic = deterministic
 
+        self.timer = TimerSNP(self.max_steps,"time_MSNPSystem.csv")
+
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
         #self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
         #self.synapsesMatrix = torch.tensor(synapsesMatrix, dtype=self.dtype, device=self.device)
@@ -69,12 +71,15 @@ class MSNPSystemExactGPU:
         self._debug_mode = None  # set to "TRAIN" or "TEST" in network.py before execute()
 
     def loadImages(self, img_spike_train):
+        """Load images as spike trains for CNN mode"""
         if len(img_spike_train.shape) == 3:
             img_spike_train = img_spike_train.reshape(img_spike_train.shape[0], -1)
         self.img_spike_train = torch.tensor(img_spike_train, dtype=self.dtype, device=self.device)
 
     def step(self, verbose=False):
+        """Execute one step of the system"""
 
+        self.timer.start_step(self.t_step)
         # 1. Input
         if Config.MODE == "CNN":
             if self.t_step < self.img_spike_train.shape[0]:
@@ -119,6 +124,7 @@ class MSNPSystemExactGPU:
                     self.configurationVector[self.output_neurons] = 0
 
 
+        self.timer.end_step()
         self.t_step += 1
         return True
 
@@ -136,8 +142,10 @@ class MSNPSystemExactGPU:
                 print("Computation halts: spiking vector is zero, input is accepted")
                 np.save("/tmp/charge_map_gpu.npy", self.pooling_image.cpu().numpy())
                 print(f"Saved charge_map_gpu: {self.pooling_image.shape}")
+                self.timer.export_to_csv()
                 return True
 
+        self.timer.export_to_csv()
         print("Computation halts: maximum number of steps reached, input is rejected")
         return False
 
