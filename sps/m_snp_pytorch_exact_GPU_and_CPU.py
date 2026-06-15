@@ -37,6 +37,19 @@ class MSNPSystemExactGPU:
 
         self.testsize = testsize
         self.pooling_image = torch.zeros((len(output_neurons), self.testsize), dtype=self.dtype, device='cpu') if output_neurons is not None else None
+        
+        if self.pooling_image is not None:
+            self._pooling_offset = 1 if len(output_neurons) == Config.CLASSES else 0
+            self._pooling_start = Config.NUM_LAYERS - 4 + self._pooling_offset
+            self._pooling_end = self._pooling_start + self.testsize
+            self._output_neurons_tensor = torch.tensor(output_neurons, device=self.device)
+            self._is_classification = len(output_neurons) == Config.CLASSES
+        else:
+            self._pooling_offset = 0
+            self._pooling_start = 0
+            self._pooling_end = 0
+            self._output_neurons_tensor = None
+            self._is_classification = False 
 
         self.input_neurons = input_neurons
         self.output_neurons = output_neurons
@@ -55,6 +68,8 @@ class MSNPSystemExactGPU:
 
         #self.sMpi = self.spikingTransitionMatrix * self.synapsesMatrix
         self.sMpi = sMpi_sparse.to(self.device)
+        if self.sMpi.layout == torch.sparse_coo:
+            self.sMpi = self.sMpi.to_sparse_csr()
 
         self.ruleCountPerNeuron = torch.bincount(self.applyingRuleVector, minlength=neuron_num)
         self.neuron_idx_expanded = torch.repeat_interleave(
@@ -96,41 +111,46 @@ class MSNPSystemExactGPU:
                 self.configurationVector[self.input_neurons] += spike_value
         self.timerInStep.end_step()
 
-        self.timerInStep.start_step(f"{self.t_step}> Extended Config Vector construction")
-        # 2. Extended config vector
-        extendedConfigVector = self.configurationVector[self.neuron_idx_expanded]
-        self.timerInStep.end_step()
-
-        self.timerInStep.start_step(f"{self.t_step}> Spiking Vector update")
-        # 3. Spiking vector
-        diff = torch.abs(extendedConfigVector - self.ruleVector)
+        self.timerInStep.start_step(f"{self.t_step}> Extended Config + Spiking Vector construction")
+        #  Extended config + Spiking vector 
+        diff = torch.abs(self.configurationVector[self.neuron_idx_expanded] - self.ruleVector)
         self.spikingVector = torch.div(1, 1 + diff, rounding_mode='floor') if self.dtype == torch.int32 \
             else torch.floor(1.0 / (1.0 + diff))
-        
         self.timerInStep.end_step()
-
+        
 
         # 4. Update configuration
         #self.netGainVector = self.spikingVector @ self.sMpi #dense
         self.timerInStep.start_step(f"{self.t_step}> NetGain Vector update: smpi @ spikingVec")
-        self.netGainVector = torch.mv(self.sMpi.t(), self.spikingVector.float()).to(self.dtype) #sparse method
+        self.netGainVector = self.spikingVector @ self.sMpi
         self.timerInStep.end_step()
 
         self.timerInStep.start_step(f"{self.t_step}>Configuration Vector update")
-        self.configurationVector = self.configurationVector + self.netGainVector
+        self.configurationVector += self.netGainVector
         self.timerInStep.end_step()
 
         self.timerInStep.start_step(f"{self.t_step}>Pooling image update")
-        # 5. Save pooling
-        if self.pooling_image is not None:
-            # Nel test (10 classi) la propagazione richiede 1 step in più
-            offset = 1 if len(self.output_neurons) == Config.CLASSES else 0
+        # vecchio metodo
+        # if self.pooling_image is not None:
+        #     # Nel test (10 classi) la propagazione richiede 1 step in più
+        #     offset = 1 if len(self.output_neurons) == Config.CLASSES else 0
 
-            if Config.NUM_LAYERS - 4 < self.t_step - offset <= self.testsize + Config.NUM_LAYERS - 4:
-                col = (self.t_step - offset) - Config.NUM_LAYERS + 3
-                self.pooling_image[:, col] = self.configurationVector[self.output_neurons]
-                if len(self.output_neurons) == Config.CLASSES:
-                    self.configurationVector[self.output_neurons] = 0
+        #     if Config.NUM_LAYERS - 4 < self.t_step - offset <= self.testsize + Config.NUM_LAYERS - 4:
+        #         col = (self.t_step - offset) - Config.NUM_LAYERS + 3
+        #         self.pooling_image[:, col] = self.configurationVector[self.output_neurons]
+        #         if len(self.output_neurons) == Config.CLASSES:
+        #             self.configurationVector[self.output_neurons] = 0
+
+        # ++++ Metodo Ottimizzato !!!
+        if self.pooling_image is not None:
+            t_effective = self.t_step - self._pooling_offset 
+            
+            if self._pooling_start < t_effective <= self._pooling_end: 
+                col = t_effective - self._pooling_start - 1 
+                self.pooling_image[:, col] = self.configurationVector[self._output_neurons_tensor].cpu()
+                
+                if self._is_classification:
+                    self.configurationVector[self._output_neurons_tensor] = 0
         self.timerInStep.end_step()
 
         self.timerPerStep.end_step()
@@ -155,8 +175,6 @@ class MSNPSystemExactGPU:
                 self.timerPerStep.export_to_csv()
                 return True
 
-        self.timerInStep.export_to_csv()
-        self.timerPerStep.export_to_csv()
         print("Computation halts: maximum number of steps reached, input is rejected")
         return False
 
