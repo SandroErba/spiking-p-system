@@ -117,11 +117,11 @@ class MSNPSystemExactGPU:
         self.netGainVector = torch.mv(self.sMpi.t(), self.spikingVector.float()).to(self.dtype) #sparse method
         self.timerInStep.end_step()
 
-        self.timerInStep.start_step(self.t_step+"Configuration Vector update")
+        self.timerInStep.start_step(f"{self.t_step}>Configuration Vector update")
         self.configurationVector = self.configurationVector + self.netGainVector
         self.timerInStep.end_step()
 
-        self.timerInStep.start_step(self.t_step+"Pooling image update")
+        self.timerInStep.start_step(f"{self.t_step}>Pooling image update")
         # 5. Save pooling
         if self.pooling_image is not None:
             # Nel test (10 classi) la propagazione richiede 1 step in più
