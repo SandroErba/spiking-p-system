@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from sps.config import Config
-
+from sps.timersnp import TimerSNP
 
 class MSNPSystemExactGPU:
 
@@ -35,6 +35,7 @@ class MSNPSystemExactGPU:
         if max_steps <= 0:
             raise ValueError("max_steps must be a positive integer")
         
+
         rule_num = len(spikingTransitionMatrix)
         neuron_num = len(configurationVector)
         
@@ -48,6 +49,8 @@ class MSNPSystemExactGPU:
         self.max_steps = max_steps
         self.deterministic = deterministic
         
+        self.timer = TimerSNP(self.max_steps,"time_MSNPSystem.csv")
+
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
         self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
         self.synapsesMatrix = torch.tensor(synapsesMatrix, dtype=self.dtype, device=self.device)
@@ -60,7 +63,9 @@ class MSNPSystemExactGPU:
         
         # bincount requires int32
         self.ruleCountPerNeuron = torch.bincount(self.applyingRuleVector, minlength=neuron_num)
-        
+        self.repeat_indices = torch.repeat_interleave(torch.arange(neuron_num, device=self.device),self.ruleCountPerNeuron)
+        # Pre-calcola la lunghezza target
+
         if spikingVector is None:
             self.spikingVector = torch.zeros(rule_num, dtype=self.dtype, device=self.device)
         else:
@@ -83,6 +88,7 @@ class MSNPSystemExactGPU:
     def step(self, verbose=False):
         """Execute one step of the system"""
         
+        self.timer.start_step(self.t_step)
         # 1. Image Input
         # Checks on CPU
         # Sum on GPU (if possible)
@@ -100,18 +106,15 @@ class MSNPSystemExactGPU:
                     print(f"Applied spike train at step {self.t_step + 1}")
         
         # 2. Calculate extended configuration vector
-        extendedConfigVector = torch.zeros_like(self.spikingVector, dtype=self.dtype, device=self.device)
-        idx = 0
-        for i in range(len(self.configurationVector)):
-            count = self.ruleCountPerNeuron[i].item()
-            extendedConfigVector[idx:idx+count] = self.configurationVector[i]
-            idx += count
+        extendedConfigVector = self.configurationVector[self.repeat_indices]
 
-        # 3. Spiking vector
         diff = torch.abs(extendedConfigVector - self.ruleVector)
-        
-        self.spikingVector = torch.div(1, 1 + diff, rounding_mode='floor') if self.dtype == torch.int32 else torch.floor(1.0 / (1.0 + diff))
-        
+
+        if self.dtype == torch.int32:
+            self.spikingVector = 1 // (1 + diff)
+        else:
+            diff_int = diff.to(torch.int32)
+            self.spikingVector = (1 // (1 + diff_int)).to(self.dtype)
         self.netGainVector = self.spikingVector @ self.sMpi
         self.configurationVector = self.configurationVector + self.netGainVector
 
@@ -128,7 +131,7 @@ class MSNPSystemExactGPU:
                 if len(self.output_neurons) == Config.CLASSES:
                     self.configurationVector[self.output_neurons] = 0
 
-
+        self.timer.end_step()
         self.t_step += 1
         return True
     
@@ -136,11 +139,7 @@ class MSNPSystemExactGPU:
         """Execute the system until halt condition is met"""
         if startAgain:
             self.t_step = 0
-        
-        if verbose:
-            print("Initial Configuration Vector:", self.configurationVector.cpu().numpy())
-            print("-" * 30)
-        
+
         # determine input length based on mode
         if Config.MODE == "CNN":
             input_length = self.img_spike_train.shape[0]
@@ -148,13 +147,16 @@ class MSNPSystemExactGPU:
             input_length = len(self.single_spike_train) if hasattr(self.single_spike_train, '__len__') else 0
         
         while self.step(verbose=verbose) and (self.t_step < self.max_steps or self.t_step < input_length):
+
+            # Check halt condition (spikingVector == 0 in modo appropriato al dtype)
             if torch.all(self.spikingVector == 0) and (self.t_step >= input_length):
                 print("Computation halts: spiking vector is zero, input is accepted")
+                self.timer.export_to_csv()
                 np.save("/tmp/charge_map_gpu.npy", self.pooling_image.cpu().numpy())
                 print(f"Saved charge_map_gpu: {self.pooling_image.shape}")
                 return True
             
-        
+        self.timer.export_to_csv()
         print("Computation halts: maximum number of steps reached, input is rejected")
         return False
     
@@ -170,8 +172,11 @@ class MSNPSystemExactGPU:
         """Return net gain vector as NumPy array (copy from device)"""
         return self.netGainVector.cpu().numpy()
     
-    def get_spiking_transition_matrix(self):
+    def get_sMpi(self):
         return self.sMpi.cpu().numpy()
+
+    def get_spiking_transition_matrix(self):
+        return self.spikingTransitionMatrix.cpu().numpy()
 
     def get_rule_vector(self):
         return self.ruleVector.cpu().numpy()
@@ -215,13 +220,13 @@ class MSNPSystemExactGPU:
     
     def __str__(self):
         """String representation of the system state"""
-        return (f"Device: {self.device} (dtype: {self.dtype})\n"
-                f"Deterministic: {self.deterministic}\n"
-                f"Synapses Spiking Transition Matrix:\n{self.get_spiking_transition_matrix()}\n"
-                f"Input Neurons: {self.input_neurons}\n"
-                f"Output Neurons: {self.output_neurons}\n"
-                f"Configuration Vector: {self.get_configuration_vector()}\n"
-                f"Spiking Vector: {self.get_spiking_vector()}\n"
-                f"Net Gain Vector: {self.get_net_gain_vector()}\n"
-                f"Rule Vector: {self.get_rule_vector()}\n"
-                f"Applying Rule Vector: {self.get_applying_rule_vector()}\n")
+        return (f"Device: {self.device}, Dtype: {self.dtype}\n"
+                f"Spiking Transition Matrix:\n{self.get_spiking_transition_matrix()}\n"
+                f"Synapses Matrix:\n{self.synapsesMatrix.cpu().numpy()}\n"
+                f"sMpi:\n{self.get_sMpi()}\n"
+                f"ruleVector:\n{self.get_rule_vector()}\n"
+                f"applyingRuleVector:\n{self.get_applying_rule_vector()}\n"
+                f"configurationVector:\n{self.get_configuration_vector()}\n"
+                f"img_spike_train:\n{self.img_spike_train.cpu().numpy() if hasattr(self, 'img_spike_train') else 'N/A'}\n"
+               )
+

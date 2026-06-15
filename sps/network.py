@@ -101,7 +101,7 @@ def train_SNPS(system, x_train, y_train):
         msnpsExact.execute()
 
         pooling = msnpsExact.pooling_image.cpu().numpy().T
-        print("=== MSNPSystemDivModGPU DEBUG ===")
+        print("=== MSNPSystemExactGPU DEBUG ===")
         print("pooling_image shape:", pooling.shape)
         print("pooling_image dtype:", pooling.dtype)
         print("pooling_image min/max:", pooling.min(), pooling.max())

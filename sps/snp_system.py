@@ -6,7 +6,7 @@ from .spike_utils import SpikeEvent, TransformationRule, History
 import csv
 
 from .charge_tracker import ChargeTracker
-
+from .timersnp import TimerSNP
 
 class SNPSystem:
     """Spiking Neural P System"""
@@ -25,6 +25,9 @@ class SNPSystem:
         #    input_len = max_steps
         #else:
         #    raise TypeError("SNPSystem expects 3 or 5 positional arguments")
+
+        # TIMER FOR PERFORMANCE MEASUREMENT
+        self.timer = TimerSNP(max_steps,"time_SPNSystem.csv")
 
         PNeuron.reset_nid()
         self.input_len = input_len
@@ -87,6 +90,8 @@ class SNPSystem:
                 if self.charge_tracker is not None:
                     self.charge_tracker.finish()
 
+                self.timer.export_to_csv()
+
                 if Config.MODE == "generative":
                     print("Spike fired at time step", self.output[0], "and time step", self.output[1], ". The output is", self.output[1] - self.output[0])
                 np.save("/tmp/charge_map_snp.npy", self.charge_map_prediction)
@@ -95,7 +100,9 @@ class SNPSystem:
 
     def tick(self):
         """at each time step, first evolve and then receive spikes, cant do both in the same step, refractory will prevent it"""
-        t=time.time()
+        
+        self.timer.start_step(self.t_step)
+
         self.history.add_new_tick()
 
         any_rule_applied = False
@@ -174,8 +181,7 @@ class SNPSystem:
 
         self.t_step += 1 # advance time
 
-        elapsed_t = time.time()-t
-        print("Time step", self.t_step, "required ", elapsed_t*1000, "ms")
+        self.timer.end_step()
 
         if self.t_step > self.max_steps:
             if Config.MODE == "halting":

@@ -17,7 +17,7 @@ class Config:
 
     #LAYER 1 - INPUT IMAGE
     NEURONS_L1 = int(IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
-    Q_RANGE = 11 # the range of quantization, it works on images, rules and tuning
+    Q_RANGE = 6 # the range of quantization, it works on images, rules and tuning
 
     #LAYER 2 - FEATURE EXTRACTION
     KERNELS = [
