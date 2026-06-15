@@ -17,7 +17,7 @@ class MatrixExecutor:
         configurationVector = np.zeros(neurons_num, dtype=int)
         spikingVector = np.zeros((rule_num,), dtype=int)
         spikingTransitionMatrix = np.zeros((rule_num, neurons_num), dtype=int)
-        synapsesMatrix = np.zeros((rule_num, neurons_num), dtype=int)      
+        synapsesMatrix = np.zeros((rule_num, neurons_num), dtype=int)
         ruleVector = np.zeros((rule_num, 2), dtype=int)
         targetVector = np.zeros((rule_num,), dtype=int)
         applyingRuleVector = np.zeros((rule_num,), dtype=int)
@@ -37,14 +37,19 @@ class MatrixExecutor:
             for rule in neuron.transf_rules:
                 spikingTransitionMatrix[rule_idx, neuron.nid] = -rule.source
                 synapsesMatrix[rule_idx, neuron.nid] = 1
-                
+
                 for target in neuron.targets:
-                    spikingTransitionMatrix[rule_idx, target] = rule.target 
-                    synapsesMatrix[rule_idx, target] = 1 if target > 0 else -1
-                
+                    #spikingTransitionMatrix[rule_idx, target] = rule.target
+                    #synapsesMatrix[rule_idx, target] = 1 if target > 0 else -1
+
+                    actual_target = abs(target)  # indice reale del neurone
+                    spike_sign = 1 if target > 0 else -1  # segno dello spike
+                    spikingTransitionMatrix[rule_idx, actual_target] = rule.target * spike_sign
+                    synapsesMatrix[rule_idx, actual_target] = 1
+
                 targetVector[rule_idx] = rule.target
                 ruleVector[rule_idx] = [rule.div, rule.mod]
-                    
+
                 applyingRuleVector[rule_idx] = neuron.nid
                 rule_idx += 1
 

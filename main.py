@@ -17,7 +17,7 @@ import gc
 
 def reset_gpu_for_rerun():
     """Prepara la GPU per una nuova esecuzione."""
-    
+
     # Elimina variabili globali se necessario
     for obj in gc.get_objects():
         try:
@@ -25,11 +25,11 @@ def reset_gpu_for_rerun():
                 del obj
         except:
             pass
-    
+
     # Pulizia aggressiva
     gc.collect()
     torch.cuda.empty_cache()
-    
+
     # Sincronizza GPU
     if torch.cuda.is_available():
         torch.cuda.synchronize()
@@ -43,11 +43,17 @@ database("digit") #can be digit, flower
 Config.compute_k_range()
 
 #snps = network.create_exact_csv()
-system = "SNPSystem"
-network.launch_mnist(system)
+t = time.perf_counter()
+network.launch_mnist("SNPSystem", "cpu")
+print("---> Elapsed:", time.perf_counter() - t)
 
-system = "MSNPSystemExactGPU"
-network.launch_mnist(system)
+t = time.perf_counter()
+network.launch_mnist("MSNPSystemExactGPU", "gpu")
+print("---> Elapsed 2:", time.perf_counter() - t)
+
+t = time.perf_counter()
+network.launch_mnist("MSNPSystemExactGPU", "cpu")
+print("---> Elapsed 3:", time.perf_counter() - t)
 
 
 #MSNPSystemDivModGPU, MSNPSystemExactGPU, SNPSystem

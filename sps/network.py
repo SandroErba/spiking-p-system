@@ -47,47 +47,47 @@ def launch_mnist_from_csv(csv_name):
     cnn_accuracy = np.mean(y_pred == y_test)
     print("SNPS with csv: ", csv_name, " get accuracy of:", cnn_accuracy)
 
-def launch_mnist(system):
+def launch_mnist(system, device):
     x_train, y_train, x_test, y_test = get_mnist_data()
     t=time.time()
     #example_direct(x_train, y_train, x_test, y_test) #compare with models baseline, launched directly on input images
 
     SNPS_csv() #create the csv for the SNPS
-    svm, logreg = train_SNPS(system, x_train, y_train)
-    print("Done the training procedure")
+    svm, logreg = train_SNPS(system, device, x_train, y_train)
+    print("-> Done the training procedure")
 
-    ensemble_accuracy = test_SNPS(system, x_test, y_test, svm, logreg)
+    ensemble_accuracy = test_SNPS(system, device, x_test, y_test, svm, logreg)
     #handle_csv.save_results(ensemble_accuracy, time.time()-t)
 
 
 
 
 
-def train_SNPS(system, x_train, y_train):
+def train_SNPS(system, device, x_train, y_train):
 
     snps = SNPSystem(Config.TRAIN_SIZE, Config.TRAIN_SIZE + 5, True)
 
 
     if system == "MSNPSystemDivModGPU":
         snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
+        print("csv loading complete")
         # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
         #msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device="gpu")
-        msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device="cpu")
+        msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device)
+        print("translation to matrix complete")
         msnpsDivMod.loadImages(x_train)
         msnpsDivMod.execute()
+
         pooling = msnpsDivMod.pooling_image.cpu().numpy().T
-        print("=== MSNPSystemDivModGPU DEBUG ===")
-        print("pooling_image shape:", pooling.shape)
+
         print("pooling_image dtype:", pooling.dtype)
         print("pooling_image min/max:", pooling.min(), pooling.max())
         print("pooling_image mean:", pooling.mean())
-        print("pooling_image first row:", pooling[0])
-        print("pooling_image last row:", pooling[-1])
         print("non-zero count:", np.count_nonzero(pooling))
         np.save("/tmp/pooling_gpu.npy", pooling)
         print("saved to /tmp/pooling_gpu.npy")
 
-        return train_external_models(pooling, y_train) #TODO temporary casted in numpy()
+        return train_external_models(pooling, y_train)
 
     elif system == "MSNPSystemExactGPU":
         SNPS_exact_csv()
@@ -95,74 +95,47 @@ def train_SNPS(system, x_train, y_train):
         print("csv loading complete")
 
         # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
-        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device="cpu")
+        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device)
         print("translation to matrix complete")
         msnpsExact.loadImages(x_train)
         msnpsExact.execute()
 
         pooling = msnpsExact.pooling_image.cpu().numpy().T
-        print("=== MSNPSystemExactGPU DEBUG ===")
-        print("pooling_image shape:", pooling.shape)
         print("pooling_image dtype:", pooling.dtype)
         print("pooling_image min/max:", pooling.min(), pooling.max())
         print("pooling_image mean:", pooling.mean())
-        print("pooling_image first row:", pooling[0])
-        print("pooling_image last row:", pooling[-1])
         print("non-zero count:", np.count_nonzero(pooling))
         np.save("/tmp/pooling_gpu.npy", pooling)
         print("saved to /tmp/pooling_gpu.npy")
 
-        return REAL_train_external_models(pooling, y_train)
+        return train_external_models(pooling, y_train)
 
 
     #snps.labels = y_train
     if system == "SNPSystem":
-        snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
+
+
+        SNPS_exact_csv()
+        snps.load_neurons_from_csv("csv/" + Config.CSV_EXACT_NAME) #rules in exact form
+        #snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
+
         snps.spike_train = x_train
         snps.start()
         pooling = snps.pooling_image.T
 
         print("=== SNPSystem DEBUG ===")
-        print("pooling_image shape:", pooling.shape)
         print("pooling_image dtype:", pooling.dtype)
         print("pooling_image min/max:", pooling.min(), pooling.max())
         print("pooling_image mean:", pooling.mean())
-        print("pooling_image first row:", pooling[0])
-        print("pooling_image last row:", pooling[-1])
         print("non-zero count:", np.count_nonzero(pooling))
         np.save("/tmp/pooling_snp.npy", pooling)
         print("saved to /tmp/pooling_snp.npy")
-        return REAL_train_external_models(pooling, y_train)
+        return train_external_models(pooling, y_train)
 
 
 
 def train_external_models(charges, y_train):
-    print("=== train_external_models DEBUG ===")
-    print("charge shape:", charges.shape)
-    print("charge dtype:", charges.dtype)
-    print("charge min/max:", charges.min(), charges.max())
-    print("charge mean:", charges.mean())
-    print("first charge:", charges[0])
-    print("last charge:", charges[-1])
-    print("unique values count:", len(np.unique(charges)))
-    print("zero rows:", np.sum(np.all(charges == 0, axis=1))) #TODO zero rows: 1 for "MSNPSystemExactGPU"
-
     #Support Vector Machine
-    print("charge shape:", charges.shape)
-    print("first charge:" , charges[0])
-    svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
-    svm.fit(charges, y_train)
-
-    print("SVM done")
-    print("logreg: same as SVM")
-
-    return svm, svm
-
-
-def REAL_train_external_models(charges, y_train):
-    #Support Vector Machine
-    print("charge shape:", charges.shape)
-    print("first charge:" , charges[0])
     svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
     svm.fit(charges, y_train)
 
@@ -175,64 +148,65 @@ def REAL_train_external_models(charges, y_train):
     )
     logreg.fit(charges, y_train)
 
-    print("logreg done")
+    print("LogReg done")
 
     return svm, logreg
 
 
-def test_SNPS(system, x_test, y_test, svm, logreg):
+def test_SNPS(system, device, x_test, y_test, svm, logreg):
 
     #compare_performance(x_test, y_test, svm, logreg) #for running and checking performance of all the other networks
 
-    ensemble_pred, t = ensemble_and_test(system, x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
+    ensemble_pred = ensemble_and_test(system, device, x_test, svm.coef_, logreg.coef_, get_importance(svm.coef_), get_importance(logreg.coef_))
     ensemble_accuracy = np.mean(ensemble_pred == y_test)
     print("SNPS ensemble accuracy with importance:", ensemble_accuracy)
-    print("Required time:", t*1000, "ms")
 
     return ensemble_accuracy
 
-def ensemble_and_test(system, x_test, svm_w, logreg_w, svm_imp, logreg_imp):
+def ensemble_and_test(system, device, x_test, svm_w, logreg_w, svm_imp, logreg_imp):
 
     snps = SNPSystem(Config.TEST_SIZE, Config.TEST_SIZE + 5, True)
     svm_q = ternarize_matrix(svm_w.T)
     logreg_q = ternarize_matrix(logreg_w.T)
 
-    t=0
     if system == "MSNPSystemDivModGPU":
         extended_path = ensemble_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
         snps.load_neurons_from_csv(extended_path)
 
-        msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps)
+        msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device)
         msnpsDivMod.loadImages(x_test)
-        t=time.time()
         msnpsDivMod.execute()
+
+        charge_map = msnpsDivMod.pooling_image.cpu().numpy()  # shape (10, testsize)
+        y_pred = np.argmax(charge_map, axis=0)
+
+        return y_pred
+
     elif system == "MSNPSystemExactGPU":
 
         extended_path = exact_csv.ensemble_exact_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
         snps.load_neurons_from_csv(extended_path)
 
-        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device="cpu")
+        msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device)
         msnpsExact.loadImages(x_test)
-        t=time.time()
         msnpsExact.execute()
 
         charge_map = msnpsExact.pooling_image.cpu().numpy()  # shape (10, testsize)
 
-        elapsed_t = time.time() - t
         y_pred = np.argmax(charge_map, axis=0)
-        #TODO check if charge_map is correct
-        return y_pred, elapsed_t
+        return y_pred
 
     elif system == "SNPSystem":
         snps.spike_train = x_test
-        extended_path = ensemble_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
+
+        extended_path = exact_csv.ensemble_exact_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)  #rules in exact form
+        #extended_path = ensemble_csv(np.array(svm_q), np.array(logreg_q), svm_imp, logreg_imp)
+
         snps.load_neurons_from_csv(extended_path)
 
-        t=time.time()
         snps.start()
-        elapsed_t = time.time()-t
         y_pred = np.argmax(snps.charge_map_prediction, axis=0)
-        return y_pred, elapsed_t
+        return y_pred
 
 
 
