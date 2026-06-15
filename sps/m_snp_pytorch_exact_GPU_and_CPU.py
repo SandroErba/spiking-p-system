@@ -8,7 +8,7 @@ class MSNPSystemExactGPU:
     def __init__(self, configurationVector, spikingVector, sMpi_sparse,
                  ruleVector, max_steps=1000, deterministic=True,
                  single_spike_train=None, input_neurons=None, output_neurons=None,
-                 applyingRuleVector=None, device='cpu', testsize=1):
+                 applyingRuleVector=None, device='cpu', testsize=1,debugMode=""):
 
         if device == 'gpu' or device == 'cuda':
             if torch.cuda.is_available():
@@ -56,8 +56,8 @@ class MSNPSystemExactGPU:
         self.max_steps = max_steps
         self.deterministic = deterministic
 
-        self.timerInStep = TimerSNP(self.max_steps*10,"time_InStep_MSNPSystem")
-        self.timerPerStep = TimerSNP(self.max_steps,"time_PerStep_MSNPSystem")
+        self.timerInStep = TimerSNP(self.max_steps*10,debugMode+"_time_InStep_MSNPSystem")
+        self.timerPerStep = TimerSNP(self.max_steps,debugMode+"_time_PerStep_MSNPSystem")
 
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
         #self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
@@ -88,8 +88,7 @@ class MSNPSystemExactGPU:
             self.single_spike_train = torch.tensor([], dtype=self.dtype, device=self.device)
 
         self.t_step = 0
-        self._debug_mode = None  # set to "TRAIN" or "TEST" in network.py before execute()
-
+ 
     def loadImages(self, img_spike_train):
         """Load images as spike trains for CNN mode"""
         if len(img_spike_train.shape) == 3:
