@@ -79,8 +79,8 @@ class MSNPSystemExactGPU:
 
     def step(self, verbose=False):
         """Execute one step of the system"""
-
-        self.timerInStep.start_step(self.t_step+"> Image Input")
+        
+        self.timerInStep.start_step(f"{self.t_step}> Image Input")
         self.timerPerStep.start_step(self.t_step)
         # 1. Input
         if Config.MODE == "CNN":
@@ -92,7 +92,7 @@ class MSNPSystemExactGPU:
                 self.configurationVector[self.input_neurons] += spike_value
         self.timerInStep.end_step()
 
-        self.timerInStep.start_step(self.t_step+"> Extended Config Vector construction")
+        self.timerInStep.start_step(f"{self.t_step}> Extended Config Vector construction")
         # 2. Extended config vector
         extendedConfigVector = torch.zeros_like(self.spikingVector, dtype=self.dtype, device=self.device)
         idx = 0
@@ -102,7 +102,7 @@ class MSNPSystemExactGPU:
             idx += count
         self.timerInStep.end_step()
 
-        self.timerInStep.start_step(self.t_step+"> Spiking Vector update")
+        self.timerInStep.start_step(f"{self.t_step}> Spiking Vector update")
         # 3. Spiking vector
         diff = torch.abs(extendedConfigVector - self.ruleVector)
         self.spikingVector = torch.div(1, 1 + diff, rounding_mode='floor') if self.dtype == torch.int32 \
@@ -113,7 +113,7 @@ class MSNPSystemExactGPU:
 
         # 4. Update configuration
         #self.netGainVector = self.spikingVector @ self.sMpi #dense
-        self.timerInStep.start_step(self.t_step+"> NetGain Vector update: smpi @ spikingVec")
+        self.timerInStep.start_step(f"{self.t_step}> NetGain Vector update: smpi @ spikingVec")
         self.netGainVector = torch.mv(self.sMpi.t(), self.spikingVector.float()).to(self.dtype) #sparse method
         self.timerInStep.end_step()
 
