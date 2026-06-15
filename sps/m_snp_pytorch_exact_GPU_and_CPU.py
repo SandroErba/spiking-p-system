@@ -43,7 +43,7 @@ class MSNPSystemExactGPU:
         self.max_steps = max_steps
         self.deterministic = deterministic
 
-        self.timerInStep = TimerSNP(self.max_steps,"time_InStep_MSNPSystem")
+        self.timerInStep = TimerSNP(self.max_steps*10,"time_InStep_MSNPSystem")
         self.timerPerStep = TimerSNP(self.max_steps,"time_PerStep_MSNPSystem")
 
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
@@ -57,6 +57,10 @@ class MSNPSystemExactGPU:
         self.sMpi = sMpi_sparse.to(self.device)
 
         self.ruleCountPerNeuron = torch.bincount(self.applyingRuleVector, minlength=neuron_num)
+        self.neuron_idx_expanded = torch.repeat_interleave(
+            torch.arange(neuron_num, device=self.device),
+            self.ruleCountPerNeuron
+        )
 
         if spikingVector is None:
             self.spikingVector = torch.zeros(rule_num, dtype=self.dtype, device=self.device)
@@ -94,12 +98,7 @@ class MSNPSystemExactGPU:
 
         self.timerInStep.start_step(f"{self.t_step}> Extended Config Vector construction")
         # 2. Extended config vector
-        extendedConfigVector = torch.zeros_like(self.spikingVector, dtype=self.dtype, device=self.device)
-        idx = 0
-        for i in range(len(self.configurationVector)):
-            count = self.ruleCountPerNeuron[i].item()
-            extendedConfigVector[idx:idx+count] = self.configurationVector[i]
-            idx += count
+        extendedConfigVector = self.configurationVector[self.neuron_idx_expanded]
         self.timerInStep.end_step()
 
         self.timerInStep.start_step(f"{self.t_step}> Spiking Vector update")
