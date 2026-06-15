@@ -1,18 +1,15 @@
 import numpy as np
-import random
 import torch
-from sps.spike_utils import TransformationRule
-from sps.snp_system import SNPSystem  
 from sps.config import Config
 
 
 class MSNPSystemExactGPU:
-    
-    def __init__(self, configurationVector, spikingVector, spikingTransitionMatrix, 
-                 synapsesMatrix, ruleVector, max_steps=1000, deterministic=True, 
+
+    def __init__(self, configurationVector, spikingVector, spikingTransitionMatrix,
+                 synapsesMatrix, ruleVector, max_steps=1000, deterministic=True,
                  single_spike_train=None, input_neurons=None, output_neurons=None,
-                 applyingRuleVector=None, device='cpu',testsize=1):
-        
+                 applyingRuleVector=None, device='cpu', testsize=1):
+
         # Set device (GPU if available, CPU otherwise) and dtype based on device
         # For CPU, int32 is often more efficient for this type of computation; 
         # for GPU, float32 allows parallelization
