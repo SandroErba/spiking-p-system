@@ -21,7 +21,7 @@ class MatrixExecutor:
         configurationVector = np.zeros(neurons_num, dtype=int)
         spikingVector = np.zeros((rule_num,), dtype=int)
         spikingTransitionMatrix = np.zeros((rule_num, neurons_num), dtype=int)  # as explained in the paper
-        synapsesMatrix = np.zeros((rule_num, neurons_num), dtype=int)      
+        synapsesMatrix = np.zeros((rule_num, neurons_num), dtype=int)
         # I implemented these vectors in order to make the system executable
         ruleVector = np.zeros(rule_num, dtype=int)  # exact E goes in mod, div is for all rules in this implementation
         applyingRuleVector = np.zeros((rule_num,), dtype=int)  # which neuron each rule applies to
@@ -41,13 +41,15 @@ class MatrixExecutor:
             for rule in neuron.transf_rules:
                 spikingTransitionMatrix[rule_idx, neuron.nid] = -rule.source
                 synapsesMatrix[rule_idx, neuron.nid] = 1
-                
+
                 for target in neuron.targets:
-                    spikingTransitionMatrix[rule_idx, target] = rule.target 
-                    synapsesMatrix[rule_idx, target] = 1 if target > 0 else -1
+                    actual_target = abs(target)  # indice reale del neurone
+                    spike_sign = 1 if target > 0 else -1  # segno dello spike
+                    spikingTransitionMatrix[rule_idx, actual_target] = rule.target * spike_sign
+                    synapsesMatrix[rule_idx, actual_target] = 1
+
 
                 ruleVector[rule_idx] = rule.mod  # exact goes in mod - assume div = 0
-                    
                 applyingRuleVector[rule_idx] = neuron.nid
                 rule_idx += 1
 

@@ -96,11 +96,7 @@ class MSNPSystemExactGPU:
                     print(f"Applied image spike train at step {self.t_step + 1}")
         
         elif self.single_spike_train.size(0) > 0 and self.t_step < self.single_spike_train.shape[0]:
-            if self.dtype == torch.int32:
-                spike_value = 1
-            else:
-                spike_value = 1.0
-                
+            spike_value = 1 if self.dtype == torch.int32 else 1.0
             if self.single_spike_train[self.t_step] == spike_value:
                 self.configurationVector[self.input_neurons] += spike_value
                 if verbose:
@@ -113,7 +109,8 @@ class MSNPSystemExactGPU:
             count = self.ruleCountPerNeuron[i].item()
             extendedConfigVector[idx:idx+count] = self.configurationVector[i]
             idx += count
-        
+
+        # 3. Spiking vector
         diff = torch.abs(extendedConfigVector - self.ruleVector)
         
         self.spikingVector = torch.div(1, 1 + diff, rounding_mode='floor') if self.dtype == torch.int32 else torch.floor(1.0 / (1.0 + diff))
@@ -121,11 +118,20 @@ class MSNPSystemExactGPU:
         self.netGainVector = self.spikingVector @ self.sMpi
         self.configurationVector = self.configurationVector + self.netGainVector
 
-        if verbose:
-            print(self)
 
-        if self.pooling_image is not None and Config.NUM_LAYERS - 3 < self.t_step <= self.testsize + Config.NUM_LAYERS - 3:
-            self.pooling_image[:, self.t_step - Config.NUM_LAYERS + 2] = self.configurationVector[self.output_neurons]
+
+        # 5. Save pooling
+        if self.pooling_image is not None:
+            # Nel test (10 classi) la propagazione richiede 1 step in più
+            offset = 1 if len(self.output_neurons) == Config.CLASSES else 0
+
+            if Config.NUM_LAYERS - 4 < self.t_step - offset <= self.testsize + Config.NUM_LAYERS - 4:
+                col = (self.t_step - offset) - Config.NUM_LAYERS + 3
+                self.pooling_image[:, col] = self.configurationVector[self.output_neurons]
+                if len(self.output_neurons) == Config.CLASSES:
+                    self.configurationVector[self.output_neurons] = 0
+
+
         self.t_step += 1
         return True
     
@@ -145,16 +151,10 @@ class MSNPSystemExactGPU:
             input_length = len(self.single_spike_train) if hasattr(self.single_spike_train, '__len__') else 0
         
         while self.step(verbose=verbose) and (self.t_step < self.max_steps or self.t_step < input_length):
-            if verbose:
-                print("Step:", self.t_step + 1)
-                print("Spiking Vector applied:", self.spikingVector.cpu().numpy())
-                print("Configuration Vector obtained:", self.configurationVector.cpu().numpy())
-                print("Net Gain Vector in step", self.t_step + 1, ":", self.netGainVector.cpu().numpy())
-                print("-" * 30)
-            
-            # Check halt condition (spikingVector == 0 in modo appropriato al dtype)
             if torch.all(self.spikingVector == 0) and (self.t_step >= input_length):
                 print("Computation halts: spiking vector is zero, input is accepted")
+                np.save("/tmp/charge_map_gpu.npy", self.pooling_image.cpu().numpy())
+                print(f"Saved charge_map_gpu: {self.pooling_image.shape}")
                 return True
             
         
@@ -185,18 +185,11 @@ class MSNPSystemExactGPU:
     def to(self, device):
         """Sposta l'intero sistema su un device specifico (CPU o GPU) con dtype appropriato"""
         new_device = torch.device(device)
-        
-        # Determina il nuovo dtype in base al device
-        if new_device.type == 'cuda':
-            new_dtype = torch.float32
-        else:
-            new_dtype = torch.int32
-        
-        # Se il dtype cambia, dobbiamo ricreare i tensori
+        new_dtype = torch.float32 if new_device.type == 'cuda' else torch.int32
+
         if new_dtype != self.dtype:
             print(f"Changing dtype from {self.dtype} to {new_dtype} for device {new_device}")
             self.dtype = new_dtype
-            
             self.configurationVector = self.configurationVector.to(dtype=self.dtype, device=new_device)
             self.spikingTransitionMatrix = self.spikingTransitionMatrix.to(dtype=self.dtype, device=new_device)
             self.synapsesMatrix = self.synapsesMatrix.to(dtype=self.dtype, device=new_device)
@@ -235,4 +228,3 @@ class MSNPSystemExactGPU:
                 f"Net Gain Vector: {self.get_net_gain_vector()}\n"
                 f"Rule Vector: {self.get_rule_vector()}\n"
                 f"Applying Rule Vector: {self.get_applying_rule_vector()}\n")
-

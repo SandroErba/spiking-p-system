@@ -89,6 +89,8 @@ class SNPSystem:
 
                 if Config.MODE == "generative":
                     print("Spike fired at time step", self.output[0], "and time step", self.output[1], ". The output is", self.output[1] - self.output[0])
+                np.save("/tmp/charge_map_snp.npy", self.charge_map_prediction)
+                print(f"Saved charge_map_snp: {self.charge_map_prediction.shape}")
                 return w_energy, e_energy
 
     def tick(self):

@@ -74,8 +74,9 @@ def SNPS_exact_csv():
             layer3_offset = Config.NEURONS_L1 + Config.NEURONS_L2 + k_index * Config.NEURONS_POOL
             k_range_max = Config.K_RANGE[k_index][1]
             all_rules = _build_layer3_exact_rules(k_range_max, None)
-            global_i = k_index * Config.NEURONS_POOL + i
+
             for i in range(Config.NEURONS_POOL):
+                global_i = k_index * Config.NEURONS_POOL + i
                 writer.writerow([
                     layer3_offset + i,       # id
                     0,                       # initial_charge
@@ -88,7 +89,7 @@ def SNPS_exact_csv():
 def ensemble_exact_csv(svm_q, logreg_q, svm_imp, logreg_imp):
     """Generate the SN P system with the ensemble of two models"""
     os.makedirs("csv", exist_ok=True)
-    with open("csv/" + "SNPS_exact_ens.csv", mode='w', newline='') as csv_file:
+    with open("csv/" + Config.CSV_EXACT_ENS_NAME, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(["id", "initial_charge", "output_targets", "neuron_type", "rules"])
 
@@ -169,7 +170,7 @@ def ensemble_exact_csv(svm_q, logreg_q, svm_imp, logreg_imp):
             ]
             writer.writerow(row)
 
-    return "csv/" + Config.CSV_ENS_NAME
+    return "csv/" + Config.CSV_EXACT_ENS_NAME
 
 
 
@@ -287,8 +288,8 @@ def _build_layer3_exact_rules(k_range_max, multipliers_vec):
         for x in range(lowest_k - 1, 0, -1):
             rules.append(f"[0,{x},{x},0,0]")
 
-        max_negative = thresholds[0][0]  # symmetric: same as highest positive k
-        rules = _with_negative_forgetting_exact(rules, max_negative)
+        #max_negative = thresholds[0][0]  # symmetric: same as highest positive k
+        #rules = _with_negative_forgetting_exact(rules, max_negative)
         result.append(rules)
 
     return result
