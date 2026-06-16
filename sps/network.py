@@ -140,32 +140,35 @@ def train_external_models(charges, y_train,device='cpu'):
     use_gpu = (device in ['gpu', 'cuda']) and torch.cuda.is_available()
     
     if use_gpu:
-        from sps.classifiers_gpu import LogisticRegressionGPU, SVMGPU
+        # Non serve reimportare, già in cima al file
+        # from sps.classifiers_gpu import LogisticRegressionGPU, SVMGPU
         
         # Converti in tensori PyTorch su GPU
         if isinstance(charges, torch.Tensor):
-            X_tensor = charges.to('cuda')
+            X_tensor = charges.float().to('cuda')
         else:
             X_tensor = torch.tensor(charges, dtype=torch.float32, device='cuda')
             
         if isinstance(y_train, torch.Tensor):
-            y_tensor = y_train.to('cuda')
+            y_tensor = y_train.long().to('cuda')
         else:
             y_tensor = torch.tensor(y_train, dtype=torch.long, device='cuda')
         
         input_dim = X_tensor.shape[1]
         num_classes = len(torch.unique(y_tensor))
         
-        # Support Vector Machine (GPU)
+        print(f"Training on GPU: input_dim={input_dim}, num_classes={num_classes}, samples={X_tensor.shape[0]}")
+        
+        # Support Vector Machine (GPU) - Parametri allineati a sklearn LinearSVC
         print("Training SVM on GPU...")
         svm = SVMGPU(input_dim, num_classes, device='cuda')
-        svm.fit(X_tensor, y_tensor, epochs=100, lr=0.01, C=Config.SVM_C, verbose=False)
+        svm.fit(X_tensor, y_tensor, epochs=2000, lr=0.01, C=Config.SVM_C, verbose=True)
         print("SVM done")
         
-        # Logistic Regression (GPU)
+        # Logistic Regression (GPU) - Parametri allineati a sklearn LogisticRegression
         print("Training LogReg on GPU...")
         logreg = LogisticRegressionGPU(input_dim, num_classes, device='cuda')
-        logreg.fit(X_tensor, y_tensor, epochs=100, lr=0.01, verbose=False)
+        logreg.fit(X_tensor, y_tensor, epochs=2000, lr=0.01, weight_decay=0.0001, verbose=True)
         print("LogReg done")
         
         return svm, logreg
