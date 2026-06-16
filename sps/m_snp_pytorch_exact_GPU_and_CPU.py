@@ -38,7 +38,7 @@ class MSNPSystemExactGPU:
         neuron_num = len(configurationVector)
 
         self.testsize = testsize
-        self.pooling_image = torch.zeros((len(output_neurons), self.testsize), dtype=self.dtype, device='cpu') if output_neurons is not None else None
+        self.pooling_image = torch.zeros((len(output_neurons), self.testsize), dtype=self.dtype, device=self.device) if output_neurons is not None else None
         
         if self.pooling_image is not None:
             self._pooling_offset = 1 if len(output_neurons) == Config.CLASSES else 0
@@ -163,7 +163,7 @@ class MSNPSystemExactGPU:
             
             if self._pooling_lower_bound < t_effective <= self._pooling_upper_bound:
                 col = t_effective - Config.NUM_LAYERS + 3  # Formula originale invariata
-                self.pooling_image[:, col] = self.configurationVector[self._output_neurons_tensor].cpu()
+                self.pooling_image[:, col] = self.configurationVector[self._output_neurons_tensor]
                 
                 if self._is_classification:
                     self.configurationVector[self._output_neurons_tensor] = 0
@@ -193,6 +193,12 @@ class MSNPSystemExactGPU:
 
         print("Computation halts: maximum number of steps reached, input is rejected")
         return False
+
+    def get_pooling_image(self):
+        """Returns the pooling image as a numpy array"""
+        if self.pooling_image is not None:
+            return self.pooling_image.cpu().numpy()
+        return None
 
     def get_configuration_vector(self):
         return self.configurationVector.cpu().numpy()

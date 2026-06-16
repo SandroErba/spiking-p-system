@@ -85,10 +85,6 @@ class MatrixExecutor:
         if Config.MODE != "CNN":
             single_spike_train = SNPSystem.spike_train
 
-
-
-
-
         # Crea e ritorna l'istanza di MSNPSystemExactGPU (versione PyTorch)
         return MSNPSystemExactGPU(
             configurationVector=configurationVector,

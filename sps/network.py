@@ -100,7 +100,7 @@ def train_SNPS(system, device, x_train, y_train):
         msnpsExact.loadImages(x_train)
         msnpsExact.execute()
 
-        pooling = msnpsExact.pooling_image.cpu().numpy().T
+        pooling = msnpsExact.get_pooling_image().T
         print("pooling_image dtype:", pooling.dtype)
         print("pooling_image min/max:", pooling.min(), pooling.max())
         print("pooling_image mean:", pooling.mean())
