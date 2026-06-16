@@ -200,6 +200,7 @@ def train_external_models(charges, y_train, device='cpu'):
         logreg.fit(charges, y_train)
         print("LogReg done")
         timerTraining.end_step()
+        timerTraining.export_to_csv()
         return svm, logreg
 
 
