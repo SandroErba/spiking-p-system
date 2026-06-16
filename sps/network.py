@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import time
+import torch
 from sklearn.linear_model import LogisticRegression
 from sps import handle_csv, exact_csv
 from sps.digit_image import get_mnist_data
@@ -112,7 +113,7 @@ def train_SNPS(system, device, x_train, y_train):
 
 
     #snps.labels = y_train
-    if system == "SNPSystem":
+    elif system == "SNPSystem":
 
 
         SNPS_exact_csv()
@@ -131,28 +132,6 @@ def train_SNPS(system, device, x_train, y_train):
         np.save("/tmp/pooling_snp.npy", pooling)
         print("saved to /tmp/pooling_snp.npy")
         return train_external_models(pooling, y_train, device)
-
-
-    #snps.labels = y_train
-    if system == "SNPSystem":
-
-
-        SNPS_exact_csv()
-        snps.load_neurons_from_csv("csv/" + Config.CSV_EXACT_NAME) #rules in exact form
-        #snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
-
-        snps.spike_train = x_train
-        snps.start()
-        pooling = snps.pooling_image.T
-
-        print("=== SNPSystem DEBUG ===")
-        print("pooling_image dtype:", pooling.dtype)
-        print("pooling_image min/max:", pooling.min(), pooling.max())
-        print("pooling_image mean:", pooling.mean())
-        print("non-zero count:", np.count_nonzero(pooling))
-        np.save("/tmp/pooling_snp.npy", pooling)
-        print("saved to /tmp/pooling_snp.npy")
-        return train_external_models(pooling, y_train)
 
 
 
