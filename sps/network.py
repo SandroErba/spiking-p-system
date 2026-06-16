@@ -13,7 +13,7 @@ from sps.snp_system import SNPSystem
 from sklearn.svm import LinearSVC
 from sps.m_matrix_executor_div_mod import MatrixExecutor as MatrixExecutorDivMod
 from sps.m_matrix_executor_exact import MatrixExecutor as MatrixExecutorExact
-
+from sps.classifiers_gpu import LogisticRegressionGPU, SVMGPU
 
 #temporary code for create the csv and the SNPS with exact rules for the GPU
 def create_exact_csv():
@@ -87,7 +87,7 @@ def train_SNPS(system, device, x_train, y_train):
         np.save("/tmp/pooling_gpu.npy", pooling)
         print("saved to /tmp/pooling_gpu.npy")
 
-        return train_external_models(pooling, y_train)
+        return train_external_models(pooling, y_train, device)
 
     elif system == "MSNPSystemExactGPU":
         SNPS_exact_csv()
@@ -108,7 +108,29 @@ def train_SNPS(system, device, x_train, y_train):
         np.save("/tmp/pooling_gpu.npy", pooling)
         print("saved to /tmp/pooling_gpu.npy")
 
-        return train_external_models(pooling, y_train)
+        return train_external_models(pooling, y_train, device)
+
+
+    #snps.labels = y_train
+    if system == "SNPSystem":
+
+
+        SNPS_exact_csv()
+        snps.load_neurons_from_csv("csv/" + Config.CSV_EXACT_NAME) #rules in exact form
+        #snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
+
+        snps.spike_train = x_train
+        snps.start()
+        pooling = snps.pooling_image.T
+
+        print("=== SNPSystem DEBUG ===")
+        print("pooling_image dtype:", pooling.dtype)
+        print("pooling_image min/max:", pooling.min(), pooling.max())
+        print("pooling_image mean:", pooling.mean())
+        print("non-zero count:", np.count_nonzero(pooling))
+        np.save("/tmp/pooling_snp.npy", pooling)
+        print("saved to /tmp/pooling_snp.npy")
+        return train_external_models(pooling, y_train, device)
 
 
     #snps.labels = y_train
@@ -134,23 +156,59 @@ def train_SNPS(system, device, x_train, y_train):
 
 
 
-def train_external_models(charges, y_train):
-    #Support Vector Machine
-    svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
-    svm.fit(charges, y_train)
-
-    print("SVM done")
-
-    #Logistic Regression
-    logreg = LogisticRegression(
-        solver="lbfgs",
-        max_iter=100000
-    )
-    logreg.fit(charges, y_train)
-
-    print("LogReg done")
-
-    return svm, logreg
+def train_external_models(charges, y_train,device='cpu'):
+    # Determina se usare GPU o CPU
+    use_gpu = (device in ['gpu', 'cuda']) and torch.cuda.is_available()
+    
+    if use_gpu:
+        from sps.classifiers_gpu import LogisticRegressionGPU, SVMGPU
+        
+        # Converti in tensori PyTorch su GPU
+        if isinstance(charges, torch.Tensor):
+            X_tensor = charges.to('cuda')
+        else:
+            X_tensor = torch.tensor(charges, dtype=torch.float32, device='cuda')
+            
+        if isinstance(y_train, torch.Tensor):
+            y_tensor = y_train.to('cuda')
+        else:
+            y_tensor = torch.tensor(y_train, dtype=torch.long, device='cuda')
+        
+        input_dim = X_tensor.shape[1]
+        num_classes = len(torch.unique(y_tensor))
+        
+        # Support Vector Machine (GPU)
+        print("Training SVM on GPU...")
+        svm = SVMGPU(input_dim, num_classes, device='cuda')
+        svm.fit(X_tensor, y_tensor, epochs=100, lr=0.01, C=Config.SVM_C, verbose=False)
+        print("SVM done")
+        
+        # Logistic Regression (GPU)
+        print("Training LogReg on GPU...")
+        logreg = LogisticRegressionGPU(input_dim, num_classes, device='cuda')
+        logreg.fit(X_tensor, y_tensor, epochs=100, lr=0.01, verbose=False)
+        print("LogReg done")
+        
+        return svm, logreg
+    else:
+        # Fallback CPU con scikit-learn (codice originale)
+        from sklearn.svm import LinearSVC
+        from sklearn.linear_model import LogisticRegression
+        
+        #Support Vector Machine
+        svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
+        svm.fit(charges, y_train)
+        print("SVM done")
+        
+        #Logistic Regression
+        logreg = LogisticRegression(
+            solver="lbfgs",
+            max_iter=100000
+        )
+        logreg.fit(charges, y_train)
+        print("LogReg done")
+        
+        return svm, logreg
 
 
 def test_SNPS(system, device, x_test, y_test, svm, logreg):

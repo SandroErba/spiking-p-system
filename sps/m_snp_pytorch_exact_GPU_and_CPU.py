@@ -215,6 +215,10 @@ class MSNPSystemExactGPU:
     def get_rule_vector(self):
         return self.ruleVector.cpu().numpy()
 
+    def get_pooling_image_tensor(self):
+        """Returns the pooling image tensor on the current device (no CPU transfer)"""
+        return self.pooling_image
+
     def get_applying_rule_vector(self):
         return self.applyingRuleVector.cpu().numpy()
 
