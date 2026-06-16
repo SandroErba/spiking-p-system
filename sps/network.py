@@ -142,7 +142,7 @@ def train_external_models(charges, y_train, device='cpu'):
     
     if use_gpu:
         # from sps.classifiers_gpu import LogisticRegressionGPU, SVMGPU
-        timerTraining = TimerSNP(2,"TRAINING_time_GPU",True)
+        timerTraining = TimerSNP(10,"TRAINING_time_GPU",True)
         timerTraining.start_step("Conversioni")
         # Converti in tensori PyTorch su GPU
         if isinstance(charges, torch.Tensor):
@@ -183,7 +183,7 @@ def train_external_models(charges, y_train, device='cpu'):
         # Fallback CPU con scikit-learn (codice originale)
         from sklearn.svm import LinearSVC
         from sklearn.linear_model import LogisticRegression
-        timerTraining = TimerSNP(2,"TRAINING_time_CPU",False)
+        timerTraining = TimerSNP(10,"TRAINING_time_CPU",False)
         #Support Vector Machine
         timerTraining.start_step("Training SVM")
         svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
