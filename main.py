@@ -42,14 +42,20 @@ database("digit") #can be digit, flower
 # Config.MODE = "CNN" #set the mode of the P system: can be cnn (default), generative, halting
 Config.compute_k_range()
 
+print("="*30)
+print("SNP System - CPU")
 #snps = network.create_exact_csv()
 t = time.perf_counter()
 network.launch_mnist("SNPSystem", "cpu")
 print("---> Elapsed:", time.perf_counter() - t)
 
+print("="*30)
+print("MSNP System - GPU")
 t = time.perf_counter()
 network.launch_mnist("MSNPSystemExactGPU", "gpu")
 print("---> Elapsed 2:", time.perf_counter() - t)
+print("="*30)
+print("MSNP System - CPU")
 
 t = time.perf_counter()
 network.launch_mnist("MSNPSystemExactGPU", "cpu")

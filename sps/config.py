@@ -12,12 +12,12 @@ class Config:
     QUANTIZATION = True
     WHITE_HOLE= True #if true all the internal spikes are deleted after firing
 
-    TRAIN_SIZE = 40
-    TEST_SIZE = 40
+    TRAIN_SIZE = 5000
+    TEST_SIZE = 2500
 
     #LAYER 1 - INPUT IMAGE
     NEURONS_L1 = int(IMG_SHAPE ** 2) #number of neurons for layer 1 (pixels in the image)
-    Q_RANGE = 4  # the range of quantization, it works on images, rules and tuning
+    Q_RANGE = 6  # the range of quantization, it works on images, rules and tuning
 
     #LAYER 2 - FEATURE EXTRACTION
     KERNELS = [

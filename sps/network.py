@@ -15,6 +15,7 @@ from sklearn.svm import LinearSVC
 from sps.m_matrix_executor_div_mod import MatrixExecutor as MatrixExecutorDivMod
 from sps.m_matrix_executor_exact import MatrixExecutor as MatrixExecutorExact
 from sps.classifiers_gpu import LogisticRegressionGPU, SVMGPU
+from sps.timersnp import TimerSNP
 
 #temporary code for create the csv and the SNPS with exact rules for the GPU
 def create_exact_csv():
@@ -135,14 +136,14 @@ def train_SNPS(system, device, x_train, y_train):
 
 
 
-def train_external_models(charges, y_train,device='cpu'):
+def train_external_models(charges, y_train, device='cpu'):
     # Determina se usare GPU o CPU
     use_gpu = (device in ['gpu', 'cuda']) and torch.cuda.is_available()
     
     if use_gpu:
-        # Non serve reimportare, già in cima al file
         # from sps.classifiers_gpu import LogisticRegressionGPU, SVMGPU
-        
+        timerTraining = TimerSNP(2,"TRAINING_time_GPU",True)
+        timerTraining.start_step("Conversioni")
         # Converti in tensori PyTorch su GPU
         if isinstance(charges, torch.Tensor):
             X_tensor = charges.float().to('cuda')
@@ -157,31 +158,40 @@ def train_external_models(charges, y_train,device='cpu'):
         input_dim = X_tensor.shape[1]
         num_classes = len(torch.unique(y_tensor))
         
-        print(f"Training on GPU: input_dim={input_dim}, num_classes={num_classes}, samples={X_tensor.shape[0]}")
+        print(f"Training on GPU: samples={X_tensor.shape[0]}, features={input_dim}, classes={num_classes}")
+        timerTraining.end_step()
         
-        # Support Vector Machine (GPU) - Parametri allineati a sklearn LinearSVC
+        # Support Vector Machine (GPU) - Soluzione esatta con Ridge Regression
+        timerTraining.start_step("SVM training on GPU")
         print("Training SVM on GPU...")
         svm = SVMGPU(input_dim, num_classes, device='cuda')
-        svm.fit(X_tensor, y_tensor, epochs=2000, lr=0.01, C=Config.SVM_C, verbose=True)
+        svm.fit(X_tensor, y_tensor, C=Config.SVM_C, verbose=True)
         print("SVM done")
+        timerTraining.end_step()
         
-        # Logistic Regression (GPU) - Parametri allineati a sklearn LogisticRegression
+        timerTraining.start_step("LogReg training on GPU")
+        # Logistic Regression (GPU) - Soluzione esatta con Ridge Regression
         print("Training LogReg on GPU...")
         logreg = LogisticRegressionGPU(input_dim, num_classes, device='cuda')
-        logreg.fit(X_tensor, y_tensor, epochs=2000, lr=0.01, weight_decay=0.0001, verbose=True)
+        logreg.fit(X_tensor, y_tensor, C=1.0, verbose=True)
         print("LogReg done")
+        timerTraining.end_step()
+        timerTraining.export_to_csv()
         
         return svm, logreg
     else:
         # Fallback CPU con scikit-learn (codice originale)
         from sklearn.svm import LinearSVC
         from sklearn.linear_model import LogisticRegression
-        
+        timerTraining = TimerSNP(2,"TRAINING_time_CPU",False)
         #Support Vector Machine
+        timerTraining.start_step("Training SVM")
         svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
         svm.fit(charges, y_train)
         print("SVM done")
+        timerTraining.end_step()
         
+        timerTraining.start_step("Training LogReg")
         #Logistic Regression
         logreg = LogisticRegression(
             solver="lbfgs",
@@ -189,7 +199,7 @@ def train_external_models(charges, y_train,device='cpu'):
         )
         logreg.fit(charges, y_train)
         print("LogReg done")
-        
+        timerTraining.end_step()
         return svm, logreg
 
 
