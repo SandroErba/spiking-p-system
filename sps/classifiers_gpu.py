@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
 class LogisticRegressionGPU(nn.Module):
     """Logistic Regression ottimizzata per GPU"""
@@ -13,6 +14,15 @@ class LogisticRegressionGPU(nn.Module):
         
     def forward(self, x):
         return self.linear(x)
+    
+    @property
+    def coef_(self):
+        """Compatibilità con scikit-learn: restituisce i coefficienti come numpy array"""
+        with torch.no_grad():
+            if self.linear.out_features > 1:
+                return self.linear.weight.data.cpu().numpy()
+            else:
+                return self.linear.weight.data.cpu().numpy().reshape(1, -1)
     
     def fit(self, X, y, epochs=100, lr=0.01, weight_decay=0.001, verbose=False):
         """Fit del modello"""
@@ -105,6 +115,15 @@ class SVMGPU(nn.Module):
         
     def forward(self, x):
         return self.linear(x)
+    
+    @property
+    def coef_(self):
+        """Compatibilità con scikit-learn: restituisce i coefficienti come numpy array"""
+        with torch.no_grad():
+            if self.num_classes > 2:
+                return self.linear.weight.data.cpu().numpy()
+            else:
+                return self.linear.weight.data.cpu().numpy().reshape(1, -1)
     
     def fit(self, X, y, epochs=100, lr=0.01, C=1.0, verbose=False):
         """Fit SVM con Hinge Loss"""
