@@ -90,7 +90,7 @@ class SNPSystem:
                 if self.charge_tracker is not None:
                     self.charge_tracker.finish()
 
-                self.timer.export_to_csv()
+                self.timer.export_to_csv(True)
 
                 if Config.MODE == "generative":
                     print("Spike fired at time step", self.output[0], "and time step", self.output[1], ". The output is", self.output[1] - self.output[0])

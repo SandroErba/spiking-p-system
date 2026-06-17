@@ -60,6 +60,7 @@ def launch_mnist(system, device):
 
     ensemble_accuracy = test_SNPS(system, device, x_test, y_test, svm, logreg)
     #handle_csv.save_results(ensemble_accuracy, time.time()-t)
+    return ensemble_accuracy
 
 
 
@@ -110,7 +111,7 @@ def train_SNPS(system, device, x_train, y_train):
         np.save("/tmp/pooling_gpu.npy", pooling)
         print("saved to /tmp/pooling_gpu.npy")
 
-        return train_external_models(pooling, y_train, device)
+        return train_external_models(pooling, y_train, 'cpu')
 
 
     #snps.labels = y_train
@@ -183,7 +184,7 @@ def train_external_models(charges, y_train, device='cpu'):
         # Fallback CPU con scikit-learn (codice originale)
         from sklearn.svm import LinearSVC
         from sklearn.linear_model import LogisticRegression
-        timerTraining = TimerSNP(10,"TRAINING_time_CPU",False)
+        timerTraining = TimerSNP(10,f"{Config.TIME_TEST_NUM}_TRAINING_time_CPU",False)
         #Support Vector Machine
         timerTraining.start_step("Training SVM")
         svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
@@ -200,7 +201,7 @@ def train_external_models(charges, y_train, device='cpu'):
         logreg.fit(charges, y_train)
         print("LogReg done")
         timerTraining.end_step()
-        timerTraining.export_to_csv()
+        timerTraining.export_to_csv(True)
         return svm, logreg
 
 

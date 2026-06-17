@@ -59,11 +59,11 @@ class MSNPSystemExactGPU:
         self.deterministic = deterministic
 
         if self.device == torch.device('cuda'):
-            self.timerInStep = TimerSNP(self.max_steps*10,debugMode+"_time_InStep_MSNPSystem_GPU",True)
-            self.timerPerStep = TimerSNP(self.max_steps,debugMode+"_time_PerStep_MSNPSystem_GPU",True)
+            self.timerInStep = TimerSNP(self.max_steps*10,debugMode+f"{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_{Config.TIME_TEST_NUM}_time_InStep_MSNPSystem_GPU",True)
+            self.timerPerStep = TimerSNP(self.max_steps,debugMode+f"{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_{Config.TIME_TEST_NUM}_time_PerStep_MSNPSystem_GPU",True)
         else:    
-            self.timerInStep = TimerSNP(self.max_steps*10,debugMode+"_time_InStep_MSNPSystem_CPU",False)
-            self.timerPerStep = TimerSNP(self.max_steps,debugMode+"_time_PerStep_MSNPSystem_CPU",False)
+            self.timerInStep = TimerSNP(self.max_steps*10,debugMode+f"{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_{Config.TIME_TEST_NUM}_time_InStep_MSNPSystem_CPU",False)
+            self.timerPerStep = TimerSNP(self.max_steps,debugMode+f"{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_{Config.TIME_TEST_NUM}_time_PerStep_MSNPSystem_CPU",False)
 
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
         #self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
@@ -187,8 +187,8 @@ class MSNPSystemExactGPU:
                 print("Computation halts: spiking vector is zero, input is accepted")
                 np.save("/tmp/charge_map_gpu.npy", self.pooling_image.cpu().numpy())
                 print(f"Saved charge_map_gpu: {self.pooling_image.shape}")
-                self.timerInStep.export_to_csv()
-                self.timerPerStep.export_to_csv()
+                self.timerInStep.export_to_csv(True)
+                self.timerPerStep.export_to_csv(True)
                 return True
 
         print("Computation halts: maximum number of steps reached, input is rejected")

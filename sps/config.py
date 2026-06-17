@@ -76,6 +76,7 @@ class Config:
     TRACK_FORMAT = "csv"      # "csv" or "parquet"
     TRACK_FILENAME = "output_charges"
 
+    TIME_TEST_NUM = 0
 
     @classmethod
     def compute_k_range(cls):

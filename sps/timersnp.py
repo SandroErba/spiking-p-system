@@ -3,6 +3,7 @@ import torch
 from datetime import datetime
 import csv
 from pathlib import Path
+from sps.config import Config
 
 class TimerSNP:
     DIR_NAME = "times"
@@ -42,10 +43,13 @@ class TimerSNP:
                 self._buffer[self._index] = elapsed * 1000
             self._index += 1
     
-    def export_to_csv(self):
+    def export_to_csv(self,putInQfolder=False):
         base_dir = Path(__file__).parent.parent 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_path = base_dir / self.DIR_NAME / f"{self.FILENAME}_{timestamp}.csv"
+        if putInQfolder:
+            csv_path = base_dir / self.DIR_NAME /f"Q_{Config.Q_RANGE}" / f"{self.FILENAME}_{timestamp}.csv"
+        else:
+            csv_path = base_dir / self.DIR_NAME / f"{self.FILENAME}_{timestamp}.csv"
         csv_path.parent.mkdir(parents=True, exist_ok=True)
         with open(csv_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
