@@ -133,11 +133,11 @@ def train_SNPS(system, device, x_train, y_train):
         print("non-zero count:", np.count_nonzero(pooling))
         np.save("/tmp/pooling_snp.npy", pooling)
         print("saved to /tmp/pooling_snp.npy")
-        return train_external_models(pooling, y_train, device)
+        return train_external_models(pooling, y_train, device,system)
 
 
 
-def train_external_models(charges, y_train, device='cpu'):
+def train_external_models(charges, y_train, device='cpu',system=""):
     # Determina se usare GPU o CPU
     use_gpu = (device in ['gpu', 'cuda']) and torch.cuda.is_available()
     
@@ -184,7 +184,7 @@ def train_external_models(charges, y_train, device='cpu'):
         # Fallback CPU con scikit-learn (codice originale)
         from sklearn.svm import LinearSVC
         from sklearn.linear_model import LogisticRegression
-        timerTraining = TimerSNP(10,f"{Config.TIME_TEST_NUM}_TRAINING_time_CPU",False)
+        timerTraining = TimerSNP(10,f"T{Config.TIME_TEST_NUM}_TRAINING_time_{system}",False)
         #Support Vector Machine
         timerTraining.start_step("Training SVM")
         svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
