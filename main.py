@@ -1,5 +1,7 @@
 import time
 import os
+import sys
+import traceback
 import numpy as np
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -15,6 +17,58 @@ import torch
 import gc
 from sps.timersnp import TimerSNP
 import random
+import csv
+from pathlib import Path
+
+
+class AccuracyLogger:
+    """Salva le accuracy in un CSV."""
+    
+    DIR_NAME = "results"
+    
+    def __init__(self, filename="accuracy_results.csv"):
+        self.filename = filename
+        self.rows = []
+        self.base_dir = Path.cwd()
+        
+    def add_result(self, system, device, q_range, test_num, seed, train_size, test_size, accuracy, error=None):
+        """Aggiunge un risultato."""
+        self.rows.append({
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'system': system,
+            'device': device,
+            'Q_RANGE': q_range,
+            'TEST_NUM': test_num,
+            'SEED': seed,
+            'TRAIN_SIZE': train_size,
+            'TEST_SIZE': test_size,
+            'ACCURACY': f"{accuracy:.4f}" if error is None else 'ERROR',
+            'ERROR': str(error)[:200] if error else ''
+        })
+    
+    def save(self):
+        """Salva tutti i risultati in CSV."""
+        if not self.rows:
+            print("No results to save")
+            return None
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        results_dir = self.base_dir / self.DIR_NAME
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        csv_path = results_dir / f"{self.filename.replace('.csv', '')}_{timestamp}.csv"
+        
+        fieldnames = ['timestamp', 'system', 'device', 'Q_RANGE', 'TEST_NUM', 'SEED', 
+                      'TRAIN_SIZE', 'TEST_SIZE', 'ACCURACY', 'ERROR']
+        
+        with open(csv_path, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(self.rows)
+        
+        print(f"Accuracy results saved to: {csv_path}")
+        print(f"Total results: {len(self.rows)}")
+        return csv_path
 
 
 def reset_gpu_for_rerun():
@@ -37,7 +91,6 @@ def reset_gpu_for_rerun():
             pass
     
     # 3. Pulisci i moduli PyTorch che potrebbero avere buffer CUDA
-    import sys
     for mod_name, mod in list(sys.modules.items()):
         if mod_name.startswith('sps.'):
             for attr_name in dir(mod):
@@ -93,6 +146,38 @@ def kill_all_cuda_contexts():
         
         print("CUDA contexts reset completely")
 
+
+def emergency_save(generalTimer, accuracyLogger, error_msg=""):
+    """Salvataggio di emergenza dei risultati."""
+    try:
+        # Salva timer
+        generalTimer.export_to_csv(False)
+        
+        # Salva accuracy
+        accuracyLogger.save()
+        
+        # Salva log errore
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        error_file = f"error_log_{timestamp}.txt"
+        with open(error_file, 'w') as f:
+            f.write(f"Error: {error_msg}\n")
+            f.write(f"Timestamp: {datetime.now()}\n")
+            f.write(f"Traceback:\n{traceback.format_exc()}\n")
+        
+        print(f"\n{'!'*50}")
+        print(f"EMERGENCY SAVE completato!")
+        print(f"Timer e Accuracy salvati")
+        print(f"Error log: {error_file}")
+        print(f"{'!'*50}")
+        
+    except Exception as e:
+        print(f"EMERGENCY SAVE FAILED: {e}")
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
 try:
     # Inizializzazione
     reset_gpu_for_rerun()
@@ -107,6 +192,7 @@ try:
     SEEDS = [42, 999, 1234]
     
     generalTimer = TimerSNP(Q_LIMIT * TEST_PER_Q * len(sizes) * 30, "ElapsedTimePerSystemAndQrange", True)
+    accuracyLogger = AccuracyLogger("accuracy_results.csv")
     
     # Loop principale
     for Q_RANGE in range(2, Q_LIMIT + 1):
@@ -141,18 +227,24 @@ try:
                     Config.TIME_TEST_NUM = TEST_NUM
                     Config.Q_RANGE = Q_RANGE
                     
-                    generalTimer.start_step(f"Q:{Q_RANGE}_T:{TEST_NUM}_Size:{size[0]}_SNPS_CPU")
-                    network.launch_mnist("SNPSystem", "cpu")
+                    generalTimer.start_step(f"Q:{Q_RANGE}_T:{TEST_NUM}_S{size[0]}_SNPS_CPU")
+                    accuracy = network.launch_mnist("SNPSystem", "cpu")
                     generalTimer.end_step()
-                    print(f"<<< DONE [SNPS - CPU] Q:{Q_RANGE} T:{TEST_NUM}")
+                    
+                    # Salva risultato
+                    accuracyLogger.add_result("SNPS", "CPU", Q_RANGE, TEST_NUM, SEED, 
+                                             size[0], size[1], accuracy)
+                    print(f"<<< DONE [SNPS - CPU] Accuracy: {accuracy:.4f}")
                     
                 except Exception as e:
-                    error_msg = f"SNPS CPU - Q:{Q_RANGE} T:{TEST_NUM} Size:{size} - {str(e)}"
+                    error_msg = f"SNPS CPU - Q:{Q_RANGE} T:{TEST_NUM} Size:{size}"
                     print(f"\n{'!'*50}")
                     print(f"ERROR: {error_msg}")
                     print(traceback.format_exc())
                     print(f"{'!'*50}")
-                    emergency_save(generalTimer, error_msg)
+                    accuracyLogger.add_result("SNPS", "CPU", Q_RANGE, TEST_NUM, SEED,
+                                             size[0], size[1], None, error=error_msg)
+                    emergency_save(generalTimer, accuracyLogger, error_msg)
                 
                 # === MSNPS GPU ===
                 try:
@@ -160,18 +252,23 @@ try:
                     kill_all_cuda_contexts()
                     
                     print(f"\n>>> RUNNING [MSNPS - GPU] Q:{Q_RANGE} T:{TEST_NUM}")
-                    generalTimer.start_step(f"Q:{Q_RANGE}_T:{TEST_NUM}_Size:{size[0]}_MSNPS_GPU")
-                    network.launch_mnist("MSNPSystemExactGPU", "gpu")
+                    generalTimer.start_step(f"Q:{Q_RANGE}_T:{TEST_NUM}_S{size[0]}_MSNPS_GPU")
+                    accuracy = network.launch_mnist("MSNPSystemExactGPU", "gpu")
                     generalTimer.end_step()
-                    print(f"<<< DONE [MSNPS - GPU] Q:{Q_RANGE} T:{TEST_NUM}")
+                    
+                    accuracyLogger.add_result("MSNPS", "GPU", Q_RANGE, TEST_NUM, SEED,
+                                             size[0], size[1], accuracy)
+                    print(f"<<< DONE [MSNPS - GPU] Accuracy: {accuracy:.4f}")
                     
                 except Exception as e:
-                    error_msg = f"MSNPS GPU - Q:{Q_RANGE} T:{TEST_NUM} Size:{size} - {str(e)}"
+                    error_msg = f"MSNPS GPU - Q:{Q_RANGE} T:{TEST_NUM} Size:{size}"
                     print(f"\n{'!'*50}")
                     print(f"ERROR: {error_msg}")
                     print(traceback.format_exc())
                     print(f"{'!'*50}")
-                    emergency_save(generalTimer, error_msg)
+                    accuracyLogger.add_result("MSNPS", "GPU", Q_RANGE, TEST_NUM, SEED,
+                                             size[0], size[1], None, error=error_msg)
+                    emergency_save(generalTimer, accuracyLogger, error_msg)
                 
                 # === MSNPS CPU ===
                 try:
@@ -179,29 +276,41 @@ try:
                     kill_all_cuda_contexts()
                     
                     print(f"\n>>> RUNNING [MSNPS - CPU] Q:{Q_RANGE} T:{TEST_NUM}")
-                    generalTimer.start_step(f"Q:{Q_RANGE}_T:{TEST_NUM}_Size:{size[0]}_MSNPS_CPU")
-                    network.launch_mnist("MSNPSystemExactGPU", "cpu")
+                    generalTimer.start_step(f"Q:{Q_RANGE}_T:{TEST_NUM}_S{size[0]}_MSNPS_CPU")
+                    accuracy = network.launch_mnist("MSNPSystemExactGPU", "cpu")
                     generalTimer.end_step()
-                    print(f"<<< DONE [MSNPS - CPU] Q:{Q_RANGE} T:{TEST_NUM}")
+                    
+                    accuracyLogger.add_result("MSNPS", "CPU", Q_RANGE, TEST_NUM, SEED,
+                                             size[0], size[1], accuracy)
+                    print(f"<<< DONE [MSNPS - CPU] Accuracy: {accuracy:.4f}")
                     
                 except Exception as e:
-                    error_msg = f"MSNPS CPU - Q:{Q_RANGE} T:{TEST_NUM} Size:{size} - {str(e)}"
+                    error_msg = f"MSNPS CPU - Q:{Q_RANGE} T:{TEST_NUM} Size:{size}"
                     print(f"\n{'!'*50}")
                     print(f"ERROR: {error_msg}")
                     print(traceback.format_exc())
                     print(f"{'!'*50}")
-                    emergency_save(generalTimer, error_msg)
+                    accuracyLogger.add_result("MSNPS", "CPU", Q_RANGE, TEST_NUM, SEED,
+                                             size[0], size[1], None, error=error_msg)
+                    emergency_save(generalTimer, accuracyLogger, error_msg)
+                
+                # Salva risultati parziali ogni 9 test (3 sistemi x 3 size)
+                test_counter = (Q_RANGE - 2) * TEST_PER_Q * len(sizes) + TEST_NUM * len(sizes)
+                for size_idx in range(len(sizes)):
+                    if (test_counter + size_idx + 1) % 9 == 0:
+                        accuracyLogger.save()
+                        print("Partial results saved!")
 
 except KeyboardInterrupt:
     print("\n\nINTERRUPTED BY USER!")
     error_msg = "KeyboardInterrupt"
-    emergency_save(generalTimer, error_msg)
+    emergency_save(generalTimer, accuracyLogger, error_msg)
     
 except Exception as e:
     print("\n\nFATAL ERROR!")
     error_msg = f"FATAL: {str(e)}"
     print(traceback.format_exc())
-    emergency_save(generalTimer, error_msg)
+    emergency_save(generalTimer, accuracyLogger, error_msg)
 
 finally:
     # Salva sempre alla fine
@@ -209,13 +318,14 @@ finally:
     print("SAVING FINAL RESULTS...")
     try:
         generalTimer.export_to_csv(False)
+        accuracyLogger.save()
         print("Final results saved successfully!")
     except Exception as e:
         print(f"Error saving final results: {e}")
-        emergency_save(generalTimer, str(e))
     
     print("="*50)
     print("EXECUTION COMPLETED")
+
 
 # ====== ARCHIVIO =========
 
