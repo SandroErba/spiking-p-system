@@ -177,7 +177,7 @@ def train_external_models(charges, y_train, device='cpu'):
         logreg.fit(X_tensor, y_tensor, C=1.0, verbose=True)
         print("LogReg done")
         timerTraining.end_step()
-        timerTraining.export_to_csv()
+        timerTraining.export_to_csv(True)
         
         return svm, logreg
     else:
