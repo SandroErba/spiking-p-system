@@ -155,6 +155,7 @@ class TimerSNP:
     def export_step_times(self, system_name, timer_type, phase="TRAIN"):
         """
         Esporta i tempi degli step in un CSV organizzato per Q_RANGE e TEST_NUM.
+        Le colonne seguono l'ordine naturale di esecuzione.
         
         Args:
             system_name: nome del sistema (es. "MSNPSystem_GPU", "MSNPSystem_CPU")
@@ -164,7 +165,6 @@ class TimerSNP:
         base_dir = Path(__file__).parent.parent
         size_info = f"{Config.TRAIN_SIZE}-{Config.TEST_SIZE}"
         
-        # Il nome del file ora include la fase
         if timer_type == "InStep":
             filename = f"times_{phase}_InStep_{system_name}_S{size_info}.csv"
         else:
@@ -173,7 +173,7 @@ class TimerSNP:
         csv_path = base_dir / self.DIR_NAME / filename
         csv_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Raccogli i dati dal buffer
+        # Raccogli i dati dal buffer corrente
         step_data = {}
         current_q = Config.Q_RANGE
         current_t = Config.TIME_TEST_NUM
@@ -189,18 +189,20 @@ class TimerSNP:
                 
                 step_data[step_name][column_key] = time_ms
         
-        # Se il file esiste già, carica i dati esistenti
+        # Carica le colonne esistenti dal file (mantengono l'ordine originale)
+        existing_columns = []
         existing_data = {}
+        
         if csv_path.exists():
             try:
                 with open(csv_path, 'r', newline='') as csvfile:
                     reader = csv.DictReader(csvfile)
-                    existing_columns = reader.fieldnames[1:] if reader.fieldnames else []
+                    existing_columns = [c for c in reader.fieldnames[1:] if c]
                     for row in reader:
                         step = row['Step']
                         existing_data[step] = {}
                         for col in existing_columns:
-                            if col and row[col]:  # Verifica che col non sia vuoto
+                            if col and row[col]:
                                 try:
                                     existing_data[step][col] = float(row[col])
                                 except ValueError:
@@ -208,6 +210,7 @@ class TimerSNP:
             except Exception as e:
                 print(f"Error loading existing step times: {e}")
                 existing_data = {}
+                existing_columns = []
         
         # Unisci i dati esistenti con i nuovi
         for step, times in existing_data.items():
@@ -215,32 +218,14 @@ class TimerSNP:
                 step_data[step] = {}
             step_data[step].update(times)
         
-        # Trova tutte le colonne (Q-T combinations) ordinate
-        all_columns = set()
-        for step_times in step_data.values():
-            all_columns.update(step_times.keys())
+        # Aggiungi la nuova colonna in fondo se non esiste già
+        if column_key not in existing_columns:
+            existing_columns.append(column_key)
         
-        # Rimuovi eventuali stringhe vuote
-        all_columns.discard('')
-        
-        # Ordina le colonne: prima per Q, poi per T
-        def sort_key(col):
-            try:
-                # Gestisci il formato "Q2-T0"
-                parts = col.replace('Q', '').replace('T', '-').split('-')
-                if len(parts) == 2 and parts[0] and parts[1]:
-                    return (int(parts[0]), int(parts[1]))
-            except (ValueError, IndexError):
-                pass
-            return (9999, 9999)  # Metti in fondo gli elementi non parsabili
-        
-        sorted_columns = sorted(all_columns, key=sort_key)
-        
-        # Ordina gli step in modo intelligente
+        # Ordina gli step
         def step_sort_key(step_name):
             try:
                 step_name_str = str(step_name)
-                # Estrae il numero dello step dal nome (es. "0> Image Input" -> 0)
                 if '>' in step_name_str:
                     step_num = int(step_name_str.split('>')[0])
                     if timer_type == "InStep":
@@ -257,25 +242,22 @@ class TimerSNP:
                     else:
                         return (step_num, 0)
                 else:
-                    # Per PerStep, il nome è solo un numero
                     return (int(step_name_str), 0)
-            except (ValueError, IndexError):
+            except:
                 return (999999, 0)
         
         sorted_steps = sorted(step_data.keys(), key=step_sort_key)
         
-        # Scrivi il CSV
+        # Scrivi il CSV con le colonne nell'ordine di esecuzione
         with open(csv_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             
-            # Intestazione
-            header = ['Step'] + sorted_columns
+            header = ['Step'] + existing_columns
             writer.writerow(header)
             
-            # Dati per ogni step
             for step in sorted_steps:
                 row = [step]
-                for col in sorted_columns:
+                for col in existing_columns:
                     time_value = step_data[step].get(col, '')
                     row.append(f"{time_value:.3f}" if time_value != '' else '')
                 writer.writerow(row)
