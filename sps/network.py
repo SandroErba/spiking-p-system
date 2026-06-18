@@ -90,7 +90,7 @@ def train_SNPS(system, device, x_train, y_train):
         np.save("/tmp/pooling_gpu.npy", pooling)
         print("saved to /tmp/pooling_gpu.npy")
 
-        return train_external_models(pooling, y_train, device)
+        return train_external_models(pooling, y_train, device,system)
 
     elif system == "MSNPSystemExactGPU":
         SNPS_exact_csv()
@@ -137,72 +137,35 @@ def train_SNPS(system, device, x_train, y_train):
 
 
 
-def train_external_models(charges, y_train, device='cpu',system=""):
-    # Determina se usare GPU o CPU
-    use_gpu = (device in ['gpu', 'cuda']) and torch.cuda.is_available()
+def train_external_models(charges, y_train, device='cpu', system=""):
+    # Determina se usa GPU o CPU
+    from sklearn.svm import LinearSVC
+    from sklearn.linear_model import LogisticRegression
     
-    if use_gpu:
-        # from sps.classifiers_gpu import LogisticRegressionGPU, SVMGPU
-        timerTraining = TimerSNP(10,"TRAINING_time_GPU",True)
-        timerTraining.start_step("Conversioni")
-        # Converti in tensori PyTorch su GPU
-        if isinstance(charges, torch.Tensor):
-            X_tensor = charges.float().to('cuda')
-        else:
-            X_tensor = torch.tensor(charges, dtype=torch.float32, device='cuda')
-            
-        if isinstance(y_train, torch.Tensor):
-            y_tensor = y_train.long().to('cuda')
-        else:
-            y_tensor = torch.tensor(y_train, dtype=torch.long, device='cuda')
-        
-        input_dim = X_tensor.shape[1]
-        num_classes = len(torch.unique(y_tensor))
-        
-        print(f"Training on GPU: samples={X_tensor.shape[0]}, features={input_dim}, classes={num_classes}")
-        timerTraining.end_step()
-        
-        # Support Vector Machine (GPU) - Soluzione esatta con Ridge Regression
-        timerTraining.start_step("SVM training on GPU")
-        print("Training SVM on GPU...")
-        svm = SVMGPU(input_dim, num_classes, device='cuda')
-        svm.fit(X_tensor, y_tensor, C=Config.SVM_C, verbose=True)
-        print("SVM done")
-        timerTraining.end_step()
-        
-        timerTraining.start_step("LogReg training on GPU")
-        # Logistic Regression (GPU) - Soluzione esatta con Ridge Regression
-        print("Training LogReg on GPU...")
-        logreg = LogisticRegressionGPU(input_dim, num_classes, device='cuda')
-        logreg.fit(X_tensor, y_tensor, C=1.0, verbose=True)
-        print("LogReg done")
-        timerTraining.end_step()
-        timerTraining.export_to_csv(True)
-        
-        return svm, logreg
-    else:
-        # Fallback CPU con scikit-learn (codice originale)
-        from sklearn.svm import LinearSVC
-        from sklearn.linear_model import LogisticRegression
-        timerTraining = TimerSNP(10,f"T{Config.TIME_TEST_NUM}_TRAINING_time_{system}",False)
-        #Support Vector Machine
-        timerTraining.start_step("Training SVM")
-        svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
-        svm.fit(charges, y_train)
-        print("SVM done")
-        timerTraining.end_step()
-        
-        timerTraining.start_step("Training LogReg")
-        #Logistic Regression
-        logreg = LogisticRegression(
-            solver="lbfgs",
-            max_iter=100000
-        )
-        logreg.fit(charges, y_train)
-        print("LogReg done")
-        timerTraining.end_step()
-        timerTraining.export_to_csv(True)
-        return svm, logreg
+    timerTraining = TimerSNP(10, f"T{Config.TIME_TEST_NUM}_TRAINING_time_{system}", False)
+    
+    # Support Vector Machine
+    timerTraining.start_step(f"Q:{Config.Q_RANGE}_T:{Config.TIME_TEST_NUM}_S{Config.TRAIN_SIZE}_{system}_TRAINING_SVM")
+    svm = LinearSVC(C=Config.SVM_C, max_iter=10000)
+    svm.fit(charges, y_train)
+    print("SVM done")
+    timerTraining.end_step()
+    
+    # Logistic Regression
+    timerTraining.start_step(f"Q:{Config.Q_RANGE}_T:{Config.TIME_TEST_NUM}_S{Config.TRAIN_SIZE}_{system}_TRAINING_LogReg")
+    logreg = LogisticRegression(
+        solver="lbfgs",
+        max_iter=100000
+    )
+    logreg.fit(charges, y_train)
+    print("LogReg done")
+    timerTraining.end_step()
+    
+    # Esporta sia nel formato originale che nel nuovo formato
+    timerTraining.export_to_csv(True)
+    timerTraining.export_training_times(system)  # Nuovo formato organizzato
+    
+    return svm, logreg
 
 
 def test_SNPS(system, device, x_test, y_test, svm, logreg):

@@ -58,13 +58,30 @@ class MSNPSystemExactGPU:
         self.max_steps = max_steps
         self.deterministic = deterministic
 
+        # Determina il nome del sistema e la fase
         if self.device == torch.device('cuda'):
-            self.timerInStep = TimerSNP(self.max_steps*10,debugMode+f"_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_InStep_MSNPSystem_GPU",True)
-            self.timerPerStep = TimerSNP(self.max_steps,debugMode+f"_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_PerStep_MSNPSystem_GPU",True)
-        else:    
-            self.timerInStep = TimerSNP(self.max_steps*10,debugMode+f"_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_InStep_MSNPSystem_CPU",False)
-            self.timerPerStep = TimerSNP(self.max_steps,debugMode+f"_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_PerStep_MSNPSystem_CPU",False)
-
+            system_name = "MSNPSystem_GPU"
+            use_cuda_timer = True
+        else:
+            system_name = "MSNPSystem_CPU"
+            use_cuda_timer = False
+        
+        # debugMode conterrà "TRAIN" o "TEST"
+        # Esempio: "TRAIN" o "TEST"
+        self._system_name = system_name
+        self._phase = debugMode  # "TRAIN" o "TEST"
+        
+        self.timerInStep = TimerSNP(
+            self.max_steps * 10,
+            f"{debugMode}_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_InStep_{system_name}",
+            use_cuda_timer
+        )
+        self.timerPerStep = TimerSNP(
+            self.max_steps,
+            f"{debugMode}_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_PerStep_{system_name}",
+            use_cuda_timer
+        )
+        
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
         #self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
         #self.synapsesMatrix = torch.tensor(synapsesMatrix, dtype=self.dtype, device=self.device)
