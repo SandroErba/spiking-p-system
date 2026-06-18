@@ -61,30 +61,27 @@ class TimerSNP:
     
     def export_training_times(self, system_name):
         """
-        Esporta i tempi di training in un CSV organizzato per Q_RANGE e TEST_NUM.
-        Le colonne rappresentano Q2-T0, Q2-T1, Q2-T2, Q3-T0, ...
-        Le righe rappresentano SVM e LogReg per ciascuna dimensione (TRAIN_SIZE).
+        Esporta i tempi di training in un CSV.
+        Le colonne seguono l'ordine naturale di esecuzione.
         """
         base_dir = Path(__file__).parent.parent
         csv_path = base_dir / self.DIR_NAME / f"training_times_{system_name}.csv"
         csv_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Raccogli i dati dal buffer corrente
-        training_data = {}  # {Q_RANGE: {TEST_NUM: {TRAIN_SIZE: {'SVM': time, 'LogReg': time}}}}
+        training_data = {}
         
         for i in range(self._index):
             if self._buffer[i] is not None:
                 step_name = str(self._step_names[i])
                 time_ms = self._buffer[i]
                 
-                # Estrai le informazioni dal nome dello step
                 if 'TRAINING' in step_name:
                     try:
                         parts = step_name.split('_')
                         q_range = int(parts[0].split(':')[1])
                         test_num = int(parts[1].split(':')[1])
                         train_size = int(parts[2].split('S')[1])
-                        model_type = parts[-1]  # SVM o LogReg
+                        model_type = parts[-1]
                         
                         if q_range not in training_data:
                             training_data[q_range] = {}
@@ -101,15 +98,14 @@ class TimerSNP:
             print("No training data to export")
             return
         
-        # Carica dati esistenti dal file CSV
-        existing_data = {}  # {(size, model): {colonna: valore}}
+        existing_data = {}
         existing_columns = []
         
         if csv_path.exists():
             try:
                 with open(csv_path, 'r', newline='') as csvfile:
                     reader = csv.DictReader(csvfile)
-                    existing_columns = [c for c in reader.fieldnames[2:] if c]  # Salta 'Size' e 'Model'
+                    existing_columns = [c for c in reader.fieldnames[2:] if c]
                     for row in reader:
                         key = (row['Size'], row['Model'])
                         existing_data[key] = {}
@@ -124,7 +120,6 @@ class TimerSNP:
                 existing_data = {}
                 existing_columns = []
         
-        # Unisci i nuovi dati con quelli esistenti
         for q_range in training_data:
             for test_num in training_data[q_range]:
                 col_name = f"Q{q_range}-T{test_num}"
@@ -139,33 +134,17 @@ class TimerSNP:
                                 existing_data[key] = {}
                             existing_data[key][col_name] = time_value
         
-        # Ordina le colonne
-        def sort_key(col):
-            try:
-                parts = col.replace('Q', '').replace('T', '-').split('-')
-                if len(parts) == 2 and parts[0] and parts[1]:
-                    return (int(parts[0]), int(parts[1]))
-            except (ValueError, IndexError):
-                pass
-            return (9999, 9999)
-        
-        sorted_columns = sorted(existing_columns, key=sort_key)
-        
-        # Trova tutte le combinazioni size/model
         all_keys = sorted(existing_data.keys(), key=lambda x: (int(x[0][1:]), x[1]))
         
-        # Scrivi il CSV
         with open(csv_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             
-            # Intestazione
-            header = ['Size', 'Model'] + sorted_columns
+            header = ['Size', 'Model'] + existing_columns
             writer.writerow(header)
             
-            # Dati
             for key in all_keys:
                 row = list(key)
-                for col in sorted_columns:
+                for col in existing_columns:
                     time_value = existing_data[key].get(col, '')
                     row.append(f"{time_value:.3f}" if time_value != '' else '')
                 writer.writerow(row)
