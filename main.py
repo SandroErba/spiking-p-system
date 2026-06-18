@@ -290,10 +290,11 @@ try:
     print("\n" + "="*60)
     print("FASE 1: ESECUZIONE DI TUTTI GLI SNPS CPU")
     print("="*60)
-    
-    for Q_RANGE in range(2, Q_LIMIT + 1):
-        for TEST_NUM in range(0, TEST_PER_Q):
-            for size in sizes:
+
+    for size in sizes:
+        for Q_RANGE in range(2, Q_LIMIT + 1):
+            for TEST_NUM in range(0, TEST_PER_Q):
+            
                 reset_gpu_for_rerun()
                 SEED = SEEDS[TEST_NUM]
                 
@@ -312,8 +313,8 @@ try:
     print("FASE 2: ESECUZIONE DI TUTTI GLI MSNPS GPU")
     print("="*60)
     
-    for Q_RANGE in range(2, Q_LIMIT + 1):
-        for size in sizes:
+    for size in sizes:
+        for Q_RANGE in range(2, Q_LIMIT + 1):
             for TEST_NUM in range(0, TEST_PER_Q):
                 reset_gpu_for_rerun()
                 kill_all_cuda_contexts()
@@ -334,8 +335,8 @@ try:
     print("FASE 3: ESECUZIONE DI TUTTI GLI MSNPS CPU")
     print("="*60)
     
-    for Q_RANGE in range(2, Q_LIMIT + 1):
-        for size in sizes:
+    for size in sizes:
+        for Q_RANGE in range(2, Q_LIMIT + 1):
             for TEST_NUM in range(0, TEST_PER_Q):
                 reset_gpu_for_rerun()
                 kill_all_cuda_contexts()
