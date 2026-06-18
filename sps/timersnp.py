@@ -69,19 +69,18 @@ class TimerSNP:
         csv_path = base_dir / self.DIR_NAME / f"training_times_{system_name}.csv"
         csv_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Raccogli i dati dal buffer
+        # Raccogli i dati dal buffer corrente
         training_data = {}  # {Q_RANGE: {TEST_NUM: {TRAIN_SIZE: {'SVM': time, 'LogReg': time}}}}
         
         for i in range(self._index):
             if self._buffer[i] is not None:
-                step_name = self._step_names[i]
+                step_name = str(self._step_names[i])
                 time_ms = self._buffer[i]
                 
                 # Estrai le informazioni dal nome dello step
-                # Formato atteso: "Q:{Q_RANGE}_T:{TEST_NUM}_S{TRAIN_SIZE}_{SYSTEM}_TRAINING_SVM" o "_LogReg"
-                parts = step_name.split('_')
-                if len(parts) >= 5 and 'TRAINING' in step_name:
+                if 'TRAINING' in step_name:
                     try:
+                        parts = step_name.split('_')
                         q_range = int(parts[0].split(':')[1])
                         test_num = int(parts[1].split(':')[1])
                         train_size = int(parts[2].split('S')[1])
@@ -98,39 +97,78 @@ class TimerSNP:
                     except:
                         continue
         
-        # Organizza i dati per il CSV
         if not training_data:
             print("No training data to export")
             return
         
-        # Trova tutte le combinazioni uniche
-        q_ranges = sorted(training_data.keys())
-        test_nums = sorted(set(tn for q in training_data for tn in training_data[q]))
-        train_sizes = sorted(set(ts for q in training_data for tn in training_data[q] for ts in training_data[q][tn]))
+        # Carica dati esistenti dal file CSV
+        existing_data = {}  # {(size, model): {colonna: valore}}
+        existing_columns = []
         
-        # Crea le intestazioni delle colonne
-        columns = []
-        for q in q_ranges:
-            for t in test_nums:
-                columns.append(f"Q{q}-T{t}")
+        if csv_path.exists():
+            try:
+                with open(csv_path, 'r', newline='') as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    existing_columns = [c for c in reader.fieldnames[2:] if c]  # Salta 'Size' e 'Model'
+                    for row in reader:
+                        key = (row['Size'], row['Model'])
+                        existing_data[key] = {}
+                        for col in existing_columns:
+                            if row.get(col):
+                                try:
+                                    existing_data[key][col] = float(row[col])
+                                except ValueError:
+                                    pass
+            except Exception as e:
+                print(f"Error loading existing training times: {e}")
+                existing_data = {}
+                existing_columns = []
+        
+        # Unisci i nuovi dati con quelli esistenti
+        for q_range in training_data:
+            for test_num in training_data[q_range]:
+                col_name = f"Q{q_range}-T{test_num}"
+                if col_name not in existing_columns:
+                    existing_columns.append(col_name)
+                for train_size in training_data[q_range][test_num]:
+                    for model in ['SVM', 'LogReg']:
+                        time_value = training_data[q_range][test_num][train_size].get(model)
+                        if time_value is not None:
+                            key = (f"S{train_size}", model)
+                            if key not in existing_data:
+                                existing_data[key] = {}
+                            existing_data[key][col_name] = time_value
+        
+        # Ordina le colonne
+        def sort_key(col):
+            try:
+                parts = col.replace('Q', '').replace('T', '-').split('-')
+                if len(parts) == 2 and parts[0] and parts[1]:
+                    return (int(parts[0]), int(parts[1]))
+            except (ValueError, IndexError):
+                pass
+            return (9999, 9999)
+        
+        sorted_columns = sorted(existing_columns, key=sort_key)
+        
+        # Trova tutte le combinazioni size/model
+        all_keys = sorted(existing_data.keys(), key=lambda x: (int(x[0][1:]), x[1]))
         
         # Scrivi il CSV
         with open(csv_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             
             # Intestazione
-            header = ['Size', 'Model'] + columns
+            header = ['Size', 'Model'] + sorted_columns
             writer.writerow(header)
             
-            # Dati per ogni size e modello
-            for size in train_sizes:
-                for model in ['SVM', 'LogReg']:
-                    row = [f"S{size}", model]
-                    for q in q_ranges:
-                        for t in test_nums:
-                            time_value = training_data.get(q, {}).get(t, {}).get(size, {}).get(model, '')
-                            row.append(f"{time_value:.3f}" if time_value != '' else '')
-                    writer.writerow(row)
+            # Dati
+            for key in all_keys:
+                row = list(key)
+                for col in sorted_columns:
+                    time_value = existing_data[key].get(col, '')
+                    row.append(f"{time_value:.3f}" if time_value != '' else '')
+                writer.writerow(row)
         
         print(f"Training times saved to: {csv_path}")
         return csv_path
