@@ -27,7 +27,9 @@ class SNPSystem:
         #    raise TypeError("SNPSystem expects 3 or 5 positional arguments")
 
         # TIMER FOR PERFORMANCE MEASUREMENT
-        self.timer = TimerSNP(max_steps,debugMode+"_time_SNPSystem")
+        self._phase = debugMode  # "TRAIN" o "TEST"
+        self._system_name = "SNPSystem_CPU"
+        self.timer = TimerSNP(max_steps, debugMode+"_time_SNPSystem")
 
         PNeuron.reset_nid()
         self.input_len = input_len
@@ -90,7 +92,7 @@ class SNPSystem:
                 if self.charge_tracker is not None:
                     self.charge_tracker.finish()
 
-                self.timer.export_to_csv(True)
+                self.timer.export_step_times(self._system_name, "PerStep", self._phase)
 
                 if Config.MODE == "generative":
                     print("Spike fired at time step", self.output[0], "and time step", self.output[1], ". The output is", self.output[1] - self.output[0])
