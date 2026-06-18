@@ -150,14 +150,13 @@ class TimerSNP:
         # Il nome del file ora include la fase
         if timer_type == "InStep":
             filename = f"times_{phase}_InStep_{system_name}_S{size_info}.csv"
-        else:  # PerStep
+        else:
             filename = f"times_{phase}_PerStep_{system_name}_S{size_info}.csv"
         
         csv_path = base_dir / self.DIR_NAME / filename
         csv_path.parent.mkdir(parents=True, exist_ok=True)
-            
+        
         # Raccogli i dati dal buffer
-        # Struttura: {step_name: {column_key: time_ms}}
         step_data = {}
         current_q = Config.Q_RANGE
         current_t = Config.TIME_TEST_NUM
@@ -165,7 +164,7 @@ class TimerSNP:
         
         for i in range(self._index):
             if self._buffer[i] is not None:
-                step_name = self._step_names[i]
+                step_name = str(self._step_names[i])
                 time_ms = self._buffer[i]
                 
                 if step_name not in step_data:
@@ -184,8 +183,11 @@ class TimerSNP:
                         step = row['Step']
                         existing_data[step] = {}
                         for col in existing_columns:
-                            if row[col]:
-                                existing_data[step][col] = float(row[col])
+                            if col and row[col]:  # Verifica che col non sia vuoto
+                                try:
+                                    existing_data[step][col] = float(row[col])
+                                except ValueError:
+                                    pass
             except Exception as e:
                 print(f"Error loading existing step times: {e}")
                 existing_data = {}
@@ -201,34 +203,46 @@ class TimerSNP:
         for step_times in step_data.values():
             all_columns.update(step_times.keys())
         
+        # Rimuovi eventuali stringhe vuote
+        all_columns.discard('')
+        
         # Ordina le colonne: prima per Q, poi per T
         def sort_key(col):
-            parts = col.replace('Q', '').replace('T', '-').split('-')
-            return (int(parts[0]), int(parts[1]))
+            try:
+                # Gestisci il formato "Q2-T0"
+                parts = col.replace('Q', '').replace('T', '-').split('-')
+                if len(parts) == 2 and parts[0] and parts[1]:
+                    return (int(parts[0]), int(parts[1]))
+            except (ValueError, IndexError):
+                pass
+            return (9999, 9999)  # Metti in fondo gli elementi non parsabili
         
         sorted_columns = sorted(all_columns, key=sort_key)
         
         # Ordina gli step in modo intelligente
         def step_sort_key(step_name):
-            # Estrae il numero dello step dal nome (es. "0> Image Input" -> 0)
             try:
-                step_num = int(step_name.split('>')[0])
-                # Per InStep, ordina prima per numero step, poi per sotto-step
-                if timer_type == "InStep":
-                    sub_step = step_name.split('>')[1].strip()
-                    # Ordine personalizzato per i sotto-step
-                    sub_step_order = {
-                        'Image Input': 0,
-                        'Extended Config + Spiking Vector construction': 1,
-                        'NetGain Vector update: smpi @ spikingVec': 2,
-                        'Configuration Vector update': 3,
-                        'Pooling image update': 4
-                    }
-                    sub_order = sub_step_order.get(sub_step, 99)
-                    return (step_num, sub_order)
+                step_name_str = str(step_name)
+                # Estrae il numero dello step dal nome (es. "0> Image Input" -> 0)
+                if '>' in step_name_str:
+                    step_num = int(step_name_str.split('>')[0])
+                    if timer_type == "InStep":
+                        sub_step = step_name_str.split('>')[1].strip()
+                        sub_step_order = {
+                            'Image Input': 0,
+                            'Extended Config + Spiking Vector construction': 1,
+                            'NetGain Vector update: smpi @ spikingVec': 2,
+                            'Configuration Vector update': 3,
+                            'Pooling image update': 4
+                        }
+                        sub_order = sub_step_order.get(sub_step, 99)
+                        return (step_num, sub_order)
+                    else:
+                        return (step_num, 0)
                 else:
-                    return (step_num, 0)
-            except:
+                    # Per PerStep, il nome è solo un numero
+                    return (int(step_name_str), 0)
+            except (ValueError, IndexError):
                 return (999999, 0)
         
         sorted_steps = sorted(step_data.keys(), key=step_sort_key)
