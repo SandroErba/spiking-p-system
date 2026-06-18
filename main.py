@@ -294,6 +294,7 @@ try:
     for Q_RANGE in range(2, Q_LIMIT + 1):
         for TEST_NUM in range(0, TEST_PER_Q):
             for size in sizes:
+                reset_gpu_for_rerun()
                 SEED = SEEDS[TEST_NUM]
                 
                 run_system_test("SNPSystem", "cpu", Q_RANGE, TEST_NUM, SEED, size, 
@@ -314,6 +315,8 @@ try:
     for Q_RANGE in range(2, Q_LIMIT + 1):
         for size in sizes:
             for TEST_NUM in range(0, TEST_PER_Q):
+                reset_gpu_for_rerun()
+                kill_all_cuda_contexts()
                 SEED = SEEDS[TEST_NUM]
                 
                 run_system_test("MSNPSystemExactGPU", "gpu", Q_RANGE, TEST_NUM, SEED, size, 
@@ -334,6 +337,8 @@ try:
     for Q_RANGE in range(2, Q_LIMIT + 1):
         for size in sizes:
             for TEST_NUM in range(0, TEST_PER_Q):
+                reset_gpu_for_rerun()
+                kill_all_cuda_contexts()
                 SEED = SEEDS[TEST_NUM]
                 
                 run_system_test("MSNPSystemExactGPU", "cpu", Q_RANGE, TEST_NUM, SEED, size, 

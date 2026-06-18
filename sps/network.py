@@ -138,7 +138,6 @@ def train_SNPS(system, device, x_train, y_train):
 
 
 def train_external_models(charges, y_train, device='cpu', system=""):
-    # Determina se usa GPU o CPU
     from sklearn.svm import LinearSVC
     from sklearn.linear_model import LogisticRegression
     
@@ -161,9 +160,11 @@ def train_external_models(charges, y_train, device='cpu', system=""):
     print("LogReg done")
     timerTraining.end_step()
     
-    # Esporta sia nel formato originale che nel nuovo formato
-    timerTraining.export_to_csv(True)
-    timerTraining.export_training_times(system)  # Nuovo formato organizzato
+    # NUOVO: Esporta nel formato organizzato
+    timerTraining.export_training_times(system)
+    
+    # VECCHIO: rimuovi o commenta
+    # timerTraining.export_to_csv(True)
     
     return svm, logreg
 

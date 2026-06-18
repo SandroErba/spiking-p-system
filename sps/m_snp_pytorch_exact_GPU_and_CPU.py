@@ -81,7 +81,7 @@ class MSNPSystemExactGPU:
             f"{debugMode}_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_PerStep_{system_name}",
             use_cuda_timer
         )
-        
+
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
         #self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
         #self.synapsesMatrix = torch.tensor(synapsesMatrix, dtype=self.dtype, device=self.device)
@@ -204,8 +204,15 @@ class MSNPSystemExactGPU:
                 print("Computation halts: spiking vector is zero, input is accepted")
                 np.save("/tmp/charge_map_gpu.npy", self.pooling_image.cpu().numpy())
                 print(f"Saved charge_map_gpu: {self.pooling_image.shape}")
-                self.timerInStep.export_to_csv(True)
-                self.timerPerStep.export_to_csv(True)
+                
+                # NUOVO: Esporta i tempi nel formato organizzato per Q e T
+                self.timerInStep.export_step_times(self._system_name, "InStep", self._phase)
+                self.timerPerStep.export_step_times(self._system_name, "PerStep", self._phase)
+                
+                # VECCHIO: rimuovi o commenta queste linee
+                # self.timerInStep.export_to_csv(True)
+                # self.timerPerStep.export_to_csv(True)
+                
                 return True
 
         print("Computation halts: maximum number of steps reached, input is rejected")
