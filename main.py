@@ -1,4 +1,3 @@
-import time
 import os
 import sys
 import traceback
@@ -8,122 +7,15 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 from datetime import datetime
 
-from sps import  other_networks, network, flower_image, digit_image, med_image, handle_csv
+from sps import  network
 from sps.config import Config, database
 import torch
 import gc
-from sps.timersnp import TimerSNP
+import sps.system_measurers
 import random
-import csv
-from pathlib import Path
-
-
-class AccuracyLogger:
-    """Salva le accuracy in un CSV."""
-    
-    DIR_NAME = "results"
-    
-    def __init__(self, filename="accuracy_results.csv", overwrite=True):
-        self.filename = filename
-        self.rows = []
-        self.base_dir = Path.cwd()
-        self.overwrite = overwrite
-        
-        if self.overwrite:
-            self._load_existing_results()
-    
-    def _load_existing_results(self):
-        """Carica i risultati dal file più recente se esiste."""
-        results_dir = self.base_dir / self.DIR_NAME
-        
-        if not results_dir.exists():
-            return
-        
-        base_name = self.filename.replace('.csv', '')
-        existing_files = list(results_dir.glob(f"{base_name}*.csv"))
-        
-        if existing_files:
-            latest_file = max(existing_files, key=lambda x: x.stat().st_mtime)
-            print(f"Loading existing results from: {latest_file}")
-            
-            try:
-                with open(latest_file, 'r') as csvfile:
-                    reader = csv.DictReader(csvfile)
-                    for row in reader:
-                        self.rows.append(row)
-                print(f"Loaded {len(self.rows)} existing results")
-            except Exception as e:
-                print(f"Error loading existing results: {e}")
-                self.rows = []
-    
-    def add_result(self, system, device, q_range, test_num, seed, train_size, test_size, accuracy, error=None):
-        """Aggiunge un risultato."""
-        self.rows.append({
-            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'system': system,
-            'device': device,
-            'Q_RANGE': q_range,
-            'TEST_NUM': test_num,
-            'SEED': seed,
-            'TRAIN_SIZE': train_size,
-            'TEST_SIZE': test_size,
-            'ACCURACY': f"{accuracy:.4f}" if error is None else 'ERROR',
-            'ERROR': str(error)[:200] if error else ''
-        })
-    
-    def save(self):
-        """Salva tutti i risultati in CSV, sovrascrivendo il file precedente se richiesto."""
-        if not self.rows:
-            print("No results to save")
-            return None
-        
-        results_dir = self.base_dir / self.DIR_NAME
-        results_dir.mkdir(parents=True, exist_ok=True)
-        
-        if self.overwrite:
-            csv_path = results_dir / self.filename
-            print(f"Overwriting existing file: {csv_path}")
-        else:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            csv_path = results_dir / f"{self.filename.replace('.csv', '')}_{timestamp}.csv"
-        
-        fieldnames = ['timestamp', 'system', 'device', 'Q_RANGE', 'TEST_NUM', 'SEED', 
-                      'TRAIN_SIZE', 'TEST_SIZE', 'ACCURACY', 'ERROR']
-        
-        with open(csv_path, 'w', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(self.rows)
-        
-        print(f"Accuracy results saved to: {csv_path}")
-        print(f"Total results: {len(self.rows)}")
-        return csv_path
-    
-    def save_backup(self):
-        """Salva una copia di backup con timestamp (opzionale)."""
-        if not self.rows:
-            return None
-        
-        results_dir = self.base_dir / self.DIR_NAME
-        results_dir.mkdir(parents=True, exist_ok=True)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = results_dir / f"{self.filename.replace('.csv', '')}_backup_{timestamp}.csv"
-        
-        fieldnames = ['timestamp', 'system', 'device', 'Q_RANGE', 'TEST_NUM', 'SEED', 
-                      'TRAIN_SIZE', 'TEST_SIZE', 'ACCURACY', 'ERROR']
-        
-        with open(backup_path, 'w', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(self.rows)
-        
-        print(f"Backup saved to: {backup_path}")
-        return backup_path
-
 
 def reset_gpu_for_rerun():
-    """Prepara la GPU per una nuova esecuzione azzerando la memoria."""
+    """Prepare GPU for rerun"""
     
     if torch.cuda.is_available():
         torch.cuda.synchronize()
@@ -166,7 +58,8 @@ def reset_gpu_for_rerun():
 
 
 def kill_all_cuda_contexts():
-    """Metodo nucleare: ricrea il contesto CUDA da zero."""
+    """Start again CUDA environment"""
+    
     if torch.cuda.is_available():
         device_count = torch.cuda.device_count()
         
@@ -186,7 +79,7 @@ def kill_all_cuda_contexts():
 
 
 def emergency_save(generalTimer, accuracyLogger, error_msg=""):
-    """Salvataggio di emergenza dei risultati."""
+    """Emergency save of results"""
     try:
         generalTimer.export_to_csv(False)
         accuracyLogger.save()
@@ -199,8 +92,8 @@ def emergency_save(generalTimer, accuracyLogger, error_msg=""):
             f.write(f"Traceback:\n{traceback.format_exc()}\n")
         
         print(f"\n{'!'*50}")
-        print(f"EMERGENCY SAVE completato!")
-        print(f"Timer e Accuracy salvati")
+        print(f"EMERGENCY SAVE completed!")
+        print(f"Timer and Accuracy saved")
         print(f"Error log: {error_file}")
         print(f"{'!'*50}")
         
@@ -209,7 +102,7 @@ def emergency_save(generalTimer, accuracyLogger, error_msg=""):
 
 
 def run_system_test(system_name, device, Q_RANGE, TEST_NUM, SEED, size, generalTimer, accuracyLogger):
-    """Esegue un singolo test per un sistema specifico."""
+    """ Launch the specified system with given parameters"""
     Config.TRAIN_SIZE = size[0]
     Config.TEST_SIZE = size[1]
     
@@ -267,7 +160,6 @@ def run_system_test(system_name, device, Q_RANGE, TEST_NUM, SEED, size, generalT
 # ============================================================
 
 try:
-    # Inizializzazione
     reset_gpu_for_rerun()
     
     database("digit")
@@ -278,17 +170,17 @@ try:
     TEST_PER_Q = 3
     SEEDS = [42, 999, 1234]
     
-    total_tests = Q_LIMIT * TEST_PER_Q * len(sizes) * 3  # 3 sistemi
-    generalTimer = TimerSNP(total_tests, "ElapsedTimePerSystemAndQrange", True)
-    accuracyLogger = AccuracyLogger("accuracy_results.csv", True)
+    total_tests = Q_LIMIT * TEST_PER_Q * len(sizes) * 3  # 3 systems
+    generalTimer = sps.system_measurers.TimerSNP(total_tests, "ElapsedTimePerSystemAndQrange", True)
+    accuracyLogger = sps.system_measurers.AccuracyLogger("accuracy_results.csv", True)
     
     test_counter = 0
     
     # ========================================================
-    # FASE 1: TUTTI GLI SNPS CPU
+    # PHASE 1: ALL SNPS WITH CPU
     # ========================================================
     print("\n" + "="*60)
-    print("FASE 1: ESECUZIONE DI TUTTI GLI SNPS CPU")
+    print("PHASE 1: EXECUTING ALL SNPS WITH CPU")
     print("="*60)
 
     for size in sizes:
@@ -307,10 +199,10 @@ try:
                     print(f"Partial results saved! ({test_counter} tests completed)")
     
     # ========================================================
-    # FASE 2: TUTTI GLI MSNPS GPU
+    # PHASE 2: ALL MSNPS WITH GPU
     # ========================================================
     print("\n" + "="*60)
-    print("FASE 2: ESECUZIONE DI TUTTI GLI MSNPS GPU")
+    print("PHASE 2: EXECUTING ALL MSNPS WITH GPU")
     print("="*60)
     
     for size in sizes:
@@ -329,10 +221,10 @@ try:
                     print(f"Partial results saved! ({test_counter} tests completed)")
     
     # ========================================================
-    # FASE 3: TUTTI GLI MSNPS CPU
+    # PHASE 3: ALL MSNPS WITH --CPU--
     # ========================================================
     print("\n" + "="*60)
-    print("FASE 3: ESECUZIONE DI TUTTI GLI MSNPS CPU")
+    print("PHASE 3: EXECUTING ALL MSNPS WITH CPU")
     print("="*60)
     
     for size in sizes:
@@ -375,37 +267,3 @@ finally:
     
     print("="*50)
     print("EXECUTION COMPLETED")
-
-# ====== ARCHIVIO =========
-
-# print("="*30)
-# print("SNP System - CPU")
-# #snps = network.create_exact_csv()
-# t = time.perf_counter()
-# network.launch_mnist("SNPSystem", "cpu")
-# print("---> Elapsed:", time.perf_counter() - t)
-
-# print("="*30)
-# print("MSNP System - GPU")
-# t = time.perf_counter()
-# network.launch_mnist("MSNPSystemExactGPU", "gpu")
-# print("---> Elapsed 2:", time.perf_counter() - t)
-# print("="*30)
-# print("MSNP System - CPU")
-
-# t = time.perf_counter()
-# network.launch_mnist("MSNPSystemExactGPU", "cpu")
-# print("---> Elapsed 3:", time.perf_counter() - t)
-
-
-#MSNPSystemDivModGPU, MSNPSystemExactGPU, SNPSystem
-
-#network.launch_mnist_from_csv("SNPS_cnn_external.csv")
-
-#Config.NUM_LAYERS = 6
-#network.launch_mnist_from_csv("SNPS_deep_cnn.csv")
-
-#other_networks.compute_extended() #require halting mode
-#other_networks.compute_divisible_3() #require halting mode
-#other_networks.compute_gen_even() #require generative mode
-#other_networks.prova() #require halting mode

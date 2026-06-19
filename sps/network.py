@@ -15,7 +15,7 @@ from sklearn.svm import LinearSVC
 from sps.m_matrix_executor_div_mod import MatrixExecutor as MatrixExecutorDivMod
 from sps.m_matrix_executor_exact import MatrixExecutor as MatrixExecutorExact
 from sps.classifiers_gpu import LogisticRegressionGPU, SVMGPU
-from sps.timersnp import TimerSNP
+from sps.system_measurers import TimerSNP
 
 #temporary code for create the csv and the SNPS with exact rules for the GPU
 def create_exact_csv():
@@ -74,7 +74,7 @@ def train_SNPS(system, device, x_train, y_train):
     if system == "MSNPSystemDivModGPU":
         snps.load_neurons_from_csv("csv/" + Config.CSV_NAME)
         print("csv loading complete")
-        # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
+        # As second parameter, please pass to translate_to_matrix the used device, cpu or gpu
         #msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device="gpu")
         msnpsDivMod = MatrixExecutorDivMod.translate_to_matrix(snps, device)
         print("translation to matrix complete")
@@ -97,7 +97,7 @@ def train_SNPS(system, device, x_train, y_train):
         snps.load_neurons_from_csv("csv/" + Config.CSV_EXACT_NAME)
         print("csv loading complete")
 
-        # come secondo parametro a translate_to_matrix passa il device, cpu o gpu
+        # As second parameter, please pass to translate_to_matrix the used device, cpu or gpu
         msnpsExact = MatrixExecutorExact.translate_to_matrix(snps, device,"TRAIN")
         print("translation to matrix complete")
         msnpsExact.loadImages(x_train)
@@ -160,11 +160,8 @@ def train_external_models(charges, y_train, device='cpu', system=""):
     print("LogReg done")
     timerTraining.end_step()
     
-    # NUOVO: Esporta nel formato organizzato
+    # Export training times
     timerTraining.export_training_times(system)
-    
-    # VECCHIO: rimuovi o commenta
-    # timerTraining.export_to_csv(True)
     
     return svm, logreg
 

@@ -5,6 +5,108 @@ import csv
 from pathlib import Path
 from sps.config import Config
 
+class AccuracyLogger:
+    """Log accuracy in a CSV file"""
+    
+    DIR_NAME = "results"
+    
+    def __init__(self, filename="accuracy_results.csv", overwrite=True):
+        self.filename = filename
+        self.rows = []
+        self.base_dir = Path.cwd()
+        self.overwrite = overwrite
+        
+        if self.overwrite:
+            self._load_existing_results()
+    
+    def _load_existing_results(self):
+        """Look for previous results"""
+        results_dir = self.base_dir / self.DIR_NAME
+        
+        if not results_dir.exists():
+            return
+        
+        base_name = self.filename.replace('.csv', '')
+        existing_files = list(results_dir.glob(f"{base_name}*.csv"))
+        
+        if existing_files:
+            latest_file = max(existing_files, key=lambda x: x.stat().st_mtime)
+            print(f"Loading existing results from: {latest_file}")
+            
+            try:
+                with open(latest_file, 'r') as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    for row in reader:
+                        self.rows.append(row)
+                print(f"Loaded {len(self.rows)} existing results")
+            except Exception as e:
+                print(f"Error loading existing results: {e}")
+                self.rows = []
+    
+    def add_result(self, system, device, q_range, test_num, seed, train_size, test_size, accuracy, error=None):
+        self.rows.append({
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'system': system,
+            'device': device,
+            'Q_RANGE': q_range,
+            'TEST_NUM': test_num,
+            'SEED': seed,
+            'TRAIN_SIZE': train_size,
+            'TEST_SIZE': test_size,
+            'ACCURACY': f"{accuracy:.4f}" if error is None else 'ERROR',
+            'ERROR': str(error)[:200] if error else ''
+        })
+    
+    def save(self):
+        """Save each results in CSV file, overwriting the previous fine, if necessary"""
+        if not self.rows:
+            print("No results to save")
+            return None
+        
+        results_dir = self.base_dir / self.DIR_NAME
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        if self.overwrite:
+            csv_path = results_dir / self.filename
+            print(f"Overwriting existing file: {csv_path}")
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            csv_path = results_dir / f"{self.filename.replace('.csv', '')}_{timestamp}.csv"
+        
+        fieldnames = ['timestamp', 'system', 'device', 'Q_RANGE', 'TEST_NUM', 'SEED', 
+                      'TRAIN_SIZE', 'TEST_SIZE', 'ACCURACY', 'ERROR']
+        
+        with open(csv_path, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(self.rows)
+        
+        print(f"Accuracy results saved to: {csv_path}")
+        print(f"Total results: {len(self.rows)}")
+        return csv_path
+    
+    def save_backup(self):
+        """Save a backup copy with timestamp (optional)."""
+        if not self.rows:
+            return None
+        
+        results_dir = self.base_dir / self.DIR_NAME
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = results_dir / f"{self.filename.replace('.csv', '')}_backup_{timestamp}.csv"
+        
+        fieldnames = ['timestamp', 'system', 'device', 'Q_RANGE', 'TEST_NUM', 'SEED', 
+                      'TRAIN_SIZE', 'TEST_SIZE', 'ACCURACY', 'ERROR']
+        
+        with open(backup_path, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(self.rows)
+        
+        print(f"Backup saved to: {backup_path}")
+        return backup_path
+
 class TimerSNP:
     DIR_NAME = "times"
     

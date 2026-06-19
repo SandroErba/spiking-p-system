@@ -26,7 +26,7 @@ class MatrixExecutor:
         ruleVector = np.zeros(rule_num, dtype=int)  # exact E goes in mod, div is for all rules in this implementation
         applyingRuleVector = np.zeros((rule_num,), dtype=int)  # which neuron each rule applies to
 
-        # ✅ Build sMpi directly as sparse COO — never allocate dense matrices
+        # Build sMpi directly as sparse COO — never allocate dense matrices
         sparse_rows = []   # rule index
         sparse_cols = []   # neuron index
         sparse_vals = []   # value (spikingTransitionMatrix * synapsesMatrix, but synapses=1 wherever there's an entry)
@@ -80,12 +80,12 @@ class MatrixExecutor:
         sMpi_sparse = torch.sparse_coo_tensor(indices, values, (rule_num, neurons_num))
         sMpi_sparse = sMpi_sparse.coalesce()  # merge duplicate indices by summing
 
-        # Determina single_spike_train in base alla modalità
+        # Define single_spike_train along the Config Mode
         single_spike_train = None
         if Config.MODE != "CNN":
             single_spike_train = SNPSystem.spike_train
 
-        # Crea e ritorna l'istanza di MSNPSystemExactGPU (versione PyTorch)
+        # Create and return instance of MSNPSystemExactGPU (PyTorch version)
         return MSNPSystemExactGPU(
             configurationVector=configurationVector,
             spikingVector=spikingVector,

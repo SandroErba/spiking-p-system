@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from sps.config import Config
-from sps.timersnp import TimerSNP
+from sps.system_measurers import TimerSNP
 
 class MSNPSystemExactGPU:
 
@@ -57,47 +57,15 @@ class MSNPSystemExactGPU:
         self.output_neurons = output_neurons
         self.max_steps = max_steps
         self.deterministic = deterministic
-
-        # Determina il nome del sistema e la fase
-        if self.device == torch.device('cuda'):
-            system_name = "MSNPSystem_GPU"
-            use_cuda_timer = True
-        else:
-            system_name = "MSNPSystem_CPU"
-            use_cuda_timer = False
-        
-        # debugMode conterrà "TRAIN" o "TEST"
-        # Esempio: "TRAIN" o "TEST"
-        self._system_name = system_name
-        self._phase = debugMode  # "TRAIN" o "TEST"
-        
-        self.timerInStep = TimerSNP(
-            self.max_steps * 10,
-            f"{debugMode}_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_InStep_{system_name}",
-            use_cuda_timer
-        )
-        self.timerPerStep = TimerSNP(
-            self.max_steps,
-            f"{debugMode}_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_PerStep_{system_name}",
-            use_cuda_timer
-        )
-
         self.configurationVector = torch.tensor(configurationVector, dtype=self.dtype, device=self.device)
-        #self.spikingTransitionMatrix = torch.tensor(spikingTransitionMatrix, dtype=self.dtype, device=self.device)
-        #self.synapsesMatrix = torch.tensor(synapsesMatrix, dtype=self.dtype, device=self.device)
         self.netGainVector = torch.zeros(neuron_num, dtype=self.dtype, device=self.device)
         self.ruleVector = torch.tensor(ruleVector, dtype=self.dtype, device=self.device)
         self.applyingRuleVector = torch.tensor(applyingRuleVector, dtype=torch.int32, device=self.device)
-
-        #self.sMpi = self.spikingTransitionMatrix * self.synapsesMatrix
         self.sMpi = sMpi_sparse.to(self.device)
 
         if self._needs_float_conversion:
-            # Per CPU int32: tieni sMpi in COO (o formato originale) 
-            # e crea versione float CSR per la moltiplicazione
             self._sMpi_float = self.sMpi.float().to_sparse_csr()
         else:
-            # Per GPU float o CPU float: converti a CSR direttamente
             if self.sMpi.layout == torch.sparse_coo:
                 self.sMpi = self.sMpi.to_sparse_csr()
             self._sMpi_float = None
@@ -118,7 +86,36 @@ class MSNPSystemExactGPU:
         else:
             self.single_spike_train = torch.tensor([], dtype=self.dtype, device=self.device)
 
+        ##################################
+        # TIMER SETUP 
+        #
+        # Define name and phase
+        if self.device == torch.device('cuda'):
+            system_name = "MSNPSystem_GPU"
+            use_cuda_timer = True
+        else:
+            system_name = "MSNPSystem_CPU"
+            use_cuda_timer = False
+        
+        # debugMode will contain "TRAIN" or "TEST"
+        self._system_name = system_name
+        self._phase = debugMode  # "TRAIN" or "TEST"
+        
+        self.timerInStep = TimerSNP(
+            self.max_steps * 10,
+            f"{debugMode}_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_InStep_{system_name}",
+            use_cuda_timer
+        )
+        self.timerPerStep = TimerSNP(
+            self.max_steps,
+            f"{debugMode}_{Config.TRAIN_SIZE}-{Config.TEST_SIZE}_T{Config.TIME_TEST_NUM}_time_PerStep_{system_name}",
+            use_cuda_timer
+        )
+
+        ###################
+
         self.t_step = 0
+      
  
     def loadImages(self, img_spike_train):
         """Load images as spike trains for CNN mode"""
@@ -131,7 +128,8 @@ class MSNPSystemExactGPU:
         
         self.timerInStep.start_step(f"{self.t_step}> Image Input")
         self.timerPerStep.start_step(self.t_step)
-        # 1. Input
+
+        # 1. Input spikes or image in the system -----------------------------------
         if Config.MODE == "CNN":
             if self.t_step < self.img_spike_train.shape[0]:
                 self.configurationVector[self.input_neurons] += self.img_spike_train[self.t_step]
@@ -141,6 +139,7 @@ class MSNPSystemExactGPU:
                 self.configurationVector[self.input_neurons] += spike_value
         self.timerInStep.end_step()
 
+        # 2-3 Calculate extended configuration vector + Spiking vector ------------------------
         self.timerInStep.start_step(f"{self.t_step}> Extended Config + Spiking Vector construction")
         #  Extended config + Spiking vector 
         diff = torch.abs(self.configurationVector[self.neuron_idx_expanded] - self.ruleVector)
@@ -149,8 +148,7 @@ class MSNPSystemExactGPU:
         self.timerInStep.end_step()
         
 
-        # 4. Update configuration
-        #self.netGainVector = self.spikingVector @ self.sMpi #dense
+        # 4. Update netgain vector vector - MATRIX MULTIPLICATION -----------------
         self.timerInStep.start_step(f"{self.t_step}> NetGain Vector update: smpi @ spikingVec")
         if self._needs_float_conversion:
             self.netGainVector = (self.spikingVector.float() @ self._sMpi_float).to(torch.int32)
@@ -158,23 +156,14 @@ class MSNPSystemExactGPU:
             self.netGainVector = self.spikingVector @ self.sMpi
         self.timerInStep.end_step()
 
+        # 5. Configuration Vector update ------------------------------------------
         self.timerInStep.start_step(f"{self.t_step}>Configuration Vector update")
         self.configurationVector += self.netGainVector
         self.timerInStep.end_step()
 
+        # 6. Pooling image update for training
         self.timerInStep.start_step(f"{self.t_step}>Pooling image update")
-        # vecchio metodo
-        # if self.pooling_image is not None:
-        #     # Nel test (10 classi) la propagazione richiede 1 step in più
-        #     offset = 1 if len(self.output_neurons) == Config.CLASSES else 0
-
-        #     if Config.NUM_LAYERS - 4 < self.t_step - offset <= self.testsize + Config.NUM_LAYERS - 4:
-        #         col = (self.t_step - offset) - Config.NUM_LAYERS + 3
-        #         self.pooling_image[:, col] = self.configurationVector[self.output_neurons]
-        #         if len(self.output_neurons) == Config.CLASSES:
-        #             self.configurationVector[self.output_neurons] = 0
-
-        # ++++ Metodo Ottimizzato !!!
+        
         if self.pooling_image is not None:
             t_effective = self.t_step - self._pooling_offset
             
@@ -189,6 +178,17 @@ class MSNPSystemExactGPU:
         self.timerPerStep.end_step()
         self.t_step += 1
         return True
+    
+    # old method for updating pooling image
+    # if self.pooling_image is not None:
+    #     # Nel test (10 classi) la propagazione richiede 1 step in più
+    #     offset = 1 if len(self.output_neurons) == Config.CLASSES else 0
+
+    #     if Config.NUM_LAYERS - 4 < self.t_step - offset <= self.testsize + Config.NUM_LAYERS - 4:
+    #         col = (self.t_step - offset) - Config.NUM_LAYERS + 3
+    #         self.pooling_image[:, col] = self.configurationVector[self.output_neurons]
+    #         if len(self.output_neurons) == Config.CLASSES:
+    #             self.configurationVector[self.output_neurons] = 0
 
     def execute(self, verbose=False, startAgain=True):
         if startAgain:
@@ -205,13 +205,10 @@ class MSNPSystemExactGPU:
                 np.save("/tmp/charge_map_gpu.npy", self.pooling_image.cpu().numpy())
                 print(f"Saved charge_map_gpu: {self.pooling_image.shape}")
                 
-                # NUOVO: Esporta i tempi nel formato organizzato per Q e T
+                
+                # Export times in CSV file
                 self.timerInStep.export_step_times(self._system_name, "InStep", self._phase)
                 self.timerPerStep.export_step_times(self._system_name, "PerStep", self._phase)
-                
-                # VECCHIO: rimuovi o commenta queste linee
-                # self.timerInStep.export_to_csv(True)
-                # self.timerPerStep.export_to_csv(True)
                 
                 return True
 
@@ -245,38 +242,6 @@ class MSNPSystemExactGPU:
 
     def get_applying_rule_vector(self):
         return self.applyingRuleVector.cpu().numpy()
-
-    def to(self, device):
-        new_device = torch.device(device)
-        new_dtype = torch.float32 if new_device.type == 'cuda' else torch.int32
-
-        if new_dtype != self.dtype:
-            self.dtype = new_dtype
-            self.configurationVector = self.configurationVector.to(dtype=self.dtype, device=new_device)
-            self.spikingTransitionMatrix = self.spikingTransitionMatrix.to(dtype=self.dtype, device=new_device)
-            self.synapsesMatrix = self.synapsesMatrix.to(dtype=self.dtype, device=new_device)
-            self.netGainVector = self.netGainVector.to(dtype=self.dtype, device=new_device)
-            self.ruleVector = self.ruleVector.to(dtype=self.dtype, device=new_device)
-            self.sMpi = self.sMpi.to(dtype=self.dtype, device=new_device)
-            self.spikingVector = self.spikingVector.to(dtype=self.dtype, device=new_device)
-            self.single_spike_train = self.single_spike_train.to(dtype=self.dtype, device=new_device)
-            if hasattr(self, 'img_spike_train'):
-                self.img_spike_train = self.img_spike_train.to(dtype=self.dtype, device=new_device)
-        else:
-            self.configurationVector = self.configurationVector.to(new_device)
-            self.spikingTransitionMatrix = self.spikingTransitionMatrix.to(new_device)
-            self.synapsesMatrix = self.synapsesMatrix.to(new_device)
-            self.netGainVector = self.netGainVector.to(new_device)
-            self.ruleVector = self.ruleVector.to(new_device)
-            self.sMpi = self.sMpi.to(new_device)
-            self.spikingVector = self.spikingVector.to(new_device)
-            self.single_spike_train = self.single_spike_train.to(new_device)
-            if hasattr(self, 'img_spike_train'):
-                self.img_spike_train = self.img_spike_train.to(new_device)
-
-        self.applyingRuleVector = self.applyingRuleVector.to(new_device)
-        self.device = new_device
-        return self
 
     def __str__(self):
         return (f"Device: {self.device} (dtype: {self.dtype})\n"

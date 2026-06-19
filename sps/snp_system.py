@@ -6,7 +6,7 @@ from .spike_utils import SpikeEvent, TransformationRule, History
 import csv
 
 from .charge_tracker import ChargeTracker
-from .timersnp import TimerSNP
+from .system_measurers import TimerSNP
 
 class SNPSystem:
     """Spiking Neural P System"""
